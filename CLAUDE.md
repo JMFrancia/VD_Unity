@@ -37,13 +37,13 @@ Unity 6.3 and the current URP / Input System packages are recent enough that rec
 
 Legacy `Input.GetMouseButton` etc. do **not** work — this project uses the new Input System.
 
-### What can be done without the editor
+### Editor access via the Unity MCP
 
-**There is no Unity MCP configured in this project.** An agent can write C# files, ScriptableObject definitions, and asset text — it cannot create GameObjects, wire scene references, assign serialized fields, or press Play.
+**A Unity MCP is configured in this project**, so an agent has editor access, not just file access. Beyond writing C# and asset text, the agent can create and modify GameObjects and components, **assign serialized fields and wire scene references**, create/edit ScriptableObject assets and materials, open/create/save scenes and prefabs, run EditMode/PlayMode tests, drive playmode, take screenshots, and refresh the AssetDatabase. An asset swap (placeholder → real) is an SO-reference edit the agent can make directly.
 
-Consequently: **prefer things that work from code.** Build scenes from code where practical, wire dependencies in `Awake`, and create SO instances via `CreateAssetMenu` so a human can make them in three clicks. When a milestone genuinely needs editor work, say so explicitly and hand it to the user with exact steps rather than pretending it's done.
+Still **prefer data-driven, code-driven setup** where it keeps the project clean — SO instances via `CreateAssetMenu`, scenes buildable from code, dependencies wired in `Awake` — because that keeps behavior in version control and out of hand-wired scene state. But when a milestone genuinely needs editor work (assigning a serialized reference, placing a GameObject, running a test), do it through the MCP rather than handing the user manual steps.
 
-*(If editor access becomes a bottleneck, the previous project used an MCP server — worth revisiting.)*
+*(Before an unfamiliar MCP operation, confirm the tool exists and behaves as expected rather than assuming — the toolset can change.)*
 
 ---
 
@@ -187,3 +187,68 @@ Play `afplay /System/Library/Sounds/Glass.aiff` when a milestone is playable, wh
 - `docs/decisions/` — the original pitch and three Q&A rounds. The spec cites these (R1 #62, R2 #9, etc.); they're the record of *why*.
 
 **The spec was written for a 2D Phaser build.** The design is engine-agnostic and carries over intact — core loop, effect system, economy, VoidPets, UI. What does **not** carry: §2 (platform), §3.1's TypeScript syntax, §14's JSON file inventory (now ScriptableObjects), §12.6's "colored rects" placeholder policy (now primitives), and §16's Vite-specific deferral of the tuning screen — **the inspector solves that one for free.**
+
+<!-- ASSET BOT START -->
+# Asset Bot
+
+Game asset generation with consistency and multi-format support. You interact with Asset Bot through its CLI.
+
+## Quick Start
+
+```bash
+asset-bot status --json              # Project status
+asset-bot generate image --help      # See generation flags
+asset-bot assets list --json         # List all assets
+```
+
+All commands accept `--json` for structured output and `--project <path>` to override project detection. Project path is auto-detected by walking up from the current directory to find `.asset-bot/`.
+
+## Credentials
+
+API keys are read from `.env` in the project root. See `.env.example` for the full list.
+
+## Critical Rules
+
+1. **Literal prompts only.** Image/video/3D models interpret text literally. Never use metaphors or figurative language. Write "knight standing with sword raised above head", not "warrior channeling inner strength".
+
+2. **Style comes from reference images, never from text.** When style refs exist, the text prompt describes only the subject. Refs carry the aesthetic. See `.claude/skills/pipeline/references/CONSISTENT-PIPELINE-REFERENCE.md` for the full policy.
+
+## Before Using Any Command
+
+Read the relevant skill first. Each one documents workflows, constraints, and examples:
+
+```
+.claude/skills/pipeline/               — End-to-end asset pipeline orchestration
+.claude/skills/generate-image/         — 2D image generation
+.claude/skills/generate-pixel-art/     — Pixel art, sprites, tilesets
+.claude/skills/generate-3d/            — 3D model pipeline
+.claude/skills/generate-from-template/ — Template-based generation
+.claude/skills/generate-audio/         — SFX, music, voice
+.claude/skills/generate-multiview/     — Multi-angle views
+.claude/skills/generate-scene/         — 3D scenes / environments
+.claude/skills/manage-assets/          — Asset CRUD, templates, project status
+.claude/skills/ui-kit/                 — UI panel/button/icon sheets
+.claude/skills/marketing-art/          — Store listings, feature graphics
+.claude/skills/rig-animate/            — 3D rigging and animation
+.claude/skills/sync-assets/            — Import/export to game projects
+```
+
+For exact command flags and parameters, see `references/CLI-REFERENCE.md`.
+
+Prompt style guides and API references live in each skill folder under `.claude/skills/*/references/`.
+
+## Extensions
+
+Asset Bot supports project-local extensions under `.asset-bot/extensions/`. Extensions let you add new generation backends or workbench tools without editing Asset Bot itself.
+
+```bash
+asset-bot extension list              # List discovered extensions
+asset-bot extension create <id> --kind generation-adapter   # Scaffold a new adapter
+asset-bot extension create <id> --kind workbench-plugin     # Scaffold a new plugin
+asset-bot extension enable <id>       # Enable an extension
+asset-bot extension validate <id>     # Validate an extension
+asset-bot extension docs              # Regenerate extension reference files
+```
+
+Extensions are `.mjs`-based with no build step required. Use `asset-bot extension ...` commands to manage extension manifests instead of editing `extension.json` by hand. See `.asset-bot/extensions/EXTENSIONS-REFERENCE.md` for details on installed extensions.
+<!-- ASSET BOT END -->

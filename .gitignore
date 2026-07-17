@@ -54,3 +54,8 @@ crashlytics-build.properties
 # OS
 .DS_Store
 Thumbs.db
+.asset-bot/
+
+# Secrets (Asset Bot API keys)
+.env
+.env.local

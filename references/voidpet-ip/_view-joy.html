@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  html,body { margin:0; height:100%; background:#EAEAEA; }
+  model-viewer { width:100vw; height:100vh; --poster-color:#EAEAEA; }
+</style>
+<script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
+</head>
+<body>
+<model-viewer
+  src="pet-joy.glb"
+  camera-controls
+  auto-rotate
+  shadow-intensity="1"
+  exposure="1.1"
+  camera-orbit="35deg 75deg 105%"
+  environment-image="neutral"
+  alt="Joy VoidPet 3D model">
+</model-viewer>
+</body>
+</html>
