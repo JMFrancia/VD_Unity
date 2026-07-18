@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using VoidDay.Core.Model;
 using VoidDay.Data;
 
@@ -15,5 +16,17 @@ namespace VoidDay.Systems
 
         public static StationModel Project(StationSO so, string instanceId) =>
             new StationModel(instanceId, so.stationType, so.displayName, so.width, so.height);
+
+        public static RecipeModel Project(RecipeSO so) =>
+            new RecipeModel(so.id, so.stationType, Flatten(so.inputs), Flatten(so.outputs), so.duration);
+
+        // Drop the SO handle, keep the rule-relevant (id, amount) — Core speaks resource ids, not assets.
+        static IReadOnlyList<ResourceAmount> Flatten(List<Ingredient> ingredients)
+        {
+            var list = new List<ResourceAmount>(ingredients.Count);
+            foreach (var ing in ingredients)
+                list.Add(new ResourceAmount(ing.resource.id, ing.amount));
+            return list;
+        }
     }
 }

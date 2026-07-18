@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace VoidDay.Data
@@ -15,6 +16,13 @@ namespace VoidDay.Data
         [Header("Footprint (§4.1) — 1x1 for now")]
         public int width = 1;
         public int height = 1;
+
+        [Header("Production (§4.3, §5.2)")]
+        [Tooltip("Base job-queue depth (§4.3). Read through the resolve seam; upgrades (M5) and level (M8) add to it.")]
+        public int queueDepth = 3;
+
+        [Tooltip("Recipes available at this station (§5.2). Empty for non-producers (Silo, Order Board).")]
+        public List<RecipeSO> recipes = new();
 
         [Header("Art — real prefab wins; primitive is the placeholder (§12.6/§12.8)")]
         [Tooltip("Real mesh prefab. When assigned, StationView uses it instead of the primitive fallback.")]

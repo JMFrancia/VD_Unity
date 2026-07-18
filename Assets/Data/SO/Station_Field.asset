@@ -16,6 +16,12 @@ MonoBehaviour:
   displayName: Field
   width: 1
   height: 1
+  queueDepth: 3
+  recipes:
+  - {fileID: 11400000, guid: 4cbb2ae5907984befbdce42c831874c4, type: 2}
+  - {fileID: 11400000, guid: cf0778196065a4f48bc2346633afdd23, type: 2}
+  - {fileID: 11400000, guid: 99237293f67804f60b000f2a15412849, type: 2}
+  - {fileID: 11400000, guid: 8d3bf29c16ba14309a9bc84828b4bf3b, type: 2}
   prefab: {fileID: 0}
   placeholderPrimitive: 3
   placeholderScale: {x: 0.9, y: 0.06, z: 0.9}

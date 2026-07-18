@@ -57,7 +57,36 @@ namespace VoidDay.Systems
             Require(!string.IsNullOrWhiteSpace(s.displayName), s, nameof(s.displayName), "must not be empty");
             Require(s.width > 0, s, nameof(s.width), "must be > 0");
             Require(s.height > 0, s, nameof(s.height), "must be > 0");
+            Require(s.queueDepth > 0, s, nameof(s.queueDepth), "must be > 0");
             Require(s.placeholderScale != Vector3.zero, s, nameof(s.placeholderScale), "must not be zero");
+
+            Require(s.recipes != null, s, nameof(s.recipes), "must not be null");
+            foreach (var r in s.recipes)
+            {
+                Require(r != null, s, nameof(s.recipes), "contains a null recipe ref");
+                ValidateRecipe(r, s.stationType);
+            }
+        }
+
+        static void ValidateRecipe(RecipeSO r, string ownerStationType)
+        {
+            Require(!string.IsNullOrWhiteSpace(r.id), r, nameof(r.id), "must not be empty");
+            Require(r.stationType == ownerStationType, r, nameof(r.stationType),
+                $"is '{r.stationType}' but the station referencing it is '{ownerStationType}'");
+            Require(r.outputs != null && r.outputs.Count > 0, r, nameof(r.outputs), "must have at least one output");
+            ValidateIngredients(r, r.inputs, nameof(r.inputs));
+            ValidateIngredients(r, r.outputs, nameof(r.outputs));
+        }
+
+        static void ValidateIngredients(RecipeSO r, System.Collections.Generic.List<Ingredient> list, string field)
+        {
+            Require(list != null, r, field, "must not be null");
+            foreach (var ing in list)
+            {
+                Require(ing.resource != null, r, field, "contains an ingredient with no resource assigned");
+                ValidateResource(ing.resource);
+                Require(ing.amount > 0, r, field, $"ingredient '{ing.resource.id}' amount must be > 0");
+            }
         }
 
         static void Require(bool condition, Object asset, string field, string why)
