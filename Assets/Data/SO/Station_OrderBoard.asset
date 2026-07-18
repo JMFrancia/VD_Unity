@@ -1,0 +1,24 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fb1a50da890254b5ba333fa72eefd095, type: 3}
+  m_Name: Station_OrderBoard
+  m_EditorClassIdentifier: Assembly-CSharp::VoidDay.Data.StationSO
+  stationType: orderBoard
+  displayName: Order Board
+  width: 1
+  height: 1
+  prefab: {fileID: 0}
+  placeholderPrimitive: 3
+  placeholderScale: {x: 0.8, y: 0.65, z: 0.12}
+  placeholderEuler: {x: 0, y: 0, z: 0}
+  placeholderYOffset: 0.33
+  placeholderColor: {r: 0.5411765, g: 0.3529412, b: 0.23529412, a: 1}
