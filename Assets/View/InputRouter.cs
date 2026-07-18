@@ -10,6 +10,7 @@ namespace VoidDay.View
     /// isn't over UI. A hit on a filled queue slot (QueueSlot) → input:jobCancelRequested; otherwise a
     /// hit on a station body (StationView) → input:stationTapped. Queue slots are checked first because they
     /// sit under the same station root, and a tap on a slot means "cancel this job", not "tap the station".
+    /// A tap on empty world (nothing interactive) → input:backgroundTapped, which dismisses an open panel.
     public sealed class InputRouter : MonoBehaviour
     {
         const float TapMoveThresholdPixels = 20f; // beyond this the gesture was a pan, not a tap
@@ -50,18 +51,24 @@ namespace VoidDay.View
         void TryTapStation(Vector2 screenPosition)
         {
             Ray ray = _camera.ScreenPointToRay(screenPosition);
-            if (!Physics.Raycast(ray, out RaycastHit hit, 500f)) return;
-
-            var slot = hit.collider.GetComponentInParent<QueueSlot>();
-            if (slot != null)
+            if (Physics.Raycast(ray, out RaycastHit hit, 500f))
             {
-                _bus.Publish(new JobCancelRequested(slot.StationId, slot.SlotIndex));
-                return;
+                var slot = hit.collider.GetComponentInParent<QueueSlot>();
+                if (slot != null)
+                {
+                    _bus.Publish(new JobCancelRequested(slot.StationId, slot.SlotIndex));
+                    return;
+                }
+
+                var station = hit.collider.GetComponentInParent<StationView>();
+                if (station != null)
+                {
+                    _bus.Publish(new StationTapped(station.Id));
+                    return;
+                }
             }
 
-            var station = hit.collider.GetComponentInParent<StationView>();
-            if (station == null) return;
-            _bus.Publish(new StationTapped(station.Id));
+            _bus.Publish(new BackgroundTapped()); // tapped empty world → dismiss any open panel
         }
 
         static bool IsOverUi() =>

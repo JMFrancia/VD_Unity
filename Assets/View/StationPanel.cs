@@ -75,6 +75,7 @@ namespace VoidDay.View
             popup.gameObject.SetActive(false);
 
             _bus.Subscribe<StationPanelRequested>(OnPanelRequested);
+            _bus.Subscribe<BackgroundTapped>(_ => Close()); // tap off the panel dismisses it
             _bus.Subscribe<JobQueued>(e => RefreshIf(e.StationId));
             _bus.Subscribe<JobStarted>(e => RefreshIf(e.StationId));
             _bus.Subscribe<JobCompleted>(e => RefreshIf(e.StationId));

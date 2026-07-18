@@ -34,6 +34,10 @@ namespace VoidDay.Core.Events
         public JobCancelRequested(string stationId, int jobIndex) { StationId = stationId; JobIndex = jobIndex; }
     }
 
+    /// A tap that landed on empty world — not a station, slot, or UI. Listeners treat it as "dismiss":
+    /// an open panel closes itself. Emitter states what happened (the background was tapped), not the response.
+    public readonly struct BackgroundTapped { }
+
     // Debug intents. §15 defines no debug:* names (open item); each cheat routes through a natural domain
     // effect (add → resource:changed; reset → game:reset) rather than reaching past the bus.
     public readonly struct DebugAddResourceRequested

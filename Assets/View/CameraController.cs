@@ -1,5 +1,7 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using VoidDay.Core.Events;
 
 namespace VoidDay.View
 {
@@ -38,6 +40,15 @@ namespace VoidDay.View
         [Tooltip("World-space distance the focus may pan beyond the map edge before clamping.")]
         public float panMargin = 2f;
 
+        [Header("Auto-center")]
+        [Tooltip("How quickly the camera eases onto a tapped station when its panel opens. Higher = snappier. Exponential, so it moves fast then settles — never an instant snap.")]
+        public float centerSpeed = 9f;
+
+        EventBus _bus;
+        IReadOnlyDictionary<string, Transform> _stationRoots;
+        Vector3 _targetFocus;
+        bool _centering;
+
         Camera _camera;
         Vector3 _focus;
         float _halfExtentX;
@@ -50,16 +61,36 @@ namespace VoidDay.View
 
         /// Grid extents (world units) come from game data so the camera knows its pan bounds without
         /// depending on GameConfigSO — the only thing it needs from the economy layer.
-        public void Init(Vector3 focus, float gridWorldWidth, float gridWorldDepth)
+        public void Init(Vector3 focus, float gridWorldWidth, float gridWorldDepth,
+            EventBus bus, IReadOnlyDictionary<string, Transform> stationRoots)
         {
             _camera = GetComponent<Camera>();
             _camera.orthographic = true;
             _halfExtentX = gridWorldWidth * 0.5f;
             _halfExtentZ = gridWorldDepth * 0.5f;
             _focus = focus;
+            _bus = bus;
+            _stationRoots = stationRoots;
             _initialized = true;
+
+            _bus.Subscribe<StationPanelRequested>(OnPanelRequested);
+
             ClampFocus();
             ApplyCamera();
+        }
+
+        void OnDestroy()
+        {
+            _bus?.Unsubscribe<StationPanelRequested>(OnPanelRequested);
+        }
+
+        /// The panel is opening over this station — ease it to screen center so the popup isn't cut off.
+        void OnPanelRequested(StationPanelRequested e)
+        {
+            if (!_stationRoots.TryGetValue(e.StationId, out var root)) return;
+            _targetFocus = root.position;
+            _targetFocus.y = 0f;
+            _centering = true;
         }
 
         void Update()
@@ -68,8 +99,24 @@ namespace VoidDay.View
             UpdatePan();
             UpdatePinchZoom();
             UpdateDesktopZoom();
+            UpdateCentering();
             ClampFocus();
             ApplyCamera(); // apply every frame so live inspector edits to framing take effect
+        }
+
+        /// Exponential ease toward the tapped station — quick, then settling. A drag (which sets _dragging)
+        /// hands control back to the player and cancels the ease.
+        void UpdateCentering()
+        {
+            if (!_centering) return;
+            if (_dragging) { _centering = false; return; }
+
+            _focus = Vector3.Lerp(_focus, _targetFocus, 1f - Mathf.Exp(-centerSpeed * Time.deltaTime));
+            if ((_focus - _targetFocus).sqrMagnitude < 0.0001f)
+            {
+                _focus = _targetFocus;
+                _centering = false;
+            }
         }
 
         /// Desktop/WebGL zoom: mouse scroll (one step per notch) and -/= keys (continuous while held).
