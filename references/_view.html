@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>VoidDay — model preview</title>
+<style>
+  html,body { margin:0; background:#EAEAEA; font-family:system-ui,sans-serif; }
+  h2 { text-align:center; color:#333; margin:12px 0 0; font-weight:600; }
+  .grid { display:flex; flex-wrap:wrap; gap:16px; padding:16px; justify-content:center; }
+  .card { background:#f4f4f4; border-radius:16px; box-shadow:0 2px 10px rgba(0,0,0,.12); overflow:hidden; }
+  .card h3 { margin:0; padding:10px 14px; font-size:14px; color:#444; background:#e7e7e7; }
+  model-viewer { width:480px; height:480px; background:#EAEAEA; }
+  @media (max-width:520px){ model-viewer{ width:92vw; height:92vw; } }
+</style>
+<script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
+</head>
+<body>
+<style>
+  .pair { display:flex; gap:14px; align-items:center; flex-wrap:wrap; justify-content:center;
+          background:#f4f4f4; border-radius:16px; padding:12px 18px; box-shadow:0 2px 10px rgba(0,0,0,.12); }
+  .pair .name { width:110px; font-weight:700; font-size:16px; color:#333; }
+  .pair .cap { font-size:12px; color:#777; text-align:center; margin-bottom:4px; letter-spacing:.03em; text-transform:uppercase; }
+  .pair img { width:300px; height:300px; object-fit:contain; background:#EAEAEA; border-radius:8px; }
+  .pair .arrow { font-size:30px; color:#b0b0b0; }
+  .pairs { display:flex; flex-direction:column; gap:18px; padding:16px; max-width:820px; margin:0 auto; }
+</style>
+<h2>Original IP drawing ↔ Nano Banana concept</h2>
+<div class="pairs">
+  <div class="pair"><div class="name">Cringe</div>
+    <div><div class="cap">original IP</div><img src="voidpet-ip/pet-cringe.png"></div>
+    <div class="arrow">→</div>
+    <div><div class="cap">concept</div><img src="2d-review/concept-cringe.png"></div></div>
+  <div class="pair"><div class="name">Grumpy</div>
+    <div><div class="cap">original IP</div><img src="voidpet-ip/pet-grumpy.png"></div>
+    <div class="arrow">→</div>
+    <div><div class="cap">concept</div><img src="2d-review/concept-grumpy.png"></div></div>
+  <div class="pair"><div class="name">Merry</div>
+    <div><div class="cap">original IP</div><img src="voidpet-ip/pet-merry.png"></div>
+    <div class="arrow">→</div>
+    <div><div class="cap">concept</div><img src="2d-review/concept-merry.png"></div></div>
+  <div class="pair"><div class="name">Apathy</div>
+    <div><div class="cap">original IP</div><img src="voidpet-ip/pet-apathy.png"></div>
+    <div class="arrow">→</div>
+    <div><div class="cap">concept</div><img src="2d-review/concept-apathy.png"></div></div>
+  <div class="pair"><div class="name">Wonder</div>
+    <div><div class="cap">original IP</div><img src="voidpet-ip/pet-wonder.png"></div>
+    <div class="arrow">→</div>
+    <div><div class="cap">concept</div><img src="2d-review/concept-wonder.png"></div></div>
+  <div class="pair"><div class="name">Conviction</div>
+    <div><div class="cap">original IP</div><img src="voidpet-ip/pet-conviction.png"></div>
+    <div class="arrow">→</div>
+    <div><div class="cap">concept</div><img src="2d-review/concept-conviction.png"></div></div>
+</div>
+
+<h2>VoidDay — 3D test models</h2>
+<div class="grid">
+  <div class="card">
+    <h3>Henhouse — lowpoly, textured (8,013 tris)</h3>
+    <model-viewer src="stations/station-henhouse.glb" camera-controls auto-rotate
+      shadow-intensity="1" exposure="1.1" camera-orbit="30deg 72deg 105%" environment-image="neutral"></model-viewer>
+  </div>
+  <div class="card">
+    <h3>Joy v2 — concept-first, lowpoly textured (19k tris) ⭐</h3>
+    <model-viewer src="voidpet-ip/pet-joy-v2.glb" camera-controls auto-rotate
+      shadow-intensity="1" exposure="1.1" camera-orbit="30deg 72deg 105%" environment-image="neutral"></model-viewer>
+  </div>
+  <div class="card">
+    <h3>Joy v1 — retextured (30k tris, geometry from FLAT silhouette)</h3>
+    <model-viewer src="voidpet-ip/pet-joy-textured.glb" camera-controls auto-rotate
+      shadow-intensity="1" exposure="1.1" camera-orbit="30deg 72deg 105%" environment-image="neutral"></model-viewer>
+  </div>
+</div>
+
+<h2>Creature batch — Recipe A (untextured lowpoly, meshy-6) ⬇ REVIEW THESE</h2>
+<div class="grid">
+  <div class="card"><h3>Cringe — 15,737 tris</h3>
+    <model-viewer src="voidpet-ip/pet-cringe.glb" camera-controls auto-rotate
+      shadow-intensity="1" exposure="1.1" camera-orbit="30deg 72deg 115%" environment-image="neutral"></model-viewer></div>
+  <div class="card"><h3>Grumpy — 16,908 tris</h3>
+    <model-viewer src="voidpet-ip/pet-grumpy.glb" camera-controls auto-rotate
+      shadow-intensity="1" exposure="1.1" camera-orbit="30deg 72deg 115%" environment-image="neutral"></model-viewer></div>
+  <div class="card"><h3>Merry — (pending)</h3>
+    <model-viewer src="voidpet-ip/pet-merry.glb" camera-controls auto-rotate
+      shadow-intensity="1" exposure="1.1" camera-orbit="30deg 72deg 115%" environment-image="neutral"></model-viewer></div>
+  <div class="card"><h3>Apathy — 16,820 tris</h3>
+    <model-viewer src="voidpet-ip/pet-apathy.glb" camera-controls auto-rotate
+      shadow-intensity="1" exposure="1.1" camera-orbit="30deg 72deg 115%" environment-image="neutral"></model-viewer></div>
+  <div class="card"><h3>Wonder — 16,130 tris</h3>
+    <model-viewer src="voidpet-ip/pet-wonder.glb" camera-controls auto-rotate
+      shadow-intensity="1" exposure="1.1" camera-orbit="30deg 72deg 115%" environment-image="neutral"></model-viewer></div>
+  <div class="card"><h3>Conviction — 9,234 tris</h3>
+    <model-viewer src="voidpet-ip/pet-conviction.glb" camera-controls auto-rotate
+      shadow-intensity="1" exposure="1.1" camera-orbit="30deg 72deg 115%" environment-image="neutral"></model-viewer></div>
+</div>
+
+<h2>Creature concepts — batch of 6, awaiting 3D (Recipe A) ⬇ REVIEW THESE</h2>
+<div class="grid">
+  <div class="card"><h3>Cringe</h3><img src="2d-review/concept-cringe.png" style="width:320px;height:320px;background:#ddd"></div>
+  <div class="card"><h3>Grumpy</h3><img src="2d-review/concept-grumpy.png" style="width:320px;height:320px;background:#ddd"></div>
+  <div class="card"><h3>Merry</h3><img src="2d-review/concept-merry.png" style="width:320px;height:320px;background:#ddd"></div>
+  <div class="card"><h3>Apathy</h3><img src="2d-review/concept-apathy.png" style="width:320px;height:320px;background:#ddd"></div>
+  <div class="card"><h3>Wonder</h3><img src="2d-review/concept-wonder.png" style="width:320px;height:320px;background:#ddd"></div>
+  <div class="card"><h3>Conviction</h3><img src="2d-review/concept-conviction.png" style="width:320px;height:320px;background:#ddd"></div>
+</div>
+
+<h2>2D images (Nano Banana)</h2>
+<div class="grid">
+  <div class="card"><h3>Wheat icon — candidate 1</h3><img src="2d-review/icon-wheat-01.png" style="width:320px;height:320px;background:#ddd"></div>
+  <div class="card"><h3>Wheat icon — candidate 2</h3><img src="2d-review/icon-wheat-02.png" style="width:320px;height:320px;background:#ddd"></div>
+  <div class="card"><h3>Egg icon</h3><img src="2d-review/icon-egg-01.png" style="width:320px;height:320px;background:#ddd"></div>
+  <div class="card"><h3>Henhouse concept (fed the 3D)</h3><img src="2d-review/concept-henhouse.png" style="width:320px;height:320px;background:#ddd"></div>
+  <div class="card"><h3>Joy concept (fed the good 3D)</h3><img src="2d-review/concept-joy.png" style="width:320px;height:320px;background:#ddd"></div>
+</div>
+</body>
+</html>

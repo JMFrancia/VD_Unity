@@ -1,0 +1,78 @@
+# VoidDay — Asset Generation Progress & Handoff
+
+_Working log for the Asset Bot ⇄ Meshy/Nano Banana pipeline. Resume from here._
+
+## Setup (done)
+- Asset Bot initialized in this repo (`.asset-bot/`). Keys in `.env` (gitignored). Both authenticate.
+- **2D = Nano Banana** (Google GenAI). Billing is ON (free tier was blocked at first). Works.
+- **3D = Meshy via the official Meshy MCP server** (`@meshy-ai/meshy-mcp-server`, user scope). Asset Bot's own `generate 3d` CANNOT use the Meshy key (it routes through fal/Tripo) — so all 3D goes through the MCP tools (`meshy_image_to_3d`, `meshy_text_to_3d`, `meshy_retexture`, etc.).
+- Meshy balance: ~**977 credits** remaining (started 1052).
+
+## HARD RULES
+- **All 3D models must be LOW POLY** (WebGL target). Use `model_type:"lowpoly"` on every Meshy call; verify triangle count. Henhouse=8k ✓, Joy v2=19k (can decimate further).
+- Prompts literal; **style from reference images, not text**; void accent (`#8B5CF6`) only on void things.
+
+## THE WORKING 3D RECIPE (proven)
+**Concept-first is mandatory** — raw flat IP silhouettes reconstruct into garbage (Joy v1 = foil blob). Do:
+1. **Nano Banana** → shaded, dimensional 3/4 hero render (real volume + StyleGuide palette). For creatures, feed the flat `pet-*.png` as `--refs` (absolute path!) so shape/identity is preserved.
+2. **Meshy `image_to_3d`**, `model_type:"lowpoly"`, `target_formats:["glb"]`.
+   - **Textured** (`should_texture:true`) = **30 credits**, but color came back WASHED OUT/pale (Meshy `remove_lighting` default strips the near-black). 
+   - **Untextured** (`should_texture:false`) = **5 credits**, and matches StyleGuide (creatures are near-black tint + emissive, material applied in Unity). **Recommended for creatures.**
+
+### Cost facts (corrected — verified 2026-07-17)
+- `image_to_3d` price is set by **model tier**, NOT by texturing: **meshy-6/latest = 20 cr, meshy-5 = 5 cr** (base). Texturing on meshy-6 added ~10 (Joy v2 textured = 30 cr; the 6 untextured meshy-6 creatures = 20 cr each). The earlier "untextured = 5 cr" was an untested estimate — real untextured meshy-6 = **20 cr**.
+- `retexture` = 10 cr · `text_to_3d` preview = 5–20, +refine 10.
+- Nano Banana image ≈ $0.02–0.04 each.
+- This batch: 6 concepts (NB, ~$0.18) + 6× meshy-6 untextured = **120 cr**. Balance ~977 → ~857.
+
+## Species (7 chosen, IP sheet cropped)
+Cringe, Grumpy, Merry, Apathy, Wonder, Conviction, Joy.
+Individual flat refs: `references/voidpet-ip/pet-<species>.png` (+ `voidpets-sheet.png`).
+
+## Assets generated so far
+| Asset | File | Status |
+|---|---|---|
+| Wheat icon ×2 | `references/2d-review/icon-wheat-0{1,2}.png` | test, has glow-halo artifact |
+| Egg icon | `references/2d-review/icon-egg-01.png` | test |
+| Henhouse concept (2D) | `references/2d-review/concept-henhouse.png` | ✅ good |
+| Henhouse 3D | `references/stations/station-henhouse.glb` (+`_base_color.png`) | ✅ **keeper**, 8k tris, textured. Task `019f717c` |
+| Joy concept (2D) | `references/2d-review/concept-joy.png` | ✅ good |
+| Joy v2 3D | `references/voidpet-ip/pet-joy-v2.glb` (+`_base_color.png`) | ✅ good geometry, 19k tris, color washed out. Task `019f7185` |
+| Joy v1 3D | `references/voidpet-ip/pet-joy-textured.glb` | ❌ bad (flat-silhouette proof) |
+| Cringe 3D | `references/voidpet-ip/pet-cringe.glb` (concept `concept-cringe.png`) | ✅ **15,737 tris**, untextured. Task `019f71a7-92d0` |
+| Grumpy 3D | `references/voidpet-ip/pet-grumpy.glb` (concept `concept-grumpy.png`) | ✅ **16,908 tris**, untextured. Task `019f71a7-9ff3` |
+| Merry 3D | `references/voidpet-ip/pet-merry.glb` (concept `concept-merry.png`) | ✅ **18,686 tris**, untextured. Task `019f71a7-a80f` (ran slow, finished fine) |
+| Apathy 3D | `references/voidpet-ip/pet-apathy.glb` (concept `concept-apathy.png`) | ✅ **16,820 tris**, untextured. Task `019f71a7-b3d9` |
+| Wonder 3D | `references/voidpet-ip/pet-wonder.glb` (concept `concept-wonder.png`) | ✅ **16,130 tris**, untextured. Task `019f71a7-bcea` |
+| Conviction 3D | `references/voidpet-ip/pet-conviction.glb` (concept `concept-conviction.png`) | ✅ **9,234 tris**, untextured. Task `019f71a7-c55d` |
+| Henhouse (imported) | Asset Bot record `henhouse` (stations) + `Assets/Art/Models/Stations/station-henhouse.glb` | ✅ **imported** to both |
+
+## Preview / gallery
+Rotatable viewer (relaunch after refresh):
+```bash
+cd "/Users/joefrancia/Desktop/VoidPet/VD_Unity/references" && python3 -m http.server 8788
+# open http://localhost:8788/_view.html   (3D models + 2D images)
+```
+GLB tri-counter: `node <scratchpad>/glbtris.cjs <file.glb>` (or reuse the pattern — parses GLB JSON chunk).
+Meshy render thumbnails: `GET https://api.meshy.ai/openapi/v1/image-to-3d/<task_id>` → `thumbnail_url`.
+
+## CREATURE RECIPE — LOCKED ✅ (Recipe A, user-approved)
+**Untextured lowpoly + Unity void-material.** For each of the remaining 6 species:
+1. Nano Banana shaded 3/4 concept from the flat `pet-<species>.png` (absolute `--refs`), StyleGuide palette.
+2. `meshy_image_to_3d`, `model_type:"lowpoly"`, `should_texture:false`, `target_formats:["glb"]` — **5 cr each (~30 cr total)**.
+3. Color/emissive comes from the near-black + `#8B5CF6` emissive material applied in Unity (not baked).
+Rejected alternatives: B multiview (more cost, only if silhouette fidelity proves inadequate), C textured+remove_lighting:false (color washed out on Joy v2).
+
+## TODO
+- [x] Lock creature recipe — **A (untextured lowpoly + Unity material), user-approved.**
+- [x] Batch remaining 6 creatures with Recipe A **DONE** (meshy-6 untextured lowpoly, 20cr each = 120cr; balance 977→857). All 6 GLBs verified clean geometry (9k–19k tris), in `references/voidpet-ip/pet-<species>.glb` + copied to Unity `Assets/Art/Models/Creatures/`. Awaiting user gallery review.
+- [x] Henhouse imported → Asset Bot record `henhouse` (stations) + copied to Unity `Assets/Art/Models/Stations/`.
+- [ ] Station line: 7 more stations (field, pasture, creamery, bakery, orderBoard, silo, workshop) via concept-first + lowpoly, when ready.
+- [ ] Decide whether to decimate creatures toward ~8k tris.
+- [ ] (UI 2D handled via Figma plugin, not Asset Bot — per user.)
+- [ ] After user approves creatures in gallery: bridge the 6 creature GLBs into Asset Bot records (`assets import --category creatures`), like henhouse was. (Henhouse already bridged.)
+
+## Notes / quirks
+- Nano Banana adds an unwanted **glow-ring/halo** on icons; add negative "no glow, no ring, no border" if generating icons.
+- `generate image --refs` needs an **ABSOLUTE** ref path (project-relative resolves under `.asset-bot/`).
+- Background `python3 -m http.server` viewers do NOT survive session exit — relaunch as above.
