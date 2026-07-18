@@ -37,7 +37,7 @@ resources ──queue job──> station ──timer──> output ──collect
 
 - **Portrait phone** dimensions. Touch/drag only — no keyboard. Uses the **new Input System** (`com.unity.inputsystem`); legacy `Input.GetMouseButton` does not work in this project.
 - **WebGL build** must load and be tappable in a browser. Verification is: press Play in the editor, or open the WebGL build. There is no other gate.
-- **[3D] Top-down view of an open grassy area, rendered with 3D meshes under an orthographic camera** (§12.5). Orthographic preserves the clean top-down read, snap-to-grid math, and clamped pan/pinch. The camera is pitched to an angled ¾ top-down (~55–60° down), not straight overhead, so 3D silhouettes read and an assigned VoidPet sits visibly on top of its station.
+- **[3D] Top-down view of an open grassy area, rendered as 2.5D — 3D-mesh stations plus 2D-billboard creatures — under an orthographic camera** (§12.5). Orthographic preserves the clean top-down read, snap-to-grid math, and clamped pan/pinch. The camera is pitched to an angled ¾ top-down (~55–60° down), not straight overhead, so 3D station forms read and a billboarded VoidPet sits visibly on top of its station. VoidPets render as 2D billboards, not meshes (§10.3, §12.6).
 - **[3D] Placeholder art: untextured primitive meshes tinted per station.** See §12.6. (The 2D "colored rect + text label" policy is retired.)
 
 ---
@@ -333,7 +333,7 @@ Placeholder species and traits to be invented into SO assets and tuned after pla
 - One pet per station, assignable to generator stations only.
 - Assign/unassign is free and instant.
 - **An assigned pet auto-collects** — instantly on job completion, which is what unblocks the station (§4.4).
-- **[3D]** The pet renders as its own mesh on top of its assigned station.
+- **[3D]** The pet renders as a **2D billboard** (the species' flat art on a camera-facing quad, §12.6) on top of its assigned station — **not** a 3D mesh. Stations are 3D; creatures are 2D-in-3D. This preserves the original flat-silhouette VoidPet art exactly and suits the fixed-angle orthographic camera (§12.5). Pets do not rotate in true 3D.
 
 ### 10.4 Range
 
@@ -426,9 +426,9 @@ Drag-based, HayDay-style:
 - **Working:** a **world-space progress bar** above the station.
 - **Ready to collect:** a small **hop/bounce tween** plus a floating icon above the station.
 - **Storage full:** a distinct state (tint or icon), visually separate from "ready."
-- **Assigned VoidPet:** renders as its own mesh on top of its station.
+- **Assigned VoidPet:** renders as a **2D billboard** — the species' flat art on a camera-facing quad — on top of its station, **not** a 3D mesh (§10.3). Because the original VoidPet art is flat graphic silhouette work, it lives natively as 2D-in-3D (à la Don't Starve / Paper Mario) rather than being reconstructed into a mesh; this preserves the art exactly and is the intended creature look, not a placeholder. Stations remain 3D meshes/primitives — creatures are the only billboarded world objects besides UI. VoidPets use their **real art immediately** (it already exists); there is no primitive-placeholder phase for pets.
 
-**[3D] Billboarding.** All world-space UI — progress bars, ready/floating icons, relationship hearts — **billboards to face the camera** (rotates each frame to match the camera's orientation) so it stays readable under the angled ¾ camera (§12.5). Because the camera is orthographic and fixed-angle, this is a constant yaw/pitch match, not per-object perspective correction.
+**[3D] Billboarding.** VoidPet billboards and all world-space UI — progress bars, ready/floating icons, relationship hearts — **billboard to face the camera** (rotates each frame to match the camera's orientation) so it stays readable under the angled ¾ camera (§12.5). Because the camera is orthographic and fixed-angle, this is a constant yaw/pitch match, not per-object perspective correction.
 
 All state visuals are driven off Core state by the View layer — the View syncs to state, it never holds a rule (CLAUDE.md).
 
@@ -440,7 +440,11 @@ add money · add resources · **level up** (grant exactly enough XP) · force-sp
 
 ### 12.8 Assets
 
-**[3D] Assets are injected incrementally as they're produced; primitives stand in until then.** The prototype starts primitives-only, but real assets arrive during the build rather than after it: the designer is generating them with the `asset_list` skill as milestones proceed, and swapping placeholders for real assets as each becomes available. This is a designer-side reference change, never a code change — every SO asset field references a **prefab / mesh / material** (not a sprite path), so a real model drops into the same slot the placeholder primitive occupied.
+**[3D] Two asset tracks — 3D stations, 2D creatures.**
+- **Stations & world** are **3D** (meshes/materials/prefabs). They start as tinted primitives and swap to real meshes as produced.
+- **VoidPets** are **2D billboards** (§10.3, §12.6) built from the existing flat VoidPet art — so they need **no 3D pipeline and no placeholder phase**; the real sprite goes on the quad from the start. Producing a pet asset means preparing its 2D art (background-removed / centered), not modelling a mesh.
+
+**Assets are injected incrementally as they're produced.** Real assets arrive during the build rather than after it: the designer generates them with the `asset_list` skill as milestones proceed and swaps placeholders in as each becomes available. This is a designer-side reference change, never a code change — a `StationSO` references a **prefab/mesh/material**, a `VoidPetSpeciesSO` references a **2D sprite/texture** (§14); a real asset drops into the same slot the placeholder occupied.
 
 **UI is built against `ui_inventory` mockups.** The designer generates UI mockups with the `ui_inventory` skill and passes them in as visual reference for each screen (§12.1–12.4); build UI to match the mockup for a surface when one exists, primitives/UGUI defaults until then.
 
@@ -474,14 +478,14 @@ Reset lives in the debug menu.
 | `upgrades.json` | `UpgradeSO` (per upgrade) | station + universal + silo tiers, costs, emitted `Effect[]` |
 | `levels.json` | `LevelSO` (per level, or one ordered set) | XP threshold, per-level unlocks and rewards |
 | `xp.json` | `XpConfigSO` (single) | XP granted per action |
-| `voidpets.json` | `VoidPetSpeciesSO` (per species) | rarity, blurb, quote, affinity, `Trait[]` + `Effect[]`, **mesh/prefab ref** |
+| `voidpets.json` | `VoidPetSpeciesSO` (per species) | rarity, blurb, quote, affinity, `Trait[]` + `Effect[]`, **2D art (sprite/texture) ref for the billboard** — not a mesh (§10.3) |
 | `relationships.json` | `RelationshipConfigSO` (single) | formation time, range, affinity → effect magnitude table |
 | `events.json` | `WorldEventSO` (per event) | interval, min level, `Effect[]`, notification type |
 | `start.json` | (fields on `GameConfigSO`) | starting cash, resources, pre-placed stations |
 
 **SOs are a Data-layer authoring surface, not a Core dependency.** The SOs above are `UnityEngine.ScriptableObject`s and live in `Data/`; `Core/` must never reference a `*SO` type (the boundary rule). So at boot the Systems layer **projects each SO into a plain `Core/Model` object** — a `ResourceModel`, `RecipeModel`, etc. — and hands *those* to the Core rules (order generation, pricing, the resolver). The one exception is the embedded Core types (`Effect[]`, `Trait[]`): those are already pure-C# (§3.1), so they cross the boundary as-is with no projection. The rule of thumb: a Core rule reads a `*Model`, never a `*SO`.
 
-**Asset references live in data, never in code.** Every station, resource, and VoidPet SO carries its own mesh/prefab/material reference, so swapping placeholder art for real art is a designer-side edit. Until real art exists, stations render as tinted primitives (§12.6) using `placeholderColor`. (Asset refs stay on the SO — the `Core/Model` projection carries only the rule-relevant scalars, no UnityEngine handles.)
+**Asset references live in data, never in code.** Every station and resource SO carries its own mesh/prefab/material reference and the `VoidPetSpeciesSO` its 2D sprite reference (§10.3), so swapping placeholder art for real art is a designer-side edit. Until real art exists, stations render as tinted primitives (§12.6) using `placeholderColor`; VoidPets use their real 2D art from the start. (Asset refs stay on the SO — the `Core/Model` projection carries only the rule-relevant scalars, no UnityEngine handles.)
 
 **Wheat's order-pool exclusion is expressed once**, as `sellable: false` on the wheat `ResourceSO`, projected onto its resource model. Order generation (§6.1) reads that flag off the model. Do not duplicate it as a separate exclusion list on the order config — one rule, one home.
 
