@@ -241,6 +241,7 @@ Per-entity surfaces opened by tapping a building on the map. **Tap resolution (�
 
 ### panel.station — Producer station panel
 - **Type:** panel · **Spec:** §4.5, §4.4, §5.2, §8, §10.3
+- **CHOSEN model — ALT / Full HayDay (`docs/UI-Mockups.md` node `42:2`):** this is a **world-view, not an all-in-one modal.** Two structural changes from the contents listed below: (a) **recipe selection is a floating popup near the building** — recipe icon tiles → the selected recipe shows have/need + timer + a single `Queue` action (not a bottom-anchored recipe list); (b) **the job queue is not in this panel** — it renders as `world.queueSlots` under the building. Contents #3 (Job queue display) therefore lives in-world now; contents #4 (Station upgrades) and #5 (VoidPet assignment slot) are **NOT in this surface** and remain **TBD** — deferred past M2, each needs its own opener (see UI-Mockups "Consequences still to reconcile").
 - **Purpose:** queue jobs, manage the queue, buy station upgrades, assign a VoidPet — for one producer station.
 - **Trigger:** tap a producer station when collection is not possible (§4.4). **Dismissal:** close button / tap-off. **Modal:** yes (blocks world behind it while open — assumed; spec doesn't say, but panels are focused surfaces).
 - **Position:** large rounded panel, centered / bottom-sheet. **Applies to producer stations only** (Field, Henhouse, Pasture, Creamery, Bakery) — not Order Board/Silo/Workshop, which have their own panels.
@@ -424,7 +425,16 @@ Rendered on the entity in the 3D world, not in a layer above. **All world-space 
 - **Type:** in-world · **Spec:** §12.6, §4.1
 - **Purpose:** the tappable station itself.
 - **Contents:** a **Unity primitive mesh, one silhouette per station type** (field=quad, silo=cylinder, henhouse=cube; others TBD — StyleGuide), tinted by `placeholderColor`, URP lit toon material, mesh ≈0.9 unit (visible gutter). Real mesh swaps in via the SO reference.
-- **States:** idle; **working** (see `world.progressBar`); **ready** (see `world.readyIcon`); **storage-full** (see `world.storageFull`). These are layered indicators on the same body.
+- **States:** idle; **working** (see `world.progressBar`); **ready** (see `world.readyIcon`); **storage-full** (see `world.storageFull`); **queue** (see `world.queueSlots`). These are layered indicators on the same body.
+
+### world.queueSlots — Job queue slots *(reconciled for panel.station ALT `42:2`)*
+- **Type:** in-world · **Spec:** §4.3, §4.4 · **Added:** 2026-07-17
+- **Why it exists here:** the chosen `panel.station` model (ALT / Full HayDay, `docs/UI-Mockups.md` node `42:2`) **moves the job queue out of the panel** and renders it as slots **under the building** — so the queue is a world element on `world.station`, not a panel list. This entry reconciles that decision (previously the queue lived in `panel.station`'s "Job queue display" bullet).
+- **Trigger:** present under every **producer** station (a station with ≥1 recipe). Non-producers (Silo/Order Board) show none.
+- **Contents:** one slot per queue depth (§4.3, default 3), billboarded. A **filled** slot shows the job's output chip; the **running** head slot also shows a mini progress fill; **empty** slots are an outlined placeholder. Read from Core job state (`JobSystem` queue), never computed in the View.
+- **States:** empty · queued (filled, waiting) · running (mini fill) · complete/blocked (filled, head sits until collected §4.4).
+- **Interactions:** tap a **filled** slot → `input:jobCancelRequested {stationId, jobIndex}` (full refund if not started; none once running, §4.4). Empty slots are inert.
+- **Visual:** chunky rounded slots, farm-neutral (theme SO). The collect action is still a map tap on the station body (§4.4), not a slot.
 - **Interactions:** tap → `input:stationTapped {stationId}` (Core resolves collect-or-open per §4.4; the View does not decide).
 - **Visual:** chunky, per-station tint. **Notes:** primarily an art asset; listed because it is the primary map interaction surface.
 

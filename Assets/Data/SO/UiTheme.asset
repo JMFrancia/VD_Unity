@@ -1,0 +1,55 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7d463e7b894614cfd86de9cceabf48e7, type: 3}
+  m_Name: UiTheme
+  m_EditorClassIdentifier: Assembly-CSharp::VoidDay.Data.UiThemeSO
+  font: {fileID: 0}
+  sizeTitle: 44
+  sizeHeading: 40
+  sizeBody: 30
+  sizeLabel: 26
+  sizeSmall: 22
+  radiusPanel: 34
+  radiusCard: 26
+  radiusTile: 22
+  radiusButton: 30
+  radiusPill: 24
+  radiusChip: 14
+  radiusBar: 8
+  panelBg: {r: 0.96862745, g: 0.93333334, b: 0.8666667, a: 1}
+  cardBg: {r: 1, g: 0.972549, b: 0.9254902, a: 1}
+  tileBg: {r: 1, g: 1, b: 1, a: 1}
+  ink: {r: 0.3529412, g: 0.27450982, b: 0.19607843, a: 1}
+  inkMuted: {r: 0.65882355, g: 0.5568628, b: 0.3882353, a: 1}
+  accent: {r: 0.37254903, g: 0.65882355, b: 0.23529412, a: 1}
+  accentText: {r: 1, g: 1, b: 1, a: 1}
+  warning: {r: 0.8509804, g: 0.3254902, b: 0.30980393, a: 1}
+  lockedBg: {r: 0.90588236, g: 0.8784314, b: 0.81960785, a: 1}
+  lockedText: {r: 0.7058824, g: 0.68235296, b: 0.62352943, a: 1}
+  resourceChip: {r: 0.8901961, g: 0.69803923, b: 0.23529412, a: 1}
+  chipBg: {r: 0.9372549, g: 0.9019608, b: 0.827451, a: 1}
+  namePillBg: {r: 0.16470589, g: 0.14117648, b: 0.21960784, a: 1}
+  namePillText: {r: 0.9529412, g: 0.93333334, b: 1, a: 1}
+  progressTrack: {r: 0.16470589, g: 0.14117648, b: 0.21960784, a: 1}
+  progressFill: {r: 0.49019608, g: 0.74509805, b: 0.3529412, a: 1}
+  readyAccent: {r: 0.54509807, g: 0.36078432, b: 0.9647059, a: 1}
+  slotFill: {r: 1, g: 1, b: 1, a: 0.92}
+  slotEmpty: {r: 1, g: 1, b: 1, a: 0.9}
+  hudPillBg: {r: 1, g: 0.972549, b: 0.9254902, a: 1}
+  hudPillText: {r: 0.3529412, g: 0.27450982, b: 0.19607843, a: 1}
+  debugPanelBg: {r: 0.16470589, g: 0.14117648, b: 0.21960784, a: 1}
+  debugButtonBg: {r: 0.23137255, g: 0.20784314, b: 0.3137255, a: 1}
+  debugText: {r: 0.9529412, g: 0.93333334, b: 1, a: 1}
+  debugSubtext: {r: 0.54509807, g: 0.5176471, b: 0.6509804, a: 1}
+  debugAccent: {r: 0.54509807, g: 0.36078432, b: 0.9647059, a: 1}
+  debugResetBg: {r: 0.3529412, g: 0.18039216, b: 0.18039216, a: 1}
+  debugResetText: {r: 0.9098039, g: 0.627451, b: 0.627451, a: 1}

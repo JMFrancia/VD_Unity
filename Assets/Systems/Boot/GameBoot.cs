@@ -18,6 +18,7 @@ namespace VoidDay.Systems
     public sealed class GameBoot : MonoBehaviour
     {
         [SerializeField] GameConfigSO config;
+        [SerializeField] UiThemeSO uiTheme;
         [SerializeField] Camera worldCamera;
 
         StationGrid _grid;
@@ -32,6 +33,9 @@ namespace VoidDay.Systems
         void Start()
         {
             BootValidator.Validate(config); // fail loud at the data boundary; assume well-formed past here
+            if (uiTheme == null)
+                throw new System.InvalidOperationException("[Boot] GameBoot.uiTheme (UiThemeSO) is not assigned");
+            UiFactory.SetTheme(uiTheme); // every View reads chrome from the theme; set before any UI is built
 
             _configModel = ModelProjector.Project(config);
             _grid = new StationGrid(_configModel.GridCols, _configModel.GridRows);
@@ -164,15 +168,15 @@ namespace VoidDay.Systems
 
             var world = new GameObject("WorldStateView").AddComponent<WorldState>();
             world.transform.SetParent(transform, false);
-            world.Init(_jobs, stationRoots, worldCamera);
+            world.Init(_jobs, stationRoots, worldCamera, uiTheme, _catalog);
 
             var panel = new GameObject("StationPanelView").AddComponent<StationPanel>();
             panel.transform.SetParent(transform, false);
-            panel.Init(_bus, _jobs, _catalog, _pool, resourceNames);
+            panel.Init(_bus, _jobs, _catalog, _pool, resourceNames, stationRoots, uiTheme, worldCamera);
 
             var hud = new GameObject("HudView").AddComponent<Hud>();
             hud.transform.SetParent(transform, false);
-            hud.Init(_bus, _pool, BuildResourceList());
+            hud.Init(_bus, _pool, BuildResourceList(), uiTheme);
         }
 
         // Stable-ordered id→name pairs for the totals popup + debug add buttons (config order).

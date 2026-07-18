@@ -44,7 +44,7 @@ Running record across milestones. Read this first when picking up cold.
 ---
 
 ## Milestone 02 — Station Loop
-**Status:** ✅ Complete (logic verified; **UI redo outstanding**) · **Commit:** `d87eb8e` · **Date:** 2026-07-17
+**Status:** ✅ Complete (logic verified; **UI redo done** — see addendum) · **Commit:** `d87eb8e` (loop) + UI-redo commit · **Date:** 2026-07-17
 
 **Built:**
 - **Event bus** (`Core/Events/`): `EventBus` (type-keyed pub/sub, plain C#) + `GameEvents` (M2 slice of §15). Systems talk only through it now.
@@ -59,15 +59,15 @@ Running record across milestones. Read this first when picking up cold.
 - **NOT verified (MCP can't inject synthetic pointer input):** the literal pointer→raycast→`StationTag` hit. Everything downstream of the raycast is proven; the physical click needs a human (same gap as M1 pan/zoom). User played it and confirmed it works.
 
 **Deviations from the plan:**
-- **UI is the WRONG panel.station model — redo tracked (see Tech debt).** Built the HayDay-simple single-panel fallback (Figma `5:2`) from `UI-Inventory.md`'s structural contract. The **chosen** design (`docs/UI-Mockups.md`) is the ALT / Full HayDay (`42:2`): recipe selection as a floating popup by the building, **job queue as slots under the building (not a panel)**. I never opened `UI-Mockups.md` and trusted the milestone doc's stale `[mockup needed]` marker. User chose: commit the working loop now, redo UI as a follow-up against `42:2`. **The logic layer is model-agnostic and stands; only the View changes.**
+- **UI was the WRONG panel.station model at ship — since REDONE against ALT `42:2` (addendum below).** M2 shipped the HayDay-simple single-panel fallback (Figma `5:2`); the chosen design is the ALT / Full HayDay (`42:2`): recipe selection as a floating popup by the building, **job queue as slots under the building (not a panel)**. The logic layer is model-agnostic and stood unchanged; **only the View was reworked** in the follow-up. User verified in Play.
 - **Added `StationPanelRequested`** (a View-routing event not in §15): the tap-resolution branch (`Producer`) either calls `Collect` or emits this; the panel just listens. Keeps the predicate evaluated once, avoids a double-trigger. Justified vs §15's "no `ui:*`" note because it's a routed intent, not a "showX" directive.
 - **Added minimal `debug:*` intents** (`DebugAddResourceRequested`, `DebugResetRequested`) — §15 leaves debug wiring open (open item); each routes through a natural domain effect (add→`resource:changed`, reset→`game:reset`).
 - **Legacy UGUI `Text` + builtin `LegacyRuntime.ttf`**, not TMP — TMP essentials aren't imported; keeps UI fully code-driven. Will revisit in the UI redo (mockups spec Nunito/Fredoka via a theme SO).
 
 **Tech debt:**
-- **★ UI REDO — `panel.station` against ALT `42:2` (`docs/UI-Mockups.md`, node `42:2`).** This is the priority follow-up before/at the next UI pass. Two structural changes from what shipped: (1) **recipe selection → floating popup near the building** (icon tiles → have/need + timer + Queue), not a bottom panel list; (2) **job queue → slots rendered UNDER the building** (extends `world.station`), *out of the panel entirely*. The manifest flags **unreconciled `UI-Inventory.md` consequences to resolve first**: queue-as-in-world element, and separate openers for station-upgrades + `picker.petAssign` (both deferred past M2 anyway). Read the frame live via the Figma MCP (file `X3UE3am9wbX0bKrfFOx8x0`); StyleGuide roles → a theme SO, never inline mockup values.
-- **Totals-popup ✕ button renders oversized** (LayoutElement width not winning in that header row) — cosmetic; will fall out of the UI redo.
-- **Silo / Order Board open an empty panel** if tapped (registered but no recipes). Harmless; they get real panels in M3/M7.
+- **★ UI REDO — DONE (2026-07-17).** `panel.station` rebuilt against ALT `42:2` — see the *UI redo* addendum at the end of this entry. Floating recipe popup + under-building queue slots shipped; `UI-Inventory.md` reconciled (`world.queueSlots`).
+- **Totals-popup ✕ button oversized — FIXED** in the UI redo (now a properly-sized circular close via `UiFactory.CircleButton`).
+- **Silo / Order Board open an empty panel** if tapped (registered but no recipes). Harmless; they get real panels in M3/M7. *(In the redo, the popup title/tiles just render empty for them — still harmless.)*
 - **`LitMaterial(Color)` helper now in 3 places** (`GameBoot`, `StationView`, and `WorldState` uses an Unlit variant) — at rule-of-three; extract a `View/Materials` helper next time one is touched.
 
 **Assumptions:**
@@ -82,3 +82,25 @@ Running record across milestones. Read this first when picking up cold.
 - **Core emits directly** (it holds the bus), so Systems do **not** "republish" core events — they only pump `Tick` and translate intents. Don't add a republish layer.
 - **`ResolveKind` (M2, local) vs `EffectType` (§3.1, M5)** are intentionally separate. M5's resolver maps `ResolveKind` sites to `EffectType` effects; do not merge the enums or make M2 import the effect schema.
 - **Recipe ids are `field.wheatGrow` / `field.cornGrow` / `field.fallowWheat` / `field.fallowCorn`.** `input:jobQueueRequested {stationId, recipeId}` uses these.
+
+### Addendum — panel.station UI redo (ALT `42:2`), 2026-07-17
+**View-only rework; Core/Systems untouched.** The M2 economy loop is model-agnostic and was reused verbatim — same intents (`input:stationTapped` / `input:jobQueueRequested` / `input:jobCancelRequested`) and domain events. Verified through the real bus (reflection, per the input-injection gotcha): queue → run → block → collect (+2) → cancel refund (+1); slot-tap raycast resolves to the right `QueueSlotTag`; no console errors. **User played and verified.**
+
+**Built:**
+- **`StationPanel` → floating recipe popup** near the building (screen-space, tracks the building's screen point): recipe icon tiles → selected recipe's `have/need` + timer detail → one `Queue` action. The bottom-anchored recipe **and** queue list are gone.
+- **`WorldState` → under-building queue slots** (`world.queueSlots`, new in-world element): filled / running (mini fill) / empty, shown only while the queue is non-empty. **Ready icon recoloured amber → void-accent violet** (`#8B5CF6`, StyleGuide "ready"). Above-building progress bar unchanged except colour-from-theme.
+- **`InputRouter`** — tap on a filled slot → `input:jobCancelRequested` (checks `QueueSlotTag` before `StationTag`); empty-slot colliders are disabled so their taps miss.
+- **`Hud`** — warm-cream totals popup (`27:2`) with a correctly-sized circular ✕; dark debug menu (`22:2`) exposing only the *working* M2 cheats (+wheat/+corn, reset) — no inert buttons for unbuilt features.
+- **`UiThemeSO` (new SO, `Assets/Data/SO/UiTheme.asset`)** — every colour / type size / radius / font role, seeded from StyleGuide + the mockups. `UiFactory` reworked to be theme-driven with a runtime rounded-rect 9-slice sprite generator (chunky rounded chrome, no imported atlas).
+
+**Deviations / decisions:**
+- **`GameBoot` gained a `[SerializeField] UiThemeSO uiTheme`** (fail-loud if unassigned) + calls `UiFactory.SetTheme` before building any UI, and threads the theme into the three view `Init(...)`s. This is composition-root **wiring**, not game logic — the layer boundary holds.
+- **Recipe tile labels are View-derived** (output resource name; `"Fallow "` prefix for input-less recipes) because `RecipeModel` carries no display name and Core was out of scope. A proper `RecipeSO.displayName` (Data + projection) is a small later pass.
+- **Resource icon chips use one uniform placeholder colour** (`theme.resourceChip`); real per-resource icons drop into SO slots later (placeholder policy). Recipe tiles/slots are colour-uniform, differentiated by label.
+- **Queue-slot visibility:** the row shows only when the queue is non-empty (keeps idle stations clean) rather than always-on empty boxes. Still an `world.station`-attached world element, driven off Core queue state.
+
+**Gotchas for later:**
+- **Queue slots ride a NON-billboarded row anchored in front of the building (`−Z`, lifted `+Y`), with each slot billboarded individually.** First attempt billboarded the shared anchor, which sent the local `−Y` slot offset *under the ground plane* → occluded/invisible. If you touch slot placement, keep them above `y=0`.
+- **Slot colliders enable/disable per frame with fill state** — a raycast test that publishes queue events and raycasts in the *same* synchronous call sees stale collider state (enable happens in the next `Update`). Let a frame pass before asserting.
+- **`UiFactory` is theme-driven via a static `SetTheme` set once at boot** — new UI reads `UiFactory.Theme`; don't build UI before `GameBoot` sets it.
+- **`docs/UI-Inventory.md` reconciled:** added `world.queueSlots`; `panel.station` contents #4 (upgrades) + #5 (pet slot) remain **TBD/deferred** (not in this surface).
