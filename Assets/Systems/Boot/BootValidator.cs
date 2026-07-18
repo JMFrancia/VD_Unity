@@ -16,13 +16,6 @@ namespace VoidDay.Systems
             Require(config.gridRows > 0, config, nameof(config.gridRows), "must be > 0");
             Require(config.cellSize > 0f, config, nameof(config.cellSize), "must be > 0");
 
-            Require(config.cameraMinZoom > 0f, config, nameof(config.cameraMinZoom), "must be > 0");
-            Require(config.cameraMaxZoom >= config.cameraMinZoom, config, nameof(config.cameraMaxZoom),
-                "must be >= cameraMinZoom");
-            Require(config.cameraStartZoom >= config.cameraMinZoom && config.cameraStartZoom <= config.cameraMaxZoom,
-                config, nameof(config.cameraStartZoom), "must be within [cameraMinZoom, cameraMaxZoom]");
-            Require(config.cameraDistance > 0f, config, nameof(config.cameraDistance), "must be > 0");
-
             Require(config.startingResources != null && config.startingResources.Count > 0,
                 config, nameof(config.startingResources), "must have at least one entry");
             foreach (var sr in config.startingResources)

@@ -61,7 +61,8 @@ namespace VoidDay.Systems
                 resourceList.Add(new KeyValuePair<string, string>(sr.resource.id, sr.resource.displayName));
             }
 
-            cameraController.Init(config, Vector3.zero); // the grid is centered on the world origin
+            // Grid is centered on the world origin; the camera only needs its world-space extents for pan bounds.
+            cameraController.Init(Vector3.zero, config.gridCols * config.cellSize, config.gridRows * config.cellSize);
             producer.Init(bus, jobs, pool, wallet, startingCounts);
             inputRouter.Init(bus, worldCamera);
             worldState.Init(jobs, catalog, roots);
