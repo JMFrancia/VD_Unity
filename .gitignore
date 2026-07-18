@@ -59,3 +59,6 @@ Thumbs.db
 # Secrets (Asset Bot API keys)
 .env
 .env.local
+
+# Asset Bot generation output (regenerable pipeline candidates)
+/runs/
