@@ -40,3 +40,45 @@ Running record across milestones. Read this first when picking up cold.
 - **The grid registry (`StationGrid`) already supports runtime add/remove + occupancy** — M4 places into this same instance; do not build a parallel registry.
 - **MCP package is pinned to `com.ivanmurzak.unity.mcp` 0.82.3.** The 4 extension packages required 0.84.3, whose source overrides a `CredentialProvider` member absent from the installed `McpPlugin.Common` 6.10.0 DLLs → `CS0115` → all compilation halts. Do **not** re-add those extensions without upgrading the NuGet DLLs to a 0.84.3-compatible version first.
 - **Editor-scripting gotcha (asset refs):** assigning an asset reference to a scene component via `SerializedObject` *in the same script that just created the asset* did not serialize (`config: {fileID: 0}`); assigning after the asset is registered (`AssetDatabase.LoadAssetAtPath`) worked. Wire asset→scene refs in a second step / after a refresh.
+
+---
+
+## Milestone 02 — Station Loop
+**Status:** ✅ Complete (logic verified; **UI redo outstanding**) · **Commit:** `d87eb8e` · **Date:** 2026-07-17
+
+**Built:**
+- **Event bus** (`Core/Events/`): `EventBus` (type-keyed pub/sub, plain C#) + `GameEvents` (M2 slice of §15). Systems talk only through it now.
+- **Generic Producer** (`Core/Rules/JobSystem.cs`): one Core state machine drives every station's queue. Owns queue-time input consumption (§4.4), the **blocking** rule (a completed head sits `Complete` and stalls the queue until collected), cancel refunds (full if `Queued`, none once `Running`), and the generic **`IsCollectionPossible`** predicate. Timers are **absolute timestamps** (§13) — `double now` passed in from the System.
+- **`resolve()` value seam** (`Core/Rules/ValueResolver.cs`): every tunable (duration, output qty, input cost, queue depth) reads through `Resolve(value, ResolveKind, ctx)`. Pure passthrough now; **M5 gives it teeth** without touching call sites. `ResolveKind` is a local enum, deliberately *not* §3.1's `EffectType` (M2 must not depend on the effect schema).
+- **`ResourcePool` + `Wallet`** (Core): global resource counts (uncapped in M2) + money (0, no source until M3). Both emit their `*:changed` event on every delta. `RecipeCatalog` indexes recipes by id + station type.
+- **Data**: `RecipeSO` (inputs/outputs as `Ingredient{ResourceSO,amount}`, `duration ≤0 = instant`); `StationSO` gains `queueDepth` + `recipes[]`. Four Field recipes authored (`Recipe_Field_*`): wheat/corn grow (5s), two Fallows (30s, no input). Boot validator extended.
+- **Systems**: `Producer` (MonoBehaviour) pumps `Tick(Time.timeAsDouble)` + translates `input:*` intents to Core calls; the **tap-resolution branch lives here** as the single authority. `GameBoot` rewired as composition root (builds bus + economy core, registers stations, creates EventSystem + Systems + Views, seeds pool, emits `data:loaded`/`game:started`).
+- **View**: `StationPanel` (recipe rows + live queue), `WorldState` (billboarded progress bar + hopping ready icon, polls Core each frame), `Hud` (money counter → total-resources popup, debug menu: +5 per resource, Reset), `InputRouter` (tap→`input:stationTapped`), `UiFactory` (UGUI helpers, legacy `Text`). All placeholder UGUI.
+
+**Verified:** every DoD behavior passed, driven through the real event bus in Play (reflection to publish the same intents a tap/click produces): queue-time consumption (wheat 1→0), timed completion, **blocking** (`[Complete Queued Queued]` — 2nd never starts), collection (+2, ready clears), cancel refunds (queued +1 / running none), Fallow (no input consumed, runs), reset (→1 wheat/1 corn/empty). Panel, progress bar, ready-hop, totals popup all render (screenshots). No console exceptions.
+- **NOT verified (MCP can't inject synthetic pointer input):** the literal pointer→raycast→`StationTag` hit. Everything downstream of the raycast is proven; the physical click needs a human (same gap as M1 pan/zoom). User played it and confirmed it works.
+
+**Deviations from the plan:**
+- **UI is the WRONG panel.station model — redo tracked (see Tech debt).** Built the HayDay-simple single-panel fallback (Figma `5:2`) from `UI-Inventory.md`'s structural contract. The **chosen** design (`docs/UI-Mockups.md`) is the ALT / Full HayDay (`42:2`): recipe selection as a floating popup by the building, **job queue as slots under the building (not a panel)**. I never opened `UI-Mockups.md` and trusted the milestone doc's stale `[mockup needed]` marker. User chose: commit the working loop now, redo UI as a follow-up against `42:2`. **The logic layer is model-agnostic and stands; only the View changes.**
+- **Added `StationPanelRequested`** (a View-routing event not in §15): the tap-resolution branch (`Producer`) either calls `Collect` or emits this; the panel just listens. Keeps the predicate evaluated once, avoids a double-trigger. Justified vs §15's "no `ui:*`" note because it's a routed intent, not a "showX" directive.
+- **Added minimal `debug:*` intents** (`DebugAddResourceRequested`, `DebugResetRequested`) — §15 leaves debug wiring open (open item); each routes through a natural domain effect (add→`resource:changed`, reset→`game:reset`).
+- **Legacy UGUI `Text` + builtin `LegacyRuntime.ttf`**, not TMP — TMP essentials aren't imported; keeps UI fully code-driven. Will revisit in the UI redo (mockups spec Nunito/Fredoka via a theme SO).
+
+**Tech debt:**
+- **★ UI REDO — `panel.station` against ALT `42:2` (`docs/UI-Mockups.md`, node `42:2`).** This is the priority follow-up before/at the next UI pass. Two structural changes from what shipped: (1) **recipe selection → floating popup near the building** (icon tiles → have/need + timer + Queue), not a bottom panel list; (2) **job queue → slots rendered UNDER the building** (extends `world.station`), *out of the panel entirely*. The manifest flags **unreconciled `UI-Inventory.md` consequences to resolve first**: queue-as-in-world element, and separate openers for station-upgrades + `picker.petAssign` (both deferred past M2 anyway). Read the frame live via the Figma MCP (file `X3UE3am9wbX0bKrfFOx8x0`); StyleGuide roles → a theme SO, never inline mockup values.
+- **Totals-popup ✕ button renders oversized** (LayoutElement width not winning in that header row) — cosmetic; will fall out of the UI redo.
+- **Silo / Order Board open an empty panel** if tapped (registered but no recipes). Harmless; they get real panels in M3/M7.
+- **`LitMaterial(Color)` helper now in 3 places** (`GameBoot`, `StationView`, and `WorldState` uses an Unlit variant) — at rule-of-three; extract a `View/Materials` helper next time one is touched.
+
+**Assumptions:**
+- **`Time.timeAsDouble` is the session clock.** Absolute-timestamp storage means real offline progress is a later swap of the clock source (§13), not a rewrite. Monotonic within a session; fine.
+- **Uncapped resources** (M2). `IsCollectionPossible` is generic so M7 adds `&& storage-has-room` as another false-reason with **no change to the tap branch** — verify that stays true when M7 lands.
+- **Panels are modal-ish / one at a time** — only one station panel open; tapping the money counter toggles the totals popup independently. If the ALT redo makes recipe selection a non-modal floating popup, input-capture (the `IsOverUi` guard in `InputRouter`) may need revisiting.
+
+**Gotchas for later milestones:**
+- **★ Playmode FREEZES in the background during MCP verification** — `Time.timeAsDouble` stays `0`, `Update()` never runs, jobs never tick, Game View screenshots go stale. Fix: `Application.runInBackground = true` at runtime (I also set `PlayerSettings.runInBackground`, but it did not serialize to `ProjectSettings.asset` — didn't `SaveAssets`, so it may not persist). **For any timed/animated verification, set `Application.runInBackground = true` first, then let real seconds pass between MCP polls.** Screenshots also need the editor to repaint (`InternalEditorUtility.RepaintAllViews()`), or just poll state via `script-execute` + logs.
+- **Can't inject synthetic pointer input via MCP.** Verify input-driven behavior by publishing the underlying `input:*` intent onto the bus (reach it via reflection: `GameBoot._bus`), not by faking a click. Reserve the literal click for the human gate.
+- **The bus + economy core are constructed in `GameBoot` and handed to Systems/Views via `Init(...)`.** That's composition-root wiring, not a system-to-system reference. New Systems/Views follow the same pattern — subscribe in `Init`, unsubscribe in `OnDestroy`.
+- **Core emits directly** (it holds the bus), so Systems do **not** "republish" core events — they only pump `Tick` and translate intents. Don't add a republish layer.
+- **`ResolveKind` (M2, local) vs `EffectType` (§3.1, M5)** are intentionally separate. M5's resolver maps `ResolveKind` sites to `EffectType` effects; do not merge the enums or make M2 import the effect schema.
+- **Recipe ids are `field.wheatGrow` / `field.cornGrow` / `field.fallowWheat` / `field.fallowCorn`.** `input:jobQueueRequested {stationId, recipeId}` uses these.
