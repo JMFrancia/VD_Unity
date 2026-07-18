@@ -2,6 +2,15 @@
 
 _Working log for the Asset Bot ⇄ Meshy/Nano Banana pipeline. Resume from here._
 
+## ⚠️ DECISION CHANGE — PETS ARE NOW 2D BILLBOARDS (2026-07-17)
+**This supersedes the 3D creature track below.** After reviewing the flat IP art vs. the AI concepts, the user chose to render **VoidPets as 2D billboards** (the original flat art, background-removed, on camera-facing quads under the ¾ ortho camera — 2.5D, à la Don't Starve). Rationale: the originals are flat graphic silhouettes; the one direct 3D bake (`pet-joy-textured`) proved they reconstruct into garbage, and billboards preserve the IP exactly. Spec updated accordingly (`docs/VoidDay-Spec-unity.md` §2, §10.3, §12.6, §12.8, §14).
+
+Consequences:
+- The **6 creature GLBs + `pet-joy-v2.glb`** (Recipe A, "user-approved" below) are **no longer the pet pipeline.** Kept on disk, not deleted — do **not** continue/decimate/bridge them for pets unless the user reverses this.
+- **Pet asset pipeline is now:** background-remove the flat `pet-<species>.png` → transparent sprite → billboard. Tooling: `tools/asset-prep/cutout.py` (local color-key, needs a py venv w/ Pillow+numpy) → outputs `references/voidpet-ip/cutouts/<species>-cut.png`. Previews via `tools/asset-prep/make_previews.py`; wired into `_view.html` ("VoidPet billboards" section).
+- **Cringe** cutout still has a coil-interior artifact — needs a quick cleanup before final.
+- **Stations are unaffected — they remain 3D** (see the station line in TODO). Station generation is the active next task.
+
 ## Setup (done)
 - Asset Bot initialized in this repo (`.asset-bot/`). Keys in `.env` (gitignored). Both authenticate.
 - **2D = Nano Banana** (Google GenAI). Billing is ON (free tier was blocked at first). Works.
@@ -46,6 +55,7 @@ Individual flat refs: `references/voidpet-ip/pet-<species>.png` (+ `voidpets-she
 | Wonder 3D | `references/voidpet-ip/pet-wonder.glb` (concept `concept-wonder.png`) | ✅ **16,130 tris**, untextured. Task `019f71a7-bcea` |
 | Conviction 3D | `references/voidpet-ip/pet-conviction.glb` (concept `concept-conviction.png`) | ✅ **9,234 tris**, untextured. Task `019f71a7-c55d` |
 | Henhouse (imported) | Asset Bot record `henhouse` (stations) + `Assets/Art/Models/Stations/station-henhouse.glb` | ✅ **imported** to both |
+| Pet billboards ×7 | `references/voidpet-ip/cutouts/<species>-cut.png` (apathy, conviction, cringe, grumpy, joy, merry, wonder) | ✅ **current pet pipeline** (2D billboards). Cringe needs coil-interior cleanup. Low-res (~135px) — final wants higher-res source |
 
 ## Preview / gallery
 Rotatable viewer (relaunch after refresh):
@@ -64,8 +74,9 @@ Meshy render thumbnails: `GET https://api.meshy.ai/openapi/v1/image-to-3d/<task_
 Rejected alternatives: B multiview (more cost, only if silhouette fidelity proves inadequate), C textured+remove_lighting:false (color washed out on Joy v2).
 
 ## TODO
-- [x] Lock creature recipe — **A (untextured lowpoly + Unity material), user-approved.**
-- [x] Batch remaining 6 creatures with Recipe A **DONE** (meshy-6 untextured lowpoly, 20cr each = 120cr; balance 977→857). All 6 GLBs verified clean geometry (9k–19k tris), in `references/voidpet-ip/pet-<species>.glb` + copied to Unity `Assets/Art/Models/Creatures/`. Awaiting user gallery review.
+- [~] ~~Lock creature recipe — A (untextured lowpoly)~~ **SUPERSEDED 2026-07-17: pets are 2D billboards (see banner at top).** 3D creature GLBs kept but not the pipeline.
+- [x] Batch remaining 6 creatures with Recipe A — done, but **now superseded by billboards** (GLBs retained on disk, unused for pets).
+- [ ] **Pet billboards:** clean up Cringe coil interior; consider higher-res source art; import the 7 cutouts into Unity as sprites when building the pet view.
 - [x] Henhouse imported → Asset Bot record `henhouse` (stations) + copied to Unity `Assets/Art/Models/Stations/`.
 - [ ] Station line: 7 more stations (field, pasture, creamery, bakery, orderBoard, silo, workshop) via concept-first + lowpoly, when ready.
 - [ ] Decide whether to decimate creatures toward ~8k tris.
