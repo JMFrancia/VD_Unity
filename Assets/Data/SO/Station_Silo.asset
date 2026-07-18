@@ -16,9 +16,5 @@ MonoBehaviour:
   displayName: Silo
   width: 1
   height: 1
-  prefab: {fileID: 0}
-  placeholderPrimitive: 2
-  placeholderScale: {x: 0.55, y: 0.45, z: 0.55}
-  placeholderEuler: {x: 0, y: 0, z: 0}
-  placeholderYOffset: 0.45
-  placeholderColor: {r: 0.5411765, g: 0.56078434, b: 0.59607846, a: 1}
+  queueDepth: 3
+  recipes: []

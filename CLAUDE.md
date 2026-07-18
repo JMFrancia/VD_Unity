@@ -41,7 +41,7 @@ Legacy `Input.GetMouseButton` etc. do **not** work — this project uses the new
 
 **A Unity MCP is configured in this project**, so an agent has editor access, not just file access. Beyond writing C# and asset text, the agent can create and modify GameObjects and components, **assign serialized fields and wire scene references**, create/edit ScriptableObject assets and materials, open/create/save scenes and prefabs, run EditMode/PlayMode tests, drive playmode, take screenshots, and refresh the AssetDatabase. An asset swap (placeholder → real) is an SO-reference edit the agent can make directly.
 
-Still **prefer data-driven, code-driven setup** where it keeps the project clean — SO instances via `CreateAssetMenu`, scenes buildable from code, dependencies wired in `Awake` — because that keeps behavior in version control and out of hand-wired scene state. But when a milestone genuinely needs editor work (assigning a serialized reference, placing a GameObject, running a test), do it through the MCP rather than handing the user manual steps.
+**Editor authoring is the default, not the fallback.** Scenes, prefabs, materials, and serialized references are authored through the MCP (or by the user in the editor) exactly as a human Unity developer would author them. Do not hand the user manual editor steps, and do not route around the editor by generating hierarchies in code — see Architecture rule 4.
 
 *(Before an unfamiliar MCP operation, confirm the tool exists and behaves as expected rather than assuming — the toolset can change.)*
 
@@ -49,13 +49,17 @@ Still **prefer data-driven, code-driven setup** where it keeps the project clean
 
 ## Architecture
 
-Three rules define this project. They are **not** subject to YAGNI — they are the requirement, not speculative generality. Everything else bends for speed; these do not.
+Four rules define this project. They are **not** subject to YAGNI — they are the requirement, not speculative generality. Everything else bends for speed; these do not.
+
+*(2026-07-17: the project pivoted away from an earlier code-generated-scene approach — empty scenes, runtime-built hierarchies, a runtime UI factory, zero prefabs. That approach is rejected. Rule 4 below is the replacement; if you see remnants of the old style, they are legacy, not precedent.)*
 
 ### 1. Data-driven — no hardcoded values
 
-**Every tunable lives in a ScriptableObject.** Not in a constant, not in a serialized MonoBehaviour field, not as a literal in a method call.
+**Every tunable lives in the inspector — game data in ScriptableObjects, presentation in authored scenes and prefabs.** Never in a constant, never as a literal in a method call.
 
 A tunable is any number, string, or flag a designer might want to change: speeds, costs, timers, recipes, spawn rates, colors, labels, curve shapes, probabilities.
+
+The split: **game data** (recipes, costs, timers, station definitions, runtime *state* colors the code switches between) lives in SOs, shared and referenced. **Static presentation** (a panel's layout, a button's size, baked chrome colors, a placed station's position) lives where Unity puts it — in the prefab or scene that owns it. Both are inspector-editable; neither is code.
 
 ```csharp
 // ❌ BAD — the value is trapped in code
@@ -104,6 +108,19 @@ Unity tempts you to put game logic in `Update()`. Don't. A MonoBehaviour's `Upda
 
 If a core type needs `Vector3`, it wants a plain `(int x, int y)` grid coordinate instead. If it genuinely needs Unity, the logic is in the wrong layer.
 
+### 4. Unity-native authoring — scenes and prefabs are authored, not generated
+
+**The scene is a real scene and prefabs are real prefabs.** This is standard Unity practice and it is mandatory:
+
+- **Scenes are authored in the editor.** The scene contains the level: ground, lighting, camera, canvas, placed station instances. Level layout lives in the scene — a station's position is its transform, not a row in a config asset.
+- **Anything instantiated more than once, or reused across scenes, is a prefab** with its visuals and serialized references authored inside it.
+- **Dependencies are wired as serialized fields in the inspector.** A component that needs a `Text`, a prefab template, or an SO declares a `[SerializeField]` and gets it wired in the prefab/scene.
+- **Runtime `Instantiate` is only for genuinely dynamic content** — things whose *count* is data-driven (list rows, recipe tiles, queue slots, spawned units) — and it always instantiates an authored prefab template, never assembles a hierarchy from `new GameObject(...)` / `CreatePrimitive`.
+- **No runtime UI construction.** UI panels are authored prefabs. A UI factory that builds Canvas hierarchies in code is banned.
+- **`GameBoot` stays a slim composition root**: it validates data, constructs the pure-C# core, and injects core services into scene-placed components via `Init(...)`. It does not create GameObjects.
+
+Runtime service injection (`Init(bus, jobs, ...)`) is the one deliberate deviation from inspector wiring, because core services are plain C# objects that cannot be serialized — this preserves rules 2 and 3.
+
 ---
 
 ## Layout
@@ -114,10 +131,12 @@ Assets/
     Model/         Plain state objects.
     Rules/         Recipes, costs, effect resolution, order pricing.
     Events/        Event types + the bus.
-  Data/          ScriptableObject definitions + instances. The designer surface.
+  Data/          ScriptableObject definitions + instances. The game-data designer surface.
   Systems/       MonoBehaviours. Drive the core, republish its events.
   View/          MonoBehaviours. Render + input capture only.
-  Scenes/
+  Prefabs/       Authored prefabs — stations, UI panels, world widgets, list-item templates.
+  Art/           Authored materials, sprites, fonts.
+  Scenes/        Authored scenes. The level layout lives here.
   Tests/         EditMode tests. Core only.
 ```
 
@@ -143,7 +162,7 @@ These are the deliberate relaxations. Use them.
 - **Don't gold-plate.** Ugly-but-working beats elegant-and-pending. Primitives and untextured meshes are correct until proven otherwise.
 - **Build continuously.** Don't stop mid-task to check in. Stop when it's playable, or when genuinely blocked.
 
-Speed rules never override the three architecture rules. "It's just a prototype" is not a reason to hardcode a number or reach across systems — those are the two things that make a prototype expensive to iterate on, which is the entire point of moving fast.
+Speed rules never override the four architecture rules. "It's just a prototype" is not a reason to hardcode a number or reach across systems — those are the two things that make a prototype expensive to iterate on, which is the entire point of moving fast.
 
 ---
 

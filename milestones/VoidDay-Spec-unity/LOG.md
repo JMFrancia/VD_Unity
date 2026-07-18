@@ -104,3 +104,22 @@ Running record across milestones. Read this first when picking up cold.
 - **Slot colliders enable/disable per frame with fill state** — a raycast test that publishes queue events and raycasts in the *same* synchronous call sees stale collider state (enable happens in the next `Update`). Let a frame pass before asserting.
 - **`UiFactory` is theme-driven via a static `SetTheme` set once at boot** — new UI reads `UiFactory.Theme`; don't build UI before `GameBoot` sets it.
 - **`docs/UI-Inventory.md` reconciled:** added `world.queueSlots`; `panel.station` contents #4 (upgrades) + #5 (pet slot) remain **TBD/deferred** (not in this surface).
+
+### Architecture pivot — editor-authored scenes + prefabs, 2026-07-17
+**User decision: the code-generated-scene approach is rejected wholesale.** The project now follows standard Unity practice; CLAUDE.md rule 4 encodes it. Pre-pivot state is checkpointed at `4b8d12d` (one revert rewinds the whole pivot). Decisions confirmed with the user: pure-C# Core stays, C# event bus stays, level layout lives in the scene.
+
+**Built:**
+- **`Farm.unity` is a real authored scene** — ground plane, camera (+`CameraController`), light, `EventSystem`, two canvases (`StationPopupCanvas` sort 10, `HudCanvas` sort 20) with fully authored panels, three station prefab instances (`Field`, `Silo`, `OrderBoard`) under `Stations/`, a `Systems` object (`Producer`/`InputRouter`/`WorldState`), and `GameBoot` with every reference wired in the inspector.
+- **Prefabs (`Assets/Prefabs/`)** — `Stations/Station_{Field,Silo,OrderBoard}` (authored body + `StationView` with its `StationSO`); `World/StationStateWidget` (billboarded bar + ready icon + QueueRow anchor) and `World/QueueSlot`; `UI/{RecipeTile,IngredientRow,ResourceRow,CheatButton}` list-item templates.
+- **Art assets (`Assets/Art/`)** — 9 URP materials (station tints, ground, progress/ready/slot/chip) and 10 rounded-rect 9-slice sprite PNGs (the old runtime sprite generator, baked to real assets).
+- **`UiFactory` deleted.** Panels are authored; components hold `[SerializeField]` refs to their texts/buttons/templates. Dynamic-count content (tiles, ingredient/resource rows, cheat buttons, queue slots) runtime-instantiates authored templates.
+- **`GameBoot` → slim composition root** (~half its old size): validates SOs, builds the core (bus/pool/wallet/catalog/jobs), discovers scene-placed `StationView`s (GameObject name = Core instance id, uniqueness validated), injects services via `Init(...)`. Creates no GameObjects.
+- **SO cleanup** — `StationSO` lost its placeholder-art fields (visuals live in prefabs now); `GameConfigSO` lost `prePlacedStations` + environment colors (scene/material-owned); `UiThemeSO` slimmed to runtime *state* colors only (ink/warning/accent/accentText/lockedBg/lockedText) — static chrome is baked into prefabs. `StationTag`/`QueueSlotTag` folded into `StationView`/`QueueSlot`; `GridProjection` deleted (placement is transform-authored).
+
+**Verified in play mode** (bus-injection per the input gotcha): boot clean, panel opens with 4 field recipes + selection + have/need ✓, queue slots fill with running mini-bar, ready icon hops on completion, totals popup + debug menu render from templates. No console errors.
+
+**Gotchas for later:**
+- **Rule 1 split (CLAUDE.md):** game data → SOs; static presentation → the owning prefab/scene. Don't re-add chrome fields to `UiThemeSO`.
+- **Station instance ids are scene GameObject names** (`Field`, `Silo`, `OrderBoard`). Rename in scene = rename the Core id. Boot throws on duplicates/missing SO.
+- **`Application.runInBackground = true` needed again this session** for MCP playmode verification (same background-freeze gotcha as M2; it does not persist).
+- **Editor-scripted authoring is one-shot scaffolding** — the prefabs/scene are now the source of truth; edit them in the editor (or via MCP gameobject/prefab tools), never by re-running a builder script.

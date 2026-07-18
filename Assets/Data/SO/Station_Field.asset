@@ -22,9 +22,3 @@ MonoBehaviour:
   - {fileID: 11400000, guid: cf0778196065a4f48bc2346633afdd23, type: 2}
   - {fileID: 11400000, guid: 99237293f67804f60b000f2a15412849, type: 2}
   - {fileID: 11400000, guid: 8d3bf29c16ba14309a9bc84828b4bf3b, type: 2}
-  prefab: {fileID: 0}
-  placeholderPrimitive: 3
-  placeholderScale: {x: 0.9, y: 0.06, z: 0.9}
-  placeholderEuler: {x: 0, y: 0, z: 0}
-  placeholderYOffset: 0.03
-  placeholderColor: {r: 0.49019608, g: 0.74509805, b: 0.3529412, a: 1}

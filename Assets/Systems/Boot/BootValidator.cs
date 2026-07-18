@@ -32,17 +32,6 @@ namespace VoidDay.Systems
                 Require(sr.amount >= 0, sr.resource, "starting amount", "must be >= 0");
             }
 
-            Require(config.prePlacedStations != null && config.prePlacedStations.Count > 0,
-                config, nameof(config.prePlacedStations), "must have at least one entry");
-            foreach (var ps in config.prePlacedStations)
-            {
-                Require(ps.station != null, config, nameof(config.prePlacedStations), "contains a null station ref");
-                ValidateStation(ps.station);
-                Require(ps.col >= 0 && ps.col < config.gridCols, ps.station, "pre-placed col",
-                    $"col {ps.col} is outside grid width {config.gridCols}");
-                Require(ps.row >= 0 && ps.row < config.gridRows, ps.station, "pre-placed row",
-                    $"row {ps.row} is outside grid height {config.gridRows}");
-            }
         }
 
         static void ValidateResource(ResourceSO r)
@@ -51,14 +40,14 @@ namespace VoidDay.Systems
             Require(!string.IsNullOrWhiteSpace(r.displayName), r, nameof(r.displayName), "must not be empty");
         }
 
-        static void ValidateStation(StationSO s)
+        /// Called per scene-placed station at boot (GameBoot discovers them; the scene owns placement).
+        public static void ValidateStation(StationSO s)
         {
             Require(!string.IsNullOrWhiteSpace(s.stationType), s, nameof(s.stationType), "must not be empty");
             Require(!string.IsNullOrWhiteSpace(s.displayName), s, nameof(s.displayName), "must not be empty");
             Require(s.width > 0, s, nameof(s.width), "must be > 0");
             Require(s.height > 0, s, nameof(s.height), "must be > 0");
             Require(s.queueDepth > 0, s, nameof(s.queueDepth), "must be > 0");
-            Require(s.placeholderScale != Vector3.zero, s, nameof(s.placeholderScale), "must not be zero");
 
             Require(s.recipes != null, s, nameof(s.recipes), "must not be null");
             foreach (var r in s.recipes)

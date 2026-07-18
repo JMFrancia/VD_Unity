@@ -22,20 +22,10 @@ MonoBehaviour:
   cameraMaxZoom: 14
   cameraStartZoom: 6
   panMarginCells: 2
-  groundColor: {r: 0.6039216, g: 0.8156863, b: 0.4392157, a: 1}
-  backdropColor: {r: 0.101960786, g: 0.078431375, b: 0.1882353, a: 1}
+  scrollZoomStep: 0.5
+  keyZoomSpeed: 6
   startingResources:
   - resource: {fileID: 11400000, guid: ab16cbc8f42d841a6b9bc8e41c13aee9, type: 2}
     amount: 1
   - resource: {fileID: 11400000, guid: 9775f71a7d4a64770a7780c20e092cc2, type: 2}
     amount: 1
-  prePlacedStations:
-  - station: {fileID: 11400000, guid: bc7f0f5d1c60742e896b48c183725eaa, type: 2}
-    col: 10
-    row: 15
-  - station: {fileID: 11400000, guid: af526608535014bf2a28dfe6e412bd69, type: 2}
-    col: 9
-    row: 15
-  - station: {fileID: 11400000, guid: 3e9c1c597c857480e99e68a8d7cfb224, type: 2}
-    col: 11
-    row: 16

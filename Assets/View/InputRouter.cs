@@ -7,8 +7,8 @@ namespace VoidDay.View
 {
     /// Captures a world tap and publishes the matching input intent — it never acts on the tap (§15).
     /// A tap is a press+release with little movement that isn't a pan (CameraController owns drag) and
-    /// isn't over UI. A hit on a filled queue slot (QueueSlotTag) → input:jobCancelRequested; otherwise a
-    /// hit on a station body (StationTag) → input:stationTapped. Queue slots are checked first because they
+    /// isn't over UI. A hit on a filled queue slot (QueueSlot) → input:jobCancelRequested; otherwise a
+    /// hit on a station body (StationView) → input:stationTapped. Queue slots are checked first because they
     /// sit under the same station root, and a tap on a slot means "cancel this job", not "tap the station".
     public sealed class InputRouter : MonoBehaviour
     {
@@ -52,16 +52,16 @@ namespace VoidDay.View
             Ray ray = _camera.ScreenPointToRay(screenPosition);
             if (!Physics.Raycast(ray, out RaycastHit hit, 500f)) return;
 
-            var slot = hit.collider.GetComponentInParent<QueueSlotTag>();
+            var slot = hit.collider.GetComponentInParent<QueueSlot>();
             if (slot != null)
             {
                 _bus.Publish(new JobCancelRequested(slot.StationId, slot.SlotIndex));
                 return;
             }
 
-            var tag = hit.collider.GetComponentInParent<StationTag>();
-            if (tag == null) return;
-            _bus.Publish(new StationTapped(tag.StationId));
+            var station = hit.collider.GetComponentInParent<StationView>();
+            if (station == null) return;
+            _bus.Publish(new StationTapped(station.Id));
         }
 
         static bool IsOverUi() =>

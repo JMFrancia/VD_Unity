@@ -4,8 +4,9 @@ using UnityEngine;
 
 namespace VoidDay.Data
 {
-    /// Single global config (§14). Grid, camera bounds, environment tint, and the start block
-    /// (starting resources + pre-placed stations, §5.3). Every tunable in M1 lives here or on a referenced SO.
+    /// Single global config (§14). Grid extents (camera bounds + future placement), camera tuning, and the
+    /// starting resources (§5.3). Which stations exist and where is scene data, not config (CLAUDE.md rule 4);
+    /// environment colors live on the authored ground material and camera.
     [CreateAssetMenu(menuName = "VoidDay/Game Config", fileName = "GameConfig")]
     public sealed class GameConfigSO : ScriptableObject
     {
@@ -29,13 +30,8 @@ namespace VoidDay.Data
         [Tooltip("Desktop/WebGL zoom: orthographic-size change per second while -/= (or numpad +/-) is held.")]
         public float keyZoomSpeed = 6f;
 
-        [Header("Environment (§12.5)")]
-        public Color groundColor = new Color(0.49f, 0.745f, 0.353f);   // #7DBE5A warm grass
-        public Color backdropColor = new Color(0.102f, 0.078f, 0.188f); // #1A1430 soft indigo void
-
         [Header("Start block (§5.3)")]
         public List<StartingResource> startingResources = new();
-        public List<PrePlacedStation> prePlacedStations = new();
     }
 
     [Serializable]
@@ -43,13 +39,5 @@ namespace VoidDay.Data
     {
         public ResourceSO resource;
         public int amount;
-    }
-
-    [Serializable]
-    public sealed class PrePlacedStation
-    {
-        public StationSO station;
-        public int col;
-        public int row;
     }
 }
