@@ -55,6 +55,13 @@ Individual flat refs: `references/voidpet-ip/pet-<species>.png` (+ `voidpets-she
 | Wonder 3D | `references/voidpet-ip/pet-wonder.glb` (concept `concept-wonder.png`) | ✅ **16,130 tris**, untextured. Task `019f71a7-bcea` |
 | Conviction 3D | `references/voidpet-ip/pet-conviction.glb` (concept `concept-conviction.png`) | ✅ **9,234 tris**, untextured. Task `019f71a7-c55d` |
 | Henhouse (imported) | Asset Bot record `henhouse` (stations) + `Assets/Art/Models/Stations/station-henhouse.glb` | ✅ **imported** to both |
+| Field 3D | `references/stations/station-field.glb` (concept `concept-field.png`) | ✅ **18,719 tris**, textured. Task `019f7313-1230`. Heavy (dense sprouts) — decimate candidate |
+| Pasture 3D | `references/stations/station-pasture.glb` (concept `concept-pasture.png`) | ✅ **5,223 tris**, textured. Task `019f7313-1d40` |
+| Creamery 3D | `references/stations/station-creamery.glb` (concept `concept-creamery.png`) | ✅ **8,104 tris**, textured. Task `019f7313-260d` |
+| Bakery 3D | `references/stations/station-bakery.glb` (concept `concept-bakery.png`) | ✅ **8,121 tris**, textured. Task `019f7313-2f91` |
+| Order Board 3D | `references/stations/station-orderboard.glb` (concept `concept-orderboard.png`) | ✅ **9,689 tris**, textured. Task `019f7313-381e` |
+| Silo 3D | `references/stations/station-silo.glb` (concept `concept-silo.png`) | ✅ **19,984 tris**, textured. Task `019f7313-43f5`. Heavy (lumpy clay surface) — decimate candidate |
+| Workshop 3D | `references/stations/station-workshop.glb` (concept `concept-workshop.png`) | ✅ **7,693 tris**, textured. Task `019f7313-4c88` |
 | Pet billboards ×7 | `references/voidpet-ip/cutouts/<species>-cut.png` (apathy, conviction, cringe, grumpy, joy, merry, wonder) | ✅ **current pet pipeline** (2D billboards). Cringe needs coil-interior cleanup. Low-res (~135px) — final wants higher-res source |
 
 ## Preview / gallery
@@ -78,7 +85,9 @@ Rejected alternatives: B multiview (more cost, only if silhouette fidelity prove
 - [x] Batch remaining 6 creatures with Recipe A — done, but **now superseded by billboards** (GLBs retained on disk, unused for pets).
 - [ ] **Pet billboards:** clean up Cringe coil interior; consider higher-res source art; import the 7 cutouts into Unity as sprites when building the pet view.
 - [x] Henhouse imported → Asset Bot record `henhouse` (stations) + copied to Unity `Assets/Art/Models/Stations/`.
-- [ ] Station line: 7 more stations (field, pasture, creamery, bakery, orderBoard, silo, workshop) via concept-first + lowpoly, when ready.
+- [x] Station line: 7 more stations (field, pasture, creamery, bakery, orderBoard, silo, workshop) via concept-first + lowpoly. **DONE 2026-07-17** — all textured, in `references/stations/`. Concept renders in `references/2d-review/concept-<name>.png`. Meshy 857→647 (210 cr, 30 ea). **Not yet imported to Unity or bridged to Asset Bot records** (henhouse pattern) — next step.
+- [ ] Import the 7 station GLBs → `Assets/Art/Models/Stations/` + Asset Bot `stations` records (like henhouse); wire mesh refs onto StationSOs when they exist.
+- [ ] Decide whether to decimate field (18.7k) + silo (20k) toward ~8k tris (others already 5–10k). Others: pasture 5.2k, workshop 7.7k, creamery/bakery 8.1k, orderboard 9.7k.
 - [ ] Decide whether to decimate creatures toward ~8k tris.
 - [ ] (UI 2D handled via Figma plugin, not Asset Bot — per user.)
 - [ ] After user approves creatures in gallery: bridge the 6 creature GLBs into Asset Bot records (`assets import --category creatures`), like henhouse was. (Henhouse already bridged.)
