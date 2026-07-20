@@ -1,6 +1,7 @@
 // Cheap toon-lit vertex-color shader for WebGL. Two-tone half-Lambert ramp,
-// no shadow sampling (blob shadows do that job), reads the mesh's vertex colors
-// so the island can be grass-top / soil-sides with zero texture download.
+// receives the main directional light's shadow (so stations ground themselves),
+// reads the mesh's vertex colors so the island can be grass-top / soil-sides
+// with zero texture download.
 Shader "VoidDay/VertexColorToon"
 {
     Properties
@@ -18,6 +19,11 @@ Shader "VoidDay/VertexColorToon"
             HLSLPROGRAM
             #pragma vertex vert
             #pragma fragment frag
+
+            // Main-light shadow receiving.
+            #pragma multi_compile _ _MAIN_LIGHT_SHADOWS _MAIN_LIGHT_SHADOWS_CASCADE _MAIN_LIGHT_SHADOWS_SCREEN
+            #pragma multi_compile_fragment _ _SHADOWS_SOFT
+
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
 
@@ -31,6 +37,7 @@ Shader "VoidDay/VertexColorToon"
             {
                 float4 positionHCS : SV_POSITION;
                 float3 normalWS    : TEXCOORD0;
+                float3 positionWS  : TEXCOORD1;
                 float4 color       : COLOR;
             };
 
@@ -43,7 +50,9 @@ Shader "VoidDay/VertexColorToon"
             Varyings vert (Attributes IN)
             {
                 Varyings OUT;
-                OUT.positionHCS = TransformObjectToHClip(IN.positionOS.xyz);
+                VertexPositionInputs pos = GetVertexPositionInputs(IN.positionOS.xyz);
+                OUT.positionHCS = pos.positionCS;
+                OUT.positionWS = pos.positionWS;
                 OUT.normalWS = TransformObjectToWorldNormal(IN.normalOS);
                 OUT.color = IN.color;
                 return OUT;
@@ -51,13 +60,15 @@ Shader "VoidDay/VertexColorToon"
 
             half4 frag (Varyings IN) : SV_Target
             {
-                Light mainLight = GetMainLight();
+                float4 shadowCoord = TransformWorldToShadowCoord(IN.positionWS);
+                Light mainLight = GetMainLight(shadowCoord);
                 float3 N = normalize(IN.normalWS);
                 float ndl = dot(N, mainLight.direction) * 0.5 + 0.5;   // half-Lambert 0..1
                 float band = ndl > 0.5 ? 1.0 : _ShadeBand;             // two-tone toon
                 half3 baseCol = IN.color.rgb * _Tint.rgb;
                 half3 ambient = SampleSH(N) * _AmbientBoost;
-                half3 lit = baseCol * (mainLight.color.rgb * band + ambient);
+                // Cast shadow removes the direct term; ambient still lights the shaded ground.
+                half3 lit = baseCol * (mainLight.color.rgb * band * mainLight.shadowAttenuation + ambient);
                 return half4(lit, 1);
             }
             ENDHLSL
