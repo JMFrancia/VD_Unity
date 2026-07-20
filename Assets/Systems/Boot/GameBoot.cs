@@ -29,6 +29,7 @@ namespace VoidDay.Systems
         [SerializeField] OrderBoardPanel orderBoardPanel;
         [SerializeField] OrderBoardSystem orderBoardSystem;
         [SerializeField] ProgressionSystem progressionSystem;
+        [SerializeField] UpgradesSystem upgradesSystem;
         [SerializeField] StationRegistry stationRegistry;
         [SerializeField] GameObject stationsParent;
         [SerializeField] BuildMenu buildMenu;
@@ -70,13 +71,26 @@ namespace VoidDay.Systems
             var buildSystem = new BuildSystem(bus, grid, jobs, wallet, resolver, stationTypes,
                 () => progression.PlayerLevel, config.refundPercent);
 
-            // Register the scene-authored pre-placed stations into grid + producer; each cell is derived from
-            // its transform (the scene owns placement, CLAUDE.md rule 4).
+            // Upgrade tracks per station type (§8), projected from the roster's UpgradeSO refs. The upgrade
+            // system is the M5 effect source; wiring it into the seam is what gives resolve() its teeth (§3).
+            var tracksByType = new Dictionary<string, IReadOnlyList<UpgradeTrackModel>>();
+            foreach (var so in config.stationRoster)
+            {
+                var tracks = new List<UpgradeTrackModel>(so.upgrades.Count);
+                foreach (var upgrade in so.upgrades) tracks.Add(ModelProjector.ProjectUpgrade(upgrade));
+                tracksByType[so.stationType] = tracks;
+            }
+            var upgrades = new UpgradeSystem(bus, wallet, tracksByType);
+            resolver.SetEffectSource(upgrades); // seam now sums real effects; call sites unchanged since M2
+
+            // Register the scene-authored pre-placed stations into grid + producer + upgrades; each cell is
+            // derived from its transform (the scene owns placement, CLAUDE.md rule 4).
             var preplaced = new Dictionary<string, Transform>();
             foreach (var station in stations)
             {
                 buildSystem.RegisterPreplaced(station.Id, station.Station.stationType,
                     projection.WorldToCell(station.transform.position));
+                upgrades.Register(station.Id, station.Station.stationType);
                 preplaced[station.Id] = station.transform;
             }
 
@@ -120,10 +134,11 @@ namespace VoidDay.Systems
             producer.Init(bus, jobs, pool, wallet, startingCounts);
             inputRouter.Init(bus, worldCamera);
             worldState.Init(jobs, catalog, roots);
-            stationPanel.Init(bus, jobs, catalog, pool, resourceNames, roots, worldCamera);
+            stationPanel.Init(bus, jobs, catalog, pool, wallet, upgrades, resourceNames, roots, worldCamera);
             orderBoardPanel.Init(bus, orderBoard, pool, jobs, resourceNames);
             orderBoardSystem.Init(bus, orderBoard, wallet);
             progressionSystem.Init(bus, progression, xpConfig);
+            upgradesSystem.Init(bus, upgrades);
             buildMenu.Init(bus, buildSystem, wallet, () => progression.PlayerLevel, config.stationRoster);
             placementController.Init(bus, grid, projection, worldCamera, config.stationRoster);
             hud.Init(bus, pool, progression, resourceList);
@@ -147,6 +162,7 @@ namespace VoidDay.Systems
             Require(orderBoardPanel, nameof(orderBoardPanel));
             Require(orderBoardSystem, nameof(orderBoardSystem));
             Require(progressionSystem, nameof(progressionSystem));
+            Require(upgradesSystem, nameof(upgradesSystem));
             Require(stationRegistry, nameof(stationRegistry));
             Require(stationsParent, nameof(stationsParent));
             Require(buildMenu, nameof(buildMenu));

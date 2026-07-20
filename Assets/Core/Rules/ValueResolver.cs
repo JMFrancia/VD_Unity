@@ -1,10 +1,12 @@
+using System.Collections.Generic;
 using VoidDay.Core.Model;
 
 namespace VoidDay.Core.Rules
 {
-    /// What a resolved value is *for* — the seam's discriminator. M5 maps these to EffectType and applies
-    /// stacked upgrade/trait/event effects; M2 ignores it. Kept local (not §3.1's EffectType) so M2 does
-    /// not depend on the effect schema it hasn't built yet.
+    /// What a resolved value is *for* — the seam's discriminator. M5 maps these to EffectType and applies the
+    /// stacked upgrade/trait/event effects; before M5 every kind was a passthrough. Kept local (not §3.1's
+    /// EffectType) so the M2 call sites do not depend on the effect schema directly — this seam is the one
+    /// translation point from "a rule reading a number" to "the effect system".
     public enum ResolveKind
     {
         RecipeDuration,
@@ -12,7 +14,7 @@ namespace VoidDay.Core.Rules
         InputCost,
         QueueDepth,
 
-        // M3 sites. M6 gives OrderPayout/OrderSlots teeth (the universal upgrades); M5 gives XpGain teeth.
+        // M3 sites. M6 gives OrderPayout/OrderSlots teeth (the universal upgrades). XpGain is wired here.
         OrderPayout,
         OrderSlots,
         XpGain,
@@ -23,7 +25,6 @@ namespace VoidDay.Core.Rules
     }
 
     /// Context a resolver needs to decide whether an effect applies (which station, which resource).
-    /// M2 reads none of it; M5's resolver will.
     public readonly struct ResolveContext
     {
         public readonly string StationId;
@@ -36,12 +37,48 @@ namespace VoidDay.Core.Rules
         }
     }
 
-    /// The value seam (00-summary decision #2). EVERY tunable read into a rule — recipe duration, output
-    /// quantity, input cost, queue depth — passes through Resolve. In M2 it is a pure passthrough. M5 gives
-    /// it teeth by folding in the Effect resolver; call sites never change. This is what makes M5 pure
-    /// forward extension instead of surgery on shipped code.
+    /// The value seam (00-summary decision #2). EVERY tunable read into a rule passes through Resolve. M5 gives
+    /// it teeth by folding in the Effect resolver; the call sites (JobSystem, Progression, BuildSystem,
+    /// OrderBoard) never changed — that is what made M5 pure forward extension instead of surgery on shipped
+    /// code. Kinds not yet backed by an effect emitter (order/build/cap) stay passthrough until their milestone.
     public sealed class ValueResolver
     {
-        public float Resolve(float baseValue, ResolveKind kind, in ResolveContext ctx) => baseValue;
+        private IEffectSource _effects;
+        private readonly List<Effect> _scratch = new();
+
+        /// Wired at boot after the effect source (UpgradeSystem) is constructed. Two-phase because the resolver
+        /// is created first (JobSystem/Progression/BuildSystem need it) and the source needs the wallet/bus.
+        /// Null source = passthrough, which is also what the headless economy tests use.
+        public void SetEffectSource(IEffectSource effects) => _effects = effects;
+
+        public float Resolve(float baseValue, ResolveKind kind, in ResolveContext ctx)
+        {
+            switch (kind)
+            {
+                // Speed is the one inversion: an effect resolver is additive on the *rate*, and a faster rate
+                // means a SHORTER timer. Resolve the speed factor against 1.0, then divide. +25%+25% => ×1.5
+                // speed => duration/1.5 (not duration×1.5), and it stacks additively per §3.5.
+                case ResolveKind.RecipeDuration:
+                {
+                    float speed = Applied(1f, EffectType.StationSpeed, ctx);
+                    return speed <= 0f ? baseValue : baseValue / speed;
+                }
+                case ResolveKind.OutputQuantity: return Applied(baseValue, EffectType.StationYield, ctx);
+                case ResolveKind.InputCost: return Applied(baseValue, EffectType.StationCost, ctx);
+                case ResolveKind.QueueDepth: return Applied(baseValue, EffectType.StationQueueDepth, ctx);
+                case ResolveKind.XpGain: return Applied(baseValue, EffectType.XpGain, ctx);
+
+                // No emitter for these until M6/M8 — passthrough keeps the read site honest meanwhile.
+                default: return baseValue;
+            }
+        }
+
+        private float Applied(float baseValue, EffectType type, in ResolveContext ctx)
+        {
+            if (_effects == null) return baseValue;
+            _scratch.Clear();
+            _effects.Collect(type, ctx, _scratch);
+            return _scratch.Count == 0 ? baseValue : EffectResolver.Apply(baseValue, _scratch);
+        }
     }
 }

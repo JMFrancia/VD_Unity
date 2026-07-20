@@ -261,4 +261,20 @@ namespace VoidDay.Core.Events
         public readonly int Amount;
         public DebugAddMoneyRequested(int amount) { Amount = amount; }
     }
+
+    // ---- Upgrades (M5) ----
+
+    /// Buy the next tier of a station-upgrade track (§8). §15 lists only {upgradeId}; StationId is added
+    /// because station upgrades are per-instance (§3.2 "own station") — the panel targets the station it shows.
+    public readonly struct UpgradePurchaseRequested
+    {
+        public readonly string StationId;
+        public readonly string UpgradeId; // the track id
+        public UpgradePurchaseRequested(string stationId, string upgradeId)
+        { StationId = stationId; UpgradeId = upgradeId; }
+    }
+
+    /// §15 effects:recalculated — the active effect set changed (an upgrade was bought, or a reset cleared
+    /// them). Views/systems re-read resolved values on this; they never re-derive what changed.
+    public readonly struct EffectsRecalculated { }
 }

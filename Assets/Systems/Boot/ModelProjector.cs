@@ -29,6 +29,16 @@ namespace VoidDay.Systems
             new StationTypeModel(so.stationType, so.displayName, so.buildCost, so.cap, so.unlockLevel,
                 so.queueDepth, so.width, so.height);
 
+        /// Upgrade track → model. Effects cross unprojected (§14) — the Core Effect[] is authored on the SO and
+        /// handed to the resolver straight, no DTO.
+        public static UpgradeTrackModel ProjectUpgrade(UpgradeSO so)
+        {
+            var tiers = new UpgradeTierModel[so.tiers.Length];
+            for (int i = 0; i < so.tiers.Length; i++)
+                tiers[i] = new UpgradeTierModel(so.tiers[i].cost, so.tiers[i].effects);
+            return new UpgradeTrackModel(so.id, tiers);
+        }
+
         public static RecipeModel Project(RecipeSO so) =>
             new RecipeModel(so.id, so.stationType, Flatten(so.inputs), Flatten(so.outputs), so.duration);
 

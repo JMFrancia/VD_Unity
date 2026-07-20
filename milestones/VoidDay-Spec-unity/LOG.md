@@ -201,3 +201,44 @@ Running record across milestones. Read this first when picking up cold.
 - **The MCP can't assign a `Transform`-typed serialized field** (its converter modifies-in-place instead of assigning). `GameBoot.stationsParent` is a `GameObject` for this reason; use `.transform` in code.
 - **Editor scene-save didn't reliably persist a scripted `SetActive` through a domain reload** — for durable scene-state flags, edit the `.unity` YAML directly + `scene-open` to reload.
 - **Camera pan is not in the UGUI raycast pipeline** — it reads the raw pointer + a math-plane ray, so UI must be excluded via `IsPointerOverGameObject()`, not by raycast-blocking. Any new raw-pointer world gesture needs the same guard.
+
+---
+
+## Milestone 05 — Station Upgrades & the Effect System
+**Status:** ✅ Complete · **Commit:** `<this commit>` · **Date:** 2026-07-20
+
+**Built:**
+- **The Effect system spine (§3), pure C# in Core.** `Core/Model/Effect.cs` — `Effect`/`Trait`/`EffectValue`/`Condition` + the **full** enum vocabularies (`EffectOp`, `EffectType`, `TriggerType`, `ConditionType`); only the passive own-station subset resolves this milestone, the rest is authored-once vocabulary. `Core/Rules/EffectResolver.cs` — the §3.5 stacking math (`(base+ΣFlat)·(1+ΣPct/100)·ΠMult`), type-agnostic. `Core/Rules/TraitDescription.cs` — the §3.6 procedural sentence generator (the three reference cases pass).
+- **The `resolve()` seam got its teeth.** `ValueResolver` now folds real effects into `station.speed/yield/cost/queueDepth` + `xp.gain`; **speed is the one inversion** (resolve the speed factor vs 1.0, then `duration / factor` — additive stacking, not compounding). `station.cost` + `xp.gain` are wired even though no M5 upgrade emits them (so M9 Thrifty / cost-affinity actually apply). Call sites (JobSystem/Progression/BuildSystem/OrderBoard) were untouched — pure forward extension, exactly what decision #2 bought.
+- **`UpgradeSystem` (Core)** — per-station-instance tiered purchases (charges wallet, bumps tier, emits `effects:recalculated`) AND the M5 `IEffectSource` (own-station passive effects only). `Systems/UpgradesSystem` MonoBehaviour translates `input:upgradePurchaseRequested` + keeps registration synced to `station:built/demolished/game:reset`.
+- **Data:** `UpgradeSO` (tiered, per-tier cost + `Effect[]` authored in the inspector — the one model crossing into Core unprojected, §14) + `StationSO.upgrades`. Three Field tracks authored (`Upgrade_Field_Speed` 3× +25% speed, `_Queue` 2× +1 depth, `_Yield` 2× +1 yield). `BootValidator` validates upgrades + normalises effects (triggerChance 0→100, range required for local/pet types).
+- **UI (built to an approved Figma mockup first — see deviations):** `panel.station` gained a **Recipes | Upgrades** tab (variant B: Field title + ✕, tabs beneath). `UpgradeRow` prefab = `pattern.purchaseRow` (procedural description + tier + cost + Buy), states available/can't-afford/maxed. `View/UpgradeRow.cs` + reworked `StationPanel`.
+- **Tests:** `Assets/Tests/EffectSystemTests.cs` — 16 tests (resolver stacking incl. "two +25% = +50% not ×1.5625", speed inversion, own-station scope, purchase rules, the three §3.6 sentences). Full suite 36/36 green.
+
+**Playtest bug-fix pass (folded into this commit):**
+- **BUG-01 — upgrades not shown on the panel.** `StationPanel` displayed *base* recipe time/output, so a bought speed/yield upgrade never appeared (the job WAS faster — 30s→24s — the label just lied). Added `JobSystem.ResolvedDuration/ResolvedOutput` Core queries (mirror the `QueueDepth` precedent); the panel reads those for the open station. Fixed the yield display in the same pass.
+- **BUG-02 — queue-depth upgrade didn't add a slot.** Functional cap was already correct (you *could* queue a 4th job); only the in-world slot row was frozen — `WorldState` built the slots once at station spawn and never rebuilt. Now it polls resolved `QueueDepth` each frame and rebuilds on mismatch (self-heals on purchase and on reset; no new deps).
+
+**Deviations from the plan:**
+- **The milestone doc said "upgrade rows in `panel.station`", but the chosen mockup (`42:2`) had deliberately removed upgrades from that surface and left the opener "TBD".** Surfaced the contradiction; user chose **a Recipes|Upgrades tab in the popup**. Per the user's standing preference, the tab layout was **mocked up in Figma and approved before any Unity authoring** (frames `53:2` variant A / `56:2` variant B — B chosen). This is the durable rule now: new/changed UI → Figma mock + approval → then author.
+- **`input:upgradePurchaseRequested` payload is `{stationId, upgradeId}`** (§15 lists only `{upgradeId}`) because station upgrades are per-instance (§3.2 "own station").
+- **Description generator uses ASCII `-` and `×`** (spec text shows a typographic `−`). Trivial; tests assert the ASCII form.
+- **`Progression.AwardXp` already routed through the seam since M3**, so the `xp.gain` "wiring" was a no-op edit — the site was pre-threaded. Good.
+
+**Tech debt:**
+- **Maxed upgrade row stays white**; the approved mockup greyed it slightly. Cosmetic, left (state reads clearly from "Lv N · Maxed" + no button). Would need a rowBackground ref + theme color.
+- **Long descriptions wrap to two lines** in the narrow popup ("+1 queue depth at its / station."). Readable; widen the popup or shorten the phrasing if it bugs.
+- **`local.*/global.*/order.*/build.cost/storage.cap/egg.chance/pet.*` are defined but not resolved** (per the plan's incremental schedule — M6/M7/M9/M10). `WithinRangeStation`/`pet.effectStrength` are declared-but-unused vocabulary (summary Open Items).
+
+**Assumptions:**
+- **Station upgrades are per-instance** (§3.2 "own station") — a track bought on `Field#0` does not affect `Field#1`. If design wants per-type, the registry keys + payload change.
+- **Upgrade costs/tiers are first-guess placeholders** (speed 50/120/250, queue 80/200, yield 100/260) — all on the `UpgradeSO` assets, tune in the inspector.
+
+**Gotchas for later milestones:**
+- **All reflection lives in the MCP verification harness (`script-execute`), NOT the game.** Shipping code is reflection-free; the bus dispatches via a typed `Dictionary<Type,Delegate>` cast-and-call. Don't mistake the test-driving scripts for game code.
+- **Speed inverts in the seam** (`ResolveKind.RecipeDuration` → `duration / speedFactor`). Every other kind applies the resolved value directly. A new speed-like "faster = smaller" stat needs the same inversion; don't add a `Local/GlobalSpeed` resolve without deciding how it composes with `StationSpeed`.
+- **`WorldState` now polls resolved `QueueDepth` every frame and rebuilds the slot row on change** — don't reintroduce a cached slot count. Any value the View shows that an effect can change must be *read live*, not captured at build (the M5 display bugs were exactly this: base vs resolved).
+- **The panel shows RESOLVED time/output** via `JobSystem.ResolvedDuration/ResolvedOutput`. New per-station displays should add a Core query, not resolve in the View (rules stay in Core).
+- **`UpgradeSystem.Collect` is own-station only** (`ctx.StationId == null` returns nothing). M6's global/universal source is a *second* `IEffectSource`; add a composite rather than overloading this one.
+- **`UpgradeSO` tiers are ADDITIVE** — authoring three "+25%" tiers stacks to +75% via the resolver. Do NOT author tier N as the cumulative total.
+- **The `UpgradeRow` prefab + the popup tab surgery were authored via one-shot editor scripts** (as the other UI prefabs were); they are now source-of-truth — edit in the editor / via MCP, don't re-run the builders.

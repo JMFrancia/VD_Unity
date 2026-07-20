@@ -89,6 +89,12 @@ namespace VoidDay.View
             double now = Time.timeAsDouble;
             foreach (var rig in _rigs)
             {
+                // Queue depth is resolved (upgrades fold in, §3), so it can change at runtime — rebuild the slot
+                // row when it diverges from what's rendered. Polled like everything else here, so it self-heals
+                // on a purchase or a reset with no event wiring. Producers only (non-producers keep 0 slots).
+                if (HasRecipes(rig.StationId) && _jobs.QueueDepth(rig.StationId) != rig.Slots.Count)
+                    RebuildSlots(rig);
+
                 bool has = _jobs.TryGetHeadProgress(rig.StationId, now, out float fraction, out bool complete);
                 bool running = has && !complete;
                 rig.Widget.SetRunning(running);
@@ -96,6 +102,16 @@ namespace VoidDay.View
                 if (running) rig.Widget.SetProgress(fraction);
                 UpdateSlots(rig, now);
             }
+        }
+
+        /// Tear down and rebuild the slot row to the current resolved depth. Cheap and rare — only runs on the
+        /// frame the depth actually changes (upgrade purchased, or reset drops it back to base).
+        void RebuildSlots(Rig rig)
+        {
+            foreach (var slot in rig.Slots)
+                if (slot != null) Destroy(slot.gameObject);
+            rig.Slots.Clear();
+            BuildSlots(rig);
         }
 
         void UpdateSlots(Rig rig, double now)

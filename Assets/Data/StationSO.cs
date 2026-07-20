@@ -39,5 +39,10 @@ namespace VoidDay.Data
 
         [Tooltip("Recipes available at this station (§5.2). Empty for non-producers (Silo, Order Board).")]
         public List<RecipeSO> recipes = new();
+
+        [Header("Upgrades (§8)")]
+        [Tooltip("Station-upgrade tracks bought in this station's panel (job speed, queue depth, output yield). "
+            + "Per-instance and passive/own-station (§3.2). Universal/Silo tracks live on Workshop/Silo (M6/M7).")]
+        public List<UpgradeSO> upgrades = new();
     }
 }

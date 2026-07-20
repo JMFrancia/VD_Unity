@@ -1,4 +1,5 @@
 using UnityEngine;
+using VoidDay.Core.Model;
 using VoidDay.Core.Rules;
 using VoidDay.Data;
 
@@ -93,7 +94,53 @@ namespace VoidDay.Systems
                 Require(r != null, s, nameof(s.recipes), "contains a null recipe ref");
                 ValidateRecipe(r, s.stationType);
             }
+
+            Require(s.upgrades != null, s, nameof(s.upgrades), "must not be null");
+            foreach (var u in s.upgrades)
+            {
+                Require(u != null, s, nameof(s.upgrades), "contains a null upgrade ref");
+                ValidateUpgrade(u);
+            }
         }
+
+        static void ValidateUpgrade(UpgradeSO u)
+        {
+            Require(!string.IsNullOrWhiteSpace(u.id), u, nameof(u.id), "must not be empty");
+            Require(u.tiers != null && u.tiers.Length > 0, u, nameof(u.tiers), "must have at least one tier");
+            for (int i = 0; i < u.tiers.Length; i++)
+            {
+                var tier = u.tiers[i];
+                Require(tier.cost >= 0, u, $"{nameof(u.tiers)}[{i}].cost", "must be >= 0");
+                Require(tier.effects != null && tier.effects.Length > 0, u, $"{nameof(u.tiers)}[{i}].effects",
+                    "must grant at least one effect");
+                foreach (var e in tier.effects)
+                    ValidateEffect(u, e, $"{nameof(u.tiers)}[{i}]");
+            }
+        }
+
+        /// §3.1 effect validation: reject malformed combinations loudly, and normalise triggerChance 0 → 100
+        /// ("unset"). local.* / pet.* types require a range; those aren't resolved until M9/M10 but a designer
+        /// authoring one now must not get a silent 0-cell reach.
+        static void ValidateEffect(Object owner, Effect e, string where)
+        {
+            Require(e != null, owner, where, "contains a null effect");
+            if (e.triggerChance == 0) e.triggerChance = 100; // normalise: unset => always fires
+            Require(e.triggerChance >= 0 && e.triggerChance <= 100, owner, $"{where} triggerChance",
+                "must be within [0, 100]");
+            if (e.value.op == EffectOp.Mult)
+                Require(e.value.amount > 0f, owner, $"{where} effect '{e.id}'",
+                    "a Mult amount must be > 0 (a zero multiplier would erase the value)");
+            if (RequiresRange(e.type))
+                Require(e.range > 0, owner, $"{where} effect '{e.id}'",
+                    $"type {e.type} is range-scoped and must set range > 0");
+        }
+
+        static bool RequiresRange(EffectType t) => t switch
+        {
+            EffectType.LocalSpeed or EffectType.LocalCost or EffectType.LocalYield
+                or EffectType.PetEffectStrength or EffectType.PetAutoCollectSpeed => true,
+            _ => false
+        };
 
         static void ValidateRecipe(RecipeSO r, string ownerStationType)
         {

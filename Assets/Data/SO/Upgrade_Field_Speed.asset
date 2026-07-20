@@ -1,0 +1,61 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 86b3cbfc94c3646ccbaa976c7b3ac3dc, type: 3}
+  m_Name: Upgrade_Field_Speed
+  m_EditorClassIdentifier: Assembly-CSharp::VoidDay.Data.UpgradeSO
+  id: field.speed
+  tiers:
+  - cost: 50
+    effects:
+    - id: field.speed.1
+      type: 0
+      value:
+        op: 1
+        amount: 25
+      resource: 
+      range: 0
+      trigger: 0
+      triggerChance: 0
+      condition:
+        type: 0
+        arg: 
+        amount: 0
+  - cost: 120
+    effects:
+    - id: field.speed.2
+      type: 0
+      value:
+        op: 1
+        amount: 25
+      resource: 
+      range: 0
+      trigger: 0
+      triggerChance: 0
+      condition:
+        type: 0
+        arg: 
+        amount: 0
+  - cost: 250
+    effects:
+    - id: field.speed.3
+      type: 0
+      value:
+        op: 1
+        amount: 25
+      resource: 
+      range: 0
+      trigger: 0
+      triggerChance: 0
+      condition:
+        type: 0
+        arg: 
+        amount: 0

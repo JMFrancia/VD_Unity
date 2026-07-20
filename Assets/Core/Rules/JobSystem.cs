@@ -68,6 +68,28 @@ namespace VoidDay.Core.Rules
             return (int)_resolver.Resolve(s.QueueDepthBase, ResolveKind.QueueDepth, new ResolveContext(stationId));
         }
 
+        /// The duration a job WILL take at this station, resolved through the seam (§3) — i.e. base recipe time
+        /// with the station's speed upgrades folded in. The View reads this to display the real time instead of
+        /// re-deriving it from base data (which would ignore upgrades); the resolve rule stays in Core.
+        public float ResolvedDuration(string stationId, string recipeId)
+        {
+            GetStation(stationId); // fail-loud if the station isn't registered, like the other queries
+            var recipe = _catalog.Get(recipeId);
+            return _resolver.Resolve(recipe.Duration, ResolveKind.RecipeDuration, new ResolveContext(stationId));
+        }
+
+        /// The first output's quantity a job WILL yield at this station, resolved through the seam (station.yield
+        /// upgrades folded in). Rounds exactly as collection does (see Effective), so the panel's preview matches
+        /// what actually lands in the pool.
+        public int ResolvedOutput(string stationId, string recipeId)
+        {
+            GetStation(stationId);
+            var recipe = _catalog.Get(recipeId);
+            if (recipe.Outputs.Count == 0) return 0;
+            var o = recipe.Outputs[0];
+            return (int)Math.Round(_resolver.Resolve(o.Amount, ResolveKind.OutputQuantity, new ResolveContext(stationId, o.ResourceId)));
+        }
+
         /// Generic collection predicate (§4.5, 00-summary gotcha). A tap collects iff this is true, else it
         /// opens the panel. M7 adds "&& storage has room" as another false-reason WITHOUT touching the tap
         /// branch — that is the whole point of routing tap-resolution through one predicate.
