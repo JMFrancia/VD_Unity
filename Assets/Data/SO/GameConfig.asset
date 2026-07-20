@@ -15,15 +15,6 @@ MonoBehaviour:
   gridCols: 20
   gridRows: 30
   cellSize: 1
-  cameraPitchDegrees: 57
-  cameraYawDegrees: 0
-  cameraDistance: 50
-  cameraMinZoom: 3
-  cameraMaxZoom: 14
-  cameraStartZoom: 6
-  panMarginCells: 2
-  scrollZoomStep: 0.5
-  keyZoomSpeed: 6
   startingResources:
   - resource: {fileID: 11400000, guid: ab16cbc8f42d841a6b9bc8e41c13aee9, type: 2}
     amount: 1
