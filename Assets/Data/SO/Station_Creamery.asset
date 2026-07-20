@@ -20,6 +20,7 @@ MonoBehaviour:
   cap: 1
   unlockLevel: 5
   placeholderColor: {r: 0.85, g: 0.78, b: 0.62, a: 1}
-  prefab: {fileID: 0}
+  prefab: {fileID: 6385065255732933552, guid: eb98db35e5c5f4689bac6799a0ae623f, type: 3}
   queueDepth: 3
   recipes: []
+  upgrades: []
