@@ -25,12 +25,35 @@ namespace VoidDay.Systems
                 Require(sr.amount >= 0, sr.resource, "starting amount", "must be >= 0");
             }
 
+            Require(config.orderConfig != null, config, nameof(config.orderConfig), "must be assigned");
+            ValidateOrderConfig(config.orderConfig);
+            Require(config.xpConfig != null, config, nameof(config.xpConfig), "must be assigned");
+            Require(config.xpConfig.perJobCollected >= 0, config.xpConfig,
+                nameof(config.xpConfig.perJobCollected), "must be >= 0");
+        }
+
+        static void ValidateOrderConfig(OrderConfigSO o)
+        {
+            Require(o.slotCount > 0, o, nameof(o.slotCount), "must be > 0");
+            Require(o.refillSeconds > 0f, o, nameof(o.refillSeconds), "must be > 0");
+            Require(o.minRequestKinds > 0, o, nameof(o.minRequestKinds), "must be > 0");
+            Require(o.maxRequestKinds >= o.minRequestKinds, o, nameof(o.maxRequestKinds),
+                $"must be >= minRequestKinds ({o.minRequestKinds})");
+            Require(o.maxQuantityAtLevel1 >= 1f, o, nameof(o.maxQuantityAtLevel1), "must be >= 1");
+            Require(o.maxQuantityPerLevel >= 0f, o, nameof(o.maxQuantityPerLevel), "must be >= 0");
+            Require(o.tierWeightBase > 0f, o, nameof(o.tierWeightBase),
+                "must be > 0 — a zero base makes every level-1 weight zero and the pick undefined");
+            Require(o.tierWeightPerLevel >= 0f, o, nameof(o.tierWeightPerLevel), "must be >= 0");
+            Require(o.cashMultiplier > 0f, o, nameof(o.cashMultiplier), "must be > 0");
+            Require(o.xpMultiplier > 0f, o, nameof(o.xpMultiplier), "must be > 0");
         }
 
         static void ValidateResource(ResourceSO r)
         {
             Require(!string.IsNullOrWhiteSpace(r.id), r, nameof(r.id), "must not be empty");
             Require(!string.IsNullOrWhiteSpace(r.displayName), r, nameof(r.displayName), "must not be empty");
+            Require(r.baseValue > 0, r, nameof(r.baseValue), "must be > 0 — it is the basis of order payout");
+            Require(r.tier > 0, r, nameof(r.tier), "must be > 0");
         }
 
         /// Called per scene-placed station at boot (GameBoot discovers them; the scene owns placement).

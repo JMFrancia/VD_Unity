@@ -14,5 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::VoidDay.Data.ResourceSO
   id: wheat
   displayName: Wheat
-  baseValue: 1
+  icon: {fileID: 21300000, guid: 789601e88840c48aab4411f6d73acfcb, type: 3}
+  baseValue: 2
   sellable: 0
+  tier: 1

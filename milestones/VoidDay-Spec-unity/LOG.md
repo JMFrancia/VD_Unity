@@ -123,3 +123,36 @@ Running record across milestones. Read this first when picking up cold.
 - **Station instance ids are scene GameObject names** (`Field`, `Silo`, `OrderBoard`). Rename in scene = rename the Core id. Boot throws on duplicates/missing SO.
 - **`Application.runInBackground = true` needed again this session** for MCP playmode verification (same background-freeze gotcha as M2; it does not persist).
 - **Editor-scripted authoring is one-shot scaffolding** — the prefabs/scene are now the source of truth; edit them in the editor (or via MCP gameobject/prefab tools), never by re-running a builder script.
+
+---
+
+## Milestone 03 — Order Board
+**Status:** ✅ Complete · **Commit:** `<this commit>` · **Date:** 2026-07-20
+
+**Built:**
+- **Core** (pure C#, boundary held): `OrderModel`, `OrderConfigModel`, `XpConfigModel`; `OrderPricing` (payout = Σ(qty×baseValue)×mult, floored at 1), `OrderGeneration` (`System.Random` injected, sellable∩producible candidate pool, tier-weighted by level, no repeated good on a card), `OrderBoard` (slots, absolute-timestamp refill timers, fulfill/skip, orders never expire), `Progression` (level starts at 1 and **never increments** — M8 owns that — plus `xpTotal`). `ResourceModel` gained `BaseValue`/`Sellable`/`Tier`. `ValueResolver` gained `OrderPayout`/`OrderSlots`/`XpGain` kinds (passthrough; M5/M6 give teeth).
+- **Data:** `OrderConfigSO` + `XpConfigSO` (assets authored, wired into `GameConfig`), `ResourceSO.tier`. Corn `baseValue` 2→3, tier 1; wheat already `sellable=false` from M1. `BootValidator` extended.
+- **Systems:** `OrderBoardSystem` (pumps `Tick`, routes fulfill/skip + debug add-money), `ProgressionSystem` (awards XP off `job:collected` flat + `order:fulfilled` carried), `GameBoot` builds the order/progression graph (producible set derived from recipe outputs).
+- **View:** `OrderBoardPanel` (self-selects on the Order Board station type off the shared `StationPanelRequested`) + `OrderCard`/`OrderGoodChip` prefabs, authored against Figma `14:2`. HUD gained a `+$100` cheat and a debug `Lv N · X XP` readout (no level/XP HUD — that's M8).
+- **Tests:** `Assets/Tests/` (new EditMode asmdef) — 20 tests, all green (pricing, wheat exclusion, level scaling, refill window, never-expire, seed replay).
+
+**Verified:** 20/20 EditMode pass. Play-mode via bus injection: 3 corn slots, tap opens board, Fill disabled at 1-vs-3 corn, fulfill paid +108/+14 & consumed goods, skip free, job-collect +2 XP with level frozen at 1, `+$100` worked, panels are one-at-a-time. Screenshots confirm render. **User play-tested and approved.** Literal finger-tap→raycast still human-only (MCP can't inject pointer input).
+
+**Deviations from the plan:**
+- **Dropped the planned `OrderBoardPanelRequested` event.** Both panels self-select off the existing `StationPanelRequested` by station type — one fewer event.
+- **Systems named `OrderBoardSystem`/`ProgressionSystem`** (plan said `OrderBoard`/`Progression`) to avoid colliding with the Core classes they drive.
+- **`StationPanel` now closes for non-producers** (was: opened an empty panel in M2). Consequence: tapping the Silo opens nothing until M7 builds `panel.silo` — intended (no inert UI), user-confirmed.
+
+**Tech debt:**
+- `StationPanel`'s `NoRecipes` row is now dead (non-producers never open it) — left in the prefab, harmless.
+- Goods chips use one placeholder tan tile + text label; a parallel session is generating real resource icons (`ResourceSO.icon` field landed from that work; not yet wired here).
+- External balance app can run the Core rules but can't read `.asset` files — needs a small SO→JSON export when wanted.
+
+**Assumptions:**
+- **Order seed fixed at 12345** on `GameBoot` (0 = random) — reproducible orders for testing.
+- **Tier weighting is unit-tested only** — corn is the sole sellable good in-scene, so every live order is corn until M4 adds producers.
+- `OrderConfigSO` numbers (60s refill, ×12 cash, ×1.5 XP) are first-guess placeholders — tune in the inspector.
+
+**Gotchas for later milestones:**
+- **Order-slot count reads through the seam** (`OrderBoard.SlotCount` via `ResolveKind.OrderSlots`); the board grows the moment the resolved value rises (M6 order.slots / M8 level-raise) with no rewrite — `Tick` already appends empty refilling slots up to it.
+- **Editor mouse-death gotcha:** the Device Simulator disables the Mouse device → whole editor untappable. Fixed permanently by `Assets/Editor/EditorMouseGuard.cs` (editor-only). If input dies, check the guard exists before hunting a code regression.

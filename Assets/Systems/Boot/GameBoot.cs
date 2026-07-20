@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using VoidDay.Core.Events;
+using VoidDay.Core.Model;
 using VoidDay.Core.Rules;
 using VoidDay.Data;
 using VoidDay.View;
@@ -24,7 +25,13 @@ namespace VoidDay.Systems
         [SerializeField] InputRouter inputRouter;
         [SerializeField] WorldState worldState;
         [SerializeField] StationPanel stationPanel;
+        [SerializeField] OrderBoardPanel orderBoardPanel;
+        [SerializeField] OrderBoardSystem orderBoardSystem;
+        [SerializeField] ProgressionSystem progressionSystem;
         [SerializeField] Hud hud;
+
+        [Tooltip("Fixed seed makes a session's orders reproducible; 0 = seed from the clock.")]
+        [SerializeField] int orderSeed = 12345;
 
         void Start()
         {
@@ -36,7 +43,8 @@ namespace VoidDay.Systems
             var pool = new ResourcePool(bus);
             var wallet = new Wallet(bus);
             var catalog = new RecipeCatalog();
-            var jobs = new JobSystem(bus, pool, catalog, new ValueResolver());
+            var resolver = new ValueResolver(); // one seam instance — M5 gives it teeth for every rule at once
+            var jobs = new JobSystem(bus, pool, catalog, resolver);
 
             var added = new HashSet<RecipeSO>();
             foreach (var station in stations)
@@ -61,13 +69,39 @@ namespace VoidDay.Systems
                 resourceList.Add(new KeyValuePair<string, string>(sr.resource.id, sr.resource.displayName));
             }
 
+            // Every resource any placed station can produce — the order pool's candidate set (§6.1). Built
+            // from recipe outputs, so a station type placed in M4 widens the pool with no change here.
+            var resourceModels = new Dictionary<string, ResourceModel>();
+            var producible = new HashSet<string>();
+            foreach (var station in stations)
+                foreach (var recipe in station.Station.recipes)
+                    foreach (var output in recipe.outputs)
+                    {
+                        resourceModels[output.resource.id] = ModelProjector.Project(output.resource);
+                        producible.Add(output.resource.id);
+                    }
+            foreach (var sr in config.startingResources)
+                resourceModels[sr.resource.id] = ModelProjector.Project(sr.resource);
+
+            var orderConfig = ModelProjector.Project(config.orderConfig);
+            var xpConfig = ModelProjector.Project(config.xpConfig);
+            var progression = new Progression(bus, resolver);
+            var pricing = new OrderPricing(resourceModels, orderConfig, resolver);
+            var generation = new OrderGeneration(resourceModels, orderConfig, pricing,
+                orderSeed == 0 ? new System.Random() : new System.Random(orderSeed));
+            var orderBoard = new OrderBoard(bus, pool, wallet, generation, orderConfig, resolver,
+                () => producible, () => progression.PlayerLevel);
+
             // Grid is centered on the world origin; the camera only needs its world-space extents for pan bounds.
             cameraController.Init(Vector3.zero, config.gridCols * config.cellSize, config.gridRows * config.cellSize, bus, roots);
             producer.Init(bus, jobs, pool, wallet, startingCounts);
             inputRouter.Init(bus, worldCamera);
             worldState.Init(jobs, catalog, roots);
             stationPanel.Init(bus, jobs, catalog, pool, resourceNames, roots, worldCamera);
-            hud.Init(bus, pool, resourceList);
+            orderBoardPanel.Init(bus, orderBoard, pool, jobs, resourceNames);
+            orderBoardSystem.Init(bus, orderBoard, wallet);
+            progressionSystem.Init(bus, progression, xpConfig);
+            hud.Init(bus, pool, progression, resourceList);
 
             foreach (var kv in startingCounts)
                 if (kv.Value != 0) pool.Add(kv.Key, kv.Value); // emits resource:changed (views already listening)
@@ -85,6 +119,9 @@ namespace VoidDay.Systems
             Require(inputRouter, nameof(inputRouter));
             Require(worldState, nameof(worldState));
             Require(stationPanel, nameof(stationPanel));
+            Require(orderBoardPanel, nameof(orderBoardPanel));
+            Require(orderBoardSystem, nameof(orderBoardSystem));
+            Require(progressionSystem, nameof(progressionSystem));
             Require(hud, nameof(hud));
         }
 

@@ -12,7 +12,15 @@ namespace VoidDay.Systems
             new GameConfigModel(so.gridCols, so.gridRows, so.cellSize);
 
         public static ResourceModel Project(ResourceSO so) =>
-            new ResourceModel(so.id, so.displayName);
+            new ResourceModel(so.id, so.displayName, so.baseValue, so.sellable, so.tier);
+
+        public static OrderConfigModel Project(OrderConfigSO so) =>
+            new OrderConfigModel(so.slotCount, so.refillSeconds, so.minRequestKinds, so.maxRequestKinds,
+                so.maxQuantityAtLevel1, so.maxQuantityPerLevel, so.cashMultiplier, so.xpMultiplier,
+                so.tierWeightBase, so.tierWeightPerLevel);
+
+        public static XpConfigModel Project(XpConfigSO so) =>
+            new XpConfigModel(so.perJobCollected);
 
         public static StationModel Project(StationSO so, string instanceId) =>
             new StationModel(instanceId, so.stationType, so.displayName, so.width, so.height);

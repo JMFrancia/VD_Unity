@@ -122,4 +122,61 @@ namespace VoidDay.Core.Events
         public readonly int Total;
         public MoneyChanged(int delta, int total) { Delta = delta; Total = total; }
     }
+
+    // ---- Order input intents ----
+    public readonly struct OrderFulfillRequested
+    {
+        public readonly string OrderId;
+        public OrderFulfillRequested(string orderId) { OrderId = orderId; }
+    }
+
+    public readonly struct OrderSkipRequested
+    {
+        public readonly string OrderId;
+        public OrderSkipRequested(string orderId) { OrderId = orderId; }
+    }
+
+    // ---- Orders (published by Core) ----
+    public readonly struct OrderGenerated
+    {
+        public readonly int Slot;
+        public readonly OrderModel Order;
+        public OrderGenerated(int slot, OrderModel order) { Slot = slot; Order = order; }
+    }
+
+    public readonly struct OrderFulfilled
+    {
+        public readonly string OrderId;
+        public readonly int Payout;
+        public readonly int Xp;
+        public OrderFulfilled(string orderId, int payout, int xp)
+        { OrderId = orderId; Payout = payout; Xp = xp; }
+    }
+
+    public readonly struct OrderSkipped
+    {
+        public readonly string OrderId;
+        public OrderSkipped(string orderId) { OrderId = orderId; }
+    }
+
+    public readonly struct OrderSlotRefilled
+    {
+        public readonly int Slot;
+        public OrderSlotRefilled(int slot) { Slot = slot; }
+    }
+
+    // ---- Progression ----
+    public readonly struct XpGained
+    {
+        public readonly int Amount;
+        public readonly string Source;
+        public XpGained(int amount, string source) { Amount = amount; Source = source; }
+    }
+
+    // Debug intent, same routing rationale as DebugAddResourceRequested: add → money:changed.
+    public readonly struct DebugAddMoneyRequested
+    {
+        public readonly int Amount;
+        public DebugAddMoneyRequested(int amount) { Amount = amount; }
+    }
 }

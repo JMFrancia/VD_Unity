@@ -89,6 +89,12 @@ namespace VoidDay.View
 
         void OnPanelRequested(StationPanelRequested e)
         {
+            // This is the *recipe* popup, so it owns producers only. The Order Board (and later the Silo and
+            // Workshop) have their own panels and self-select the same way off this event. Tapping a station
+            // this panel does NOT own closes it — panels are one-at-a-time, so the other panel's open does
+            // not leave this one hanging behind it.
+            if (_catalog.ForStationType(_jobs.StationTypeOf(e.StationId)).Count == 0) { Close(); return; }
+
             if (_openStationId != e.StationId) _selected = 0; // keep selection only when re-tapping the same one
             _openStationId = e.StationId;
             popup.gameObject.SetActive(true);

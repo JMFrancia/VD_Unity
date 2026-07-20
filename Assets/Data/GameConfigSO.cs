@@ -17,6 +17,10 @@ namespace VoidDay.Data
 
         [Header("Start block (§5.3)")]
         public List<StartingResource> startingResources = new();
+
+        [Header("Economy config (§6, §9)")]
+        public OrderConfigSO orderConfig;
+        public XpConfigSO xpConfig;
     }
 
     [Serializable]

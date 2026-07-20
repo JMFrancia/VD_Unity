@@ -27,21 +27,34 @@ namespace VoidDay.View
         [SerializeField] GameObject debugMenu;
         [SerializeField] Transform cheatButtonList;
         [SerializeField] Button cheatButtonTemplate;
+        [SerializeField] Button debugAddMoneyButton;
         [SerializeField] Button debugResetButton;
+
+        [Tooltip("XP has no HUD until M8 — this debug line is how it is verified meanwhile.")]
+        [SerializeField] Text debugXpReadout;
+
+        [Header("Cheat amounts")]
+        [SerializeField] int cheatResourceAmount = 5;
+        [SerializeField] int cheatMoneyAmount = 100;
 
         EventBus _bus;
         ResourcePool _pool;
+        Progression _progression;
         IReadOnlyList<KeyValuePair<string, string>> _resources; // id → display name, stable order
 
-        public void Init(EventBus bus, ResourcePool pool, IReadOnlyList<KeyValuePair<string, string>> resources)
+        public void Init(EventBus bus, ResourcePool pool, Progression progression,
+            IReadOnlyList<KeyValuePair<string, string>> resources)
         {
             _bus = bus;
             _pool = pool;
+            _progression = progression;
             _resources = resources;
 
             moneyButton.onClick.AddListener(ToggleTotals);
             totalsCloseButton.onClick.AddListener(() => totalsPopup.SetActive(false));
             debugToggleButton.onClick.AddListener(() => debugMenu.SetActive(!debugMenu.activeSelf));
+            debugAddMoneyButton.onClick.AddListener(() => _bus.Publish(new DebugAddMoneyRequested(cheatMoneyAmount)));
+            debugAddMoneyButton.GetComponentInChildren<Text>().text = $"+${cheatMoneyAmount}";
             debugResetButton.onClick.AddListener(() => _bus.Publish(new DebugResetRequested()));
             BuildCheatButtons();
 
@@ -51,16 +64,25 @@ namespace VoidDay.View
             _bus.Subscribe<MoneyChanged>(e => moneyText.text = $"$ {e.Total}");
             _bus.Subscribe<ResourceChanged>(_ => { if (totalsPopup.activeSelf) RefreshTotals(); });
             _bus.Subscribe<GameReset>(_ => { if (totalsPopup.activeSelf) RefreshTotals(); });
+
+            _bus.Subscribe<XpGained>(_ => RefreshXpReadout());
+            _bus.Subscribe<GameReset>(_ => RefreshXpReadout());
+            RefreshXpReadout();
         }
+
+        /// Debug-only, per the milestone: XP accrues as invisible infrastructure until M8 builds hud.levelXp.
+        void RefreshXpReadout() =>
+            debugXpReadout.text = $"Lv {_progression.PlayerLevel}  ·  {_progression.XpTotal} XP";
 
         void BuildCheatButtons()
         {
             foreach (var r in _resources)
             {
                 var button = Instantiate(cheatButtonTemplate, cheatButtonList);
-                button.GetComponentInChildren<Text>().text = $"+5  {r.Value}";
+                button.GetComponentInChildren<Text>().text = $"+{cheatResourceAmount}  {r.Value}";
                 string id = r.Key;
-                button.onClick.AddListener(() => _bus.Publish(new DebugAddResourceRequested(id, 5)));
+                button.onClick.AddListener(() =>
+                    _bus.Publish(new DebugAddResourceRequested(id, cheatResourceAmount)));
             }
         }
 

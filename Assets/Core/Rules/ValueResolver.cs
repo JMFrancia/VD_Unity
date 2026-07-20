@@ -10,7 +10,12 @@ namespace VoidDay.Core.Rules
         RecipeDuration,
         OutputQuantity,
         InputCost,
-        QueueDepth
+        QueueDepth,
+
+        // M3 sites. M6 gives OrderPayout/OrderSlots teeth (the universal upgrades); M5 gives XpGain teeth.
+        OrderPayout,
+        OrderSlots,
+        XpGain
     }
 
     /// Context a resolver needs to decide whether an effect applies (which station, which resource).
