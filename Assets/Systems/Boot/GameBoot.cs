@@ -3,6 +3,7 @@ using UnityEngine;
 using VoidDay.Core.Events;
 using VoidDay.Core.Model;
 using VoidDay.Core.Rules;
+using VoidDay.Core.World;
 using VoidDay.Data;
 using VoidDay.View;
 
@@ -28,6 +29,10 @@ namespace VoidDay.Systems
         [SerializeField] OrderBoardPanel orderBoardPanel;
         [SerializeField] OrderBoardSystem orderBoardSystem;
         [SerializeField] ProgressionSystem progressionSystem;
+        [SerializeField] StationRegistry stationRegistry;
+        [SerializeField] GameObject stationsParent;
+        [SerializeField] BuildMenu buildMenu;
+        [SerializeField] PlacementController placementController;
         [SerializeField] Hud hud;
 
         [Tooltip("Fixed seed makes a session's orders reproducible; 0 = seed from the clock.")]
@@ -45,19 +50,38 @@ namespace VoidDay.Systems
             var catalog = new RecipeCatalog();
             var resolver = new ValueResolver(); // one seam instance — M5 gives it teeth for every rule at once
             var jobs = new JobSystem(bus, pool, catalog, resolver);
+            var grid = new StationGrid(config.gridCols, config.gridRows);
+            var projection = new GridProjection(config.gridCols, config.gridRows, config.cellSize);
 
+            // Recipes for every buildable type — the roster covers placed AND not-yet-placed stations, so a
+            // station built at runtime already has its recipes registered.
             var added = new HashSet<RecipeSO>();
-            foreach (var station in stations)
-                foreach (var recipe in station.Station.recipes)
+            foreach (var so in config.stationRoster)
+                foreach (var recipe in so.recipes)
                     if (added.Add(recipe))
                         catalog.Add(ModelProjector.Project(recipe));
 
-            var roots = new Dictionary<string, Transform>();
+            // Per-type build data the build rules read (cost / cap / unlock level / queue depth).
+            var stationTypes = new Dictionary<string, StationTypeModel>();
+            foreach (var so in config.stationRoster)
+                stationTypes[so.stationType] = ModelProjector.ProjectType(so);
+
+            var progression = new Progression(bus, resolver);
+            var buildSystem = new BuildSystem(bus, grid, jobs, wallet, resolver, stationTypes,
+                () => progression.PlayerLevel, config.refundPercent);
+
+            // Register the scene-authored pre-placed stations into grid + producer; each cell is derived from
+            // its transform (the scene owns placement, CLAUDE.md rule 4).
+            var preplaced = new Dictionary<string, Transform>();
             foreach (var station in stations)
             {
-                jobs.Register(station.Id, station.Station.stationType, station.Station.queueDepth);
-                roots[station.Id] = station.transform;
+                buildSystem.RegisterPreplaced(station.Id, station.Station.stationType,
+                    projection.WorldToCell(station.transform.position));
+                preplaced[station.Id] = station.transform;
             }
+
+            stationRegistry.Init(bus, buildSystem, stationsParent.transform, projection, config.stationRoster, preplaced);
+            var roots = stationRegistry.Roots; // shared live map, mutated by StationRegistry on build/demolish
 
             var resourceNames = new Dictionary<string, string>();
             var startingCounts = new Dictionary<string, int>();
@@ -85,7 +109,6 @@ namespace VoidDay.Systems
 
             var orderConfig = ModelProjector.Project(config.orderConfig);
             var xpConfig = ModelProjector.Project(config.xpConfig);
-            var progression = new Progression(bus, resolver);
             var pricing = new OrderPricing(resourceModels, orderConfig, resolver);
             var generation = new OrderGeneration(resourceModels, orderConfig, pricing,
                 orderSeed == 0 ? new System.Random() : new System.Random(orderSeed));
@@ -101,6 +124,8 @@ namespace VoidDay.Systems
             orderBoardPanel.Init(bus, orderBoard, pool, jobs, resourceNames);
             orderBoardSystem.Init(bus, orderBoard, wallet);
             progressionSystem.Init(bus, progression, xpConfig);
+            buildMenu.Init(bus, buildSystem, wallet, () => progression.PlayerLevel, config.stationRoster);
+            placementController.Init(bus, grid, projection, worldCamera, config.stationRoster);
             hud.Init(bus, pool, progression, resourceList);
 
             foreach (var kv in startingCounts)
@@ -122,6 +147,10 @@ namespace VoidDay.Systems
             Require(orderBoardPanel, nameof(orderBoardPanel));
             Require(orderBoardSystem, nameof(orderBoardSystem));
             Require(progressionSystem, nameof(progressionSystem));
+            Require(stationRegistry, nameof(stationRegistry));
+            Require(stationsParent, nameof(stationsParent));
+            Require(buildMenu, nameof(buildMenu));
+            Require(placementController, nameof(placementController));
             Require(hud, nameof(hud));
         }
 

@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
 using VoidDay.Core.Events;
 
@@ -56,6 +57,7 @@ namespace VoidDay.View
         bool _initialized;
 
         bool _dragging;
+        bool _placementActive; // a build/move ghost is being dragged — don't also pan
         Vector3 _grabPoint;
         float _lastPinchDistance;
 
@@ -74,6 +76,7 @@ namespace VoidDay.View
             _initialized = true;
 
             _bus.Subscribe<StationPanelRequested>(OnPanelRequested);
+            _bus.Subscribe<PlacementActiveChanged>(OnPlacementActiveChanged);
 
             ClampFocus();
             ApplyCamera();
@@ -81,7 +84,15 @@ namespace VoidDay.View
 
         void OnDestroy()
         {
-            _bus?.Unsubscribe<StationPanelRequested>(OnPanelRequested);
+            if (_bus == null) return;
+            _bus.Unsubscribe<StationPanelRequested>(OnPanelRequested);
+            _bus.Unsubscribe<PlacementActiveChanged>(OnPlacementActiveChanged);
+        }
+
+        void OnPlacementActiveChanged(PlacementActiveChanged e)
+        {
+            _placementActive = e.Active;
+            if (e.Active) _dragging = false; // drop any in-progress pan the moment a ghost takes over
         }
 
         /// The panel is opening over this station — ease it to screen center so the popup isn't cut off.
@@ -149,6 +160,9 @@ namespace VoidDay.View
             var pointer = Pointer.current;
             if (pointer == null) return;
 
+            // A build/move ghost owns the drag — panning here would fight it.
+            if (_placementActive) { _dragging = false; return; }
+
             // Pinch owns the gesture when two fingers are down; don't also pan.
             if (ActiveTouchCount() >= 2) { _dragging = false; return; }
 
@@ -156,7 +170,10 @@ namespace VoidDay.View
 
             if (pointer.press.wasPressedThisFrame)
             {
-                _dragging = TryPlanePoint(screen, out _grabPoint);
+                // A press that begins over UI belongs to that UI (a build-menu drag, a button) — not a pan.
+                // Same guard InputRouter uses for world taps; the camera is not in the UGUI raycast pipeline,
+                // so it has to consult IsPointerOverGameObject itself rather than rely on raycast-blocking.
+                _dragging = !IsOverUi() && TryPlanePoint(screen, out _grabPoint);
             }
             else if (pointer.press.isPressed && _dragging)
             {
@@ -202,6 +219,9 @@ namespace VoidDay.View
                 if (t.press.isPressed) count++;
             return count;
         }
+
+        static bool IsOverUi() =>
+            EventSystem.current != null && EventSystem.current.IsPointerOverGameObject();
 
         bool TryPlanePoint(Vector2 screen, out Vector3 world)
         {

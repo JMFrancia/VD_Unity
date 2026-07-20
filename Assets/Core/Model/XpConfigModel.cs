@@ -5,10 +5,12 @@ namespace VoidDay.Core.Model
     public sealed class XpConfigModel
     {
         public readonly int PerJobCollected;
+        public readonly int PerStationBuilt;
 
-        public XpConfigModel(int perJobCollected)
+        public XpConfigModel(int perJobCollected, int perStationBuilt)
         {
             PerJobCollected = perJobCollected;
+            PerStationBuilt = perStationBuilt;
         }
     }
 }

@@ -16,6 +16,11 @@ MonoBehaviour:
   displayName: Field
   width: 1
   height: 1
+  buildCost: 50
+  cap: 2
+  unlockLevel: 1
+  placeholderColor: {r: 0.55, g: 0.75, b: 0.42, a: 1}
+  prefab: {fileID: 4375642329552315335, guid: e9b5f8337186c4b57a96cb1a914f462f, type: 3}
   queueDepth: 3
   recipes:
   - {fileID: 11400000, guid: 4cbb2ae5907984befbdce42c831874c4, type: 2}

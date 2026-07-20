@@ -106,6 +106,88 @@ namespace VoidDay.Core.Events
         public StationBlocked(string stationId, string reason) { StationId = stationId; Reason = reason; }
     }
 
+    // ---- Build & manage input intents (§12.2 — published by the placement View, never acted on by it) ----
+
+    /// A completed placement drag dropped on a valid, affordable, under-cap cell (§12.2). The View guarantees
+    /// validity before emitting; Core re-checks and fails loud if the contract is breached.
+    public readonly struct PlaceRequested
+    {
+        public readonly string StationType;
+        public readonly GridCoord Cell;
+        public PlaceRequested(string stationType, GridCoord cell) { StationType = stationType; Cell = cell; }
+    }
+
+    /// A picked-up station dropped on a valid empty cell (§12.2). Move is free (§4.3).
+    public readonly struct MoveRequested
+    {
+        public readonly string StationId;
+        public readonly GridCoord Cell;
+        public MoveRequested(string stationId, GridCoord cell) { StationId = stationId; Cell = cell; }
+    }
+
+    /// Debug-only demolish trigger for M4 (the player-facing gesture is deferred — user decision). Demolishes
+    /// the most-recently-built station; routes through Core so the 50% refund rule (§4.3) has one home.
+    public readonly struct DebugDemolishLastRequested { }
+
+    /// A placed station was long-pressed to pick it up for a move (§12.2). Published by the input layer, the
+    /// placement View listens and begins the move ghost. Not in §15 — a View-routing intent, like
+    /// StationPanelRequested, so the pick-up rule (long-press detection) has one home.
+    public readonly struct StationPickedUp
+    {
+        public readonly string StationId;
+        public StationPickedUp(string stationId) { StationId = stationId; }
+    }
+
+    /// A placement/move ghost drag started (true) or ended (false). The camera listens and suppresses panning
+    /// while a ghost is being dragged, so the same finger-drag doesn't also pan the world. View-routing only.
+    public readonly struct PlacementActiveChanged
+    {
+        public readonly bool Active;
+        public PlacementActiveChanged(bool active) { Active = active; }
+    }
+
+    /// An exclusive UI surface (a menu or panel — build menu, station panel, order board, debug menu) opened.
+    /// Every exclusive surface publishes this on open and closes itself when it sees one from a DIFFERENT
+    /// source, giving "one menu at a time". Stacking popups (totals, confirmations) neither publish nor listen.
+    /// View-routing only — not a domain event.
+    public readonly struct ExclusiveUiOpened
+    {
+        public readonly string Source;
+        public ExclusiveUiOpened(string source) { Source = source; }
+    }
+
+    // ---- Stations built / moved / demolished (published by Core) ----
+    public readonly struct StationBuilt
+    {
+        public readonly string StationId;
+        public readonly string StationType;
+        public readonly GridCoord Cell;
+        public StationBuilt(string stationId, string stationType, GridCoord cell)
+        { StationId = stationId; StationType = stationType; Cell = cell; }
+    }
+
+    public readonly struct StationMoved
+    {
+        public readonly string StationId;
+        public readonly GridCoord Cell;
+        public StationMoved(string stationId, GridCoord cell) { StationId = stationId; Cell = cell; }
+    }
+
+    public readonly struct StationDemolished
+    {
+        public readonly string StationId;
+        public StationDemolished(string stationId) { StationId = stationId; }
+    }
+
+    /// §15 progression event. Emitted by M8 when a level-up grants a station-type/cap/upgrade unlock; the
+    /// build menu LISTENS for it now (to re-evaluate lock state) but nothing fires it until M8.
+    public readonly struct UnlockGranted
+    {
+        public readonly string Kind;
+        public readonly string Id;
+        public UnlockGranted(string kind, string id) { Kind = kind; Id = id; }
+    }
+
     // ---- Economy ----
     public readonly struct ResourceChanged
     {

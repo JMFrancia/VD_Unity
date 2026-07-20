@@ -15,7 +15,11 @@ namespace VoidDay.Core.Rules
         // M3 sites. M6 gives OrderPayout/OrderSlots teeth (the universal upgrades); M5 gives XpGain teeth.
         OrderPayout,
         OrderSlots,
-        XpGain
+        XpGain,
+
+        // M4 sites. M6 gives BuildCost teeth (the build.cost effect); M8 gives StationCap teeth (level raises caps).
+        BuildCost,
+        StationCap
     }
 
     /// Context a resolver needs to decide whether an effect applies (which station, which resource).

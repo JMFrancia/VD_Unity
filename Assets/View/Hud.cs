@@ -28,6 +28,7 @@ namespace VoidDay.View
         [SerializeField] Transform cheatButtonList;
         [SerializeField] Button cheatButtonTemplate;
         [SerializeField] Button debugAddMoneyButton;
+        [SerializeField] Button debugDemolishButton; // M4: demolish the last-built station (player gesture deferred)
         [SerializeField] Button debugResetButton;
 
         [Tooltip("XP has no HUD until M8 — this debug line is how it is verified meanwhile.")]
@@ -52,9 +53,10 @@ namespace VoidDay.View
 
             moneyButton.onClick.AddListener(ToggleTotals);
             totalsCloseButton.onClick.AddListener(() => totalsPopup.SetActive(false));
-            debugToggleButton.onClick.AddListener(() => debugMenu.SetActive(!debugMenu.activeSelf));
+            debugToggleButton.onClick.AddListener(ToggleDebugMenu);
             debugAddMoneyButton.onClick.AddListener(() => _bus.Publish(new DebugAddMoneyRequested(cheatMoneyAmount)));
             debugAddMoneyButton.GetComponentInChildren<Text>().text = $"+${cheatMoneyAmount}";
+            debugDemolishButton.onClick.AddListener(() => _bus.Publish(new DebugDemolishLastRequested()));
             debugResetButton.onClick.AddListener(() => _bus.Publish(new DebugResetRequested()));
             BuildCheatButtons();
 
@@ -64,15 +66,18 @@ namespace VoidDay.View
             _bus.Subscribe<MoneyChanged>(e => moneyText.text = $"$ {e.Total}");
             _bus.Subscribe<ResourceChanged>(_ => { if (totalsPopup.activeSelf) RefreshTotals(); });
             _bus.Subscribe<GameReset>(_ => { if (totalsPopup.activeSelf) RefreshTotals(); });
+            _bus.Subscribe<ExclusiveUiOpened>(e => { if (e.Source != "debug") debugMenu.SetActive(false); }); // one menu at a time
 
-            _bus.Subscribe<XpGained>(_ => RefreshXpReadout());
-            _bus.Subscribe<GameReset>(_ => RefreshXpReadout());
-            RefreshXpReadout();
+            // XP is invisible infrastructure until M8 (level/XP milestone) — hide every XP surface for now.
+            debugXpReadout.gameObject.SetActive(false);
         }
 
-        /// Debug-only, per the milestone: XP accrues as invisible infrastructure until M8 builds hud.levelXp.
-        void RefreshXpReadout() =>
-            debugXpReadout.text = $"Lv {_progression.PlayerLevel}  ·  {_progression.XpTotal} XP";
+        void ToggleDebugMenu()
+        {
+            bool show = !debugMenu.activeSelf;
+            debugMenu.SetActive(show);
+            if (show) _bus.Publish(new ExclusiveUiOpened("debug")); // retract the build menu / panels
+        }
 
         void BuildCheatButtons()
         {

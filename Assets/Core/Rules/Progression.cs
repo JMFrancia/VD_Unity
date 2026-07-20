@@ -13,7 +13,11 @@ namespace VoidDay.Core.Rules
         private readonly EventBus _bus;
         private readonly ValueResolver _resolver;
 
-        public int PlayerLevel { get; private set; } = 1;
+        /// The level every run starts at — the structural floor, not a tunable. A station type with
+        /// unlockLevel == StartingLevel is buildable from the first frame (§9).
+        public const int StartingLevel = 1;
+
+        public int PlayerLevel { get; private set; } = StartingLevel;
         public int XpTotal { get; private set; }
 
         public Progression(EventBus bus, ValueResolver resolver)

@@ -156,3 +156,48 @@ Running record across milestones. Read this first when picking up cold.
 **Gotchas for later milestones:**
 - **Order-slot count reads through the seam** (`OrderBoard.SlotCount` via `ResolveKind.OrderSlots`); the board grows the moment the resolved value rises (M6 order.slots / M8 level-raise) with no rewrite — `Tick` already appends empty refilling slots up to it.
 - **Editor mouse-death gotcha:** the Device Simulator disables the Mouse device → whole editor untappable. Fixed permanently by `Assets/Editor/EditorMouseGuard.cs` (editor-only). If input dies, check the guard exists before hunting a code regression.
+
+---
+
+## Milestone 04 — Build & Manage Stations
+**Status:** ✅ Complete · **Commit:** `<this commit>` · **Date:** 2026-07-20
+
+**Built:**
+- **Core** (pure C#, boundary held): `BuildSystem` (place/move/demolish rules — per-type cap, grid occupancy, wallet charge + 50% demolish refund, job-queue register/unregister), `StationTypeModel`, `JobSystem.Unregister`. `StationGrid` is now actually populated (pre-placed stations register into it at boot — M1 built it but nothing filled it). New events: intents `PlaceRequested`/`MoveRequested`/`DebugDemolishLastRequested`; facts `StationBuilt`/`StationMoved`/`StationDemolished`; dormant `UnlockGranted` (listened, fired by M8). Cost + cap read through new `ResolveKind.BuildCost`/`StationCap` seams (passthrough; M6/M8 give teeth). `Progression.StartingLevel` const.
+- **Systems:** `GridProjection` (cell↔world, reintroduced after the pivot deleted it — origin-centered, half-cell centers), `StationRegistry` (the station-lifecycle system: translates place/move/demolish intents → BuildSystem, and instantiates/moves/destroys the type's authored prefab from the Core facts; owns the shared live `roots` map). `GameBoot` rewired (builds grid + BuildSystem, registers pre-placed via `RegisterPreplaced`, injects the shared roots). Build XP in `ProgressionSystem` (off `StationBuilt`).
+- **View:** `BuildMenu` + `BuildMenuEntry` (roster tray, 4 states available/locked/cap/can't-afford, drag-to-place), `PlacementController` (ghost = prefab mesh tinted green/red, snap, validity preview, emits place/move), `InputRouter` long-press pickup, `CameraController` pan-suppress during a ghost drag. `WorldState` reconciles its per-station rigs against the live roster each frame. Hud debug "Demolish Last".
+- **Data/assets:** `StationSO` +buildCost/cap/unlockLevel/placeholderColor/prefab; `GameConfigSO` +stationRoster(8)/refundPercent; `XpConfigSO` +perStationBuilt. New: Workshop SO+prefab+material, 4 locked-type SOs (Henhouse/Pasture/Creamery/Bakery, SO-only), 2 ghost materials, authored build menu (button + tray + `BuildMenuEntry` prefab).
+
+**Verified:** 20/20 EditMode tests pass. Play-mode via bus injection: place (money −cost, +build XP, prefab snapped to cell), demolish (+50% refund), move (free, relocated), cap enforced (3rd Field throws); build menu renders all 4 state markers. User playtested.
+
+**Playtest bug-fix pass (folded into this commit):**
+- **BUG-01 — camera panned over UI.** `CameraController` read the raw pointer and panned on any press, ignoring UI (it's not in the UGUI raycast pipeline, so the UI's raycast-blocking alone can't stop it). Added the `!IsOverUi()` guard `InputRouter` already uses. *(Pointer drag/long-press not MCP-testable — user confirms.)*
+- **BUG-02 — build button too high.** `BuildMenu` repositions it: bottom-left when closed, above the tray when open (serialized closed/open positions).
+- **BUG-03 — XP leaked pre-M8.** Order-card `+XP` and the HUD debug `Lv/XP` readout deactivated until the level/XP milestone. XP still accrues invisibly.
+- **BUG-04 — menus didn't coordinate.** New `ExclusiveUiOpened` event: build menu / station panel / order board / debug menu publish on open and close on another's open. Stacking popups (totals, confirmations) unaffected.
+
+**Deviations from the plan:**
+- **Move = long-press → drag-drop** (user decision), not the mockup's tap-to-confirm.
+- **Demolish = debug-only** (user decision) — Core has the full 50%-refund path; the player-facing gesture is deferred. The debug button demolishes the last-built station.
+- **Locked types = SO + tinted-primitive thumbnail only** (user decision) — no prefabs until M8 makes them placeable (`BootValidator` requires a prefab only for `unlockLevel == StartingLevel` types).
+- **One `StationRegistry` handles both intent→Core and Core→GameObject**, collapsing the plan's separate `BuildPlacement` + `StationRegistry` (KISS).
+- **Ghost is the real prefab mesh tinted green/red, opaque** (not translucent) — placeholder, upgradeable.
+- **Fixed a latent M3 scene bug:** the three UI canvases (HudCanvas/StationPopupCanvas/OrderBoardCanvas) were saved `m_IsActive: 0`, so the HUD was invisible on a fresh play. Set active in `Farm.unity` directly (a scripted SetActive kept reverting on domain reload).
+
+**Tech debt:**
+- **Producible order-pool set is frozen at boot** (from placed stations' recipe outputs). Building a new-good producer type at runtime won't widen the order pool until a later milestone refreshes it. Not hit by M4 (only Field/Workshop placeable; neither adds a good).
+- **Demolishing a busy station drops its queued jobs' consumed inputs** (no refund) — M4 only demolishes fresh empty stations.
+- **`Hud._progression` is now unused** (its XP readout is hidden) — kept for M8's real XP HUD.
+- **Order-card XP hidden by deactivating the GameObject** — M8 reactivates + wires the real XP display.
+
+**Assumptions:**
+- **Build costs / unlock levels / caps are first-guess placeholders** (Field 50/cap2, Workshop 150, Silo 300, OrderBoard 250; Henhouse Lv3, Pasture Lv4, Creamery Lv5, Bakery Lv7) — all `StationSO`, tune freely.
+- **Grid convention: origin-centered, cell centers on half-integer world coords** (cellSize 1). `GridProjection` must match how pre-placed stations were authored — verified against the scene (cell (9,15) → (−0.5,0,0.5)).
+
+**Gotchas for later milestones:**
+- **`StationRegistry` owns the shared `roots` dict**; CameraController/StationPanel/WorldState read it live. A runtime station becomes visible everywhere by being added to that one dict — don't cache a snapshot.
+- **Runtime-placed station ids are `{type}#{n}`** (`workshop#0`); pre-placed use the scene GameObject name (`Field`, `Silo`, `OrderBoard`). Cap counting is by StationType across both.
+- **Canvases must stay `m_IsActive: 1`** in Farm.unity — nothing activates them at runtime. If the HUD vanishes on play, check the canvas active flags first.
+- **The MCP can't assign a `Transform`-typed serialized field** (its converter modifies-in-place instead of assigning). `GameBoot.stationsParent` is a `GameObject` for this reason; use `.transform` in code.
+- **Editor scene-save didn't reliably persist a scripted `SetActive` through a domain reload** — for durable scene-state flags, edit the `.unity` YAML directly + `scene-open` to reload.
+- **Camera pan is not in the UGUI raycast pipeline** — it reads the raw pointer + a math-plane ray, so UI must be excluded via `IsPointerOverGameObject()`, not by raycast-blocking. Any new raw-pointer world gesture needs the same guard.

@@ -20,10 +20,14 @@ namespace VoidDay.Systems
                 so.tierWeightBase, so.tierWeightPerLevel);
 
         public static XpConfigModel Project(XpConfigSO so) =>
-            new XpConfigModel(so.perJobCollected);
+            new XpConfigModel(so.perJobCollected, so.perStationBuilt);
 
         public static StationModel Project(StationSO so, string instanceId) =>
             new StationModel(instanceId, so.stationType, so.displayName, so.width, so.height);
+
+        public static StationTypeModel ProjectType(StationSO so) =>
+            new StationTypeModel(so.stationType, so.displayName, so.buildCost, so.cap, so.unlockLevel,
+                so.queueDepth, so.width, so.height);
 
         public static RecipeModel Project(RecipeSO so) =>
             new RecipeModel(so.id, so.stationType, Flatten(so.inputs), Flatten(so.outputs), so.duration);

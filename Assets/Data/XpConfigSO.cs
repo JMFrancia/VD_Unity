@@ -9,5 +9,8 @@ namespace VoidDay.Data
     {
         [Tooltip("XP awarded each time a completed job's output is collected.")]
         public int perJobCollected = 2;
+
+        [Tooltip("XP awarded each time a station is built (§9).")]
+        public int perStationBuilt = 5;
     }
 }

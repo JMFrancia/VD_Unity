@@ -25,26 +25,48 @@ namespace VoidDay.View
         }
 
         JobSystem _jobs;
+        RecipeCatalog _catalog;
+        IReadOnlyDictionary<string, Transform> _stationRoots;
         readonly List<Rig> _rigs = new();
 
         public void Init(JobSystem jobs, RecipeCatalog catalog, IReadOnlyDictionary<string, Transform> stationRoots)
         {
             _jobs = jobs;
-            foreach (var kv in stationRoots)
+            _catalog = catalog;
+            _stationRoots = stationRoots; // shared live map — StationRegistry adds/removes runtime stations here
+            Reconcile();
+        }
+
+        /// Build a rig for any station that appeared in the shared roots map (a runtime placement) and drop
+        /// the rig for any that vanished (a demolish). Pure view-sync — the roots map is the source of truth.
+        void Reconcile()
+        {
+            foreach (var kv in _stationRoots)
             {
+                if (RigFor(kv.Key) != null) continue;
                 var rig = new Rig { StationId = kv.Key, Widget = Instantiate(widgetTemplate, kv.Value) };
-
-                // Only producers get queue slots — non-producers (Silo, Order Board) keep a clean front.
-                if (HasRecipes(catalog, kv.Key))
-                    BuildSlots(rig);
+                if (HasRecipes(kv.Key)) BuildSlots(rig); // non-producers keep a clean front (no queue slots)
                 rig.Widget.QueueRow.gameObject.SetActive(false);
-
                 _rigs.Add(rig);
+            }
+
+            for (int i = _rigs.Count - 1; i >= 0; i--)
+            {
+                if (_stationRoots.ContainsKey(_rigs[i].StationId)) continue;
+                if (_rigs[i].Widget != null) Destroy(_rigs[i].Widget.gameObject); // usually already gone with its parent
+                _rigs.RemoveAt(i);
             }
         }
 
-        bool HasRecipes(RecipeCatalog catalog, string stationId) =>
-            catalog.ForStationType(_jobs.StationTypeOf(stationId)).Count > 0;
+        Rig RigFor(string stationId)
+        {
+            foreach (var rig in _rigs)
+                if (rig.StationId == stationId) return rig;
+            return null;
+        }
+
+        bool HasRecipes(string stationId) =>
+            _catalog.ForStationType(_jobs.StationTypeOf(stationId)).Count > 0;
 
         void BuildSlots(Rig rig)
         {
@@ -63,6 +85,7 @@ namespace VoidDay.View
         void Update()
         {
             if (_jobs == null) return;
+            Reconcile(); // pick up runtime placements / demolishes before syncing state
             double now = Time.timeAsDouble;
             foreach (var rig in _rigs)
             {

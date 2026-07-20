@@ -47,6 +47,15 @@ namespace VoidDay.Core.Rules
             _stations[stationId] = new Station(stationId, stationType, queueDepthBase);
         }
 
+        /// Demolish (§4.3) removes the station from the producer entirely. The queue is dropped with it —
+        /// this milestone only demolishes freshly-built empty stations, so refunding in-flight inputs is not
+        /// wired (see M4 log).
+        public void Unregister(string stationId)
+        {
+            if (!_stations.Remove(stationId))
+                throw new InvalidOperationException($"No station registered with id '{stationId}' to unregister");
+        }
+
         // ---- Queries (the View reads these to render; reading Core state is not a rule) ----
 
         public IReadOnlyList<Job> GetQueue(string stationId) => GetStation(stationId).Queue;

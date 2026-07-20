@@ -24,6 +24,7 @@ namespace VoidDay.Systems
 
             _bus.Subscribe<JobCollected>(OnJobCollected);
             _bus.Subscribe<OrderFulfilled>(OnOrderFulfilled);
+            _bus.Subscribe<StationBuilt>(OnStationBuilt);
             _bus.Subscribe<GameReset>(OnGameReset);
         }
 
@@ -32,12 +33,15 @@ namespace VoidDay.Systems
             if (_bus == null) return;
             _bus.Unsubscribe<JobCollected>(OnJobCollected);
             _bus.Unsubscribe<OrderFulfilled>(OnOrderFulfilled);
+            _bus.Unsubscribe<StationBuilt>(OnStationBuilt);
             _bus.Unsubscribe<GameReset>(OnGameReset);
         }
 
         void OnJobCollected(JobCollected _) => _progression.AwardXp(_xpConfig.PerJobCollected, "job");
 
         void OnOrderFulfilled(OrderFulfilled e) => _progression.AwardXp(e.Xp, "order");
+
+        void OnStationBuilt(StationBuilt _) => _progression.AwardXp(_xpConfig.PerStationBuilt, "build");
 
         void OnGameReset(GameReset _) => _progression.Reset();
     }

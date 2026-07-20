@@ -15,6 +15,13 @@ namespace VoidDay.Data
         public int gridRows = 30;
         public float cellSize = 1f;
 
+        [Header("Station roster (§4.2, §12.3)")]
+        [Tooltip("Every buildable station TYPE — the build menu's source of truth. Distinct from scene-placed instances (which are scene data, CLAUDE.md rule 4); this is the catalog of what CAN be built.")]
+        public List<StationSO> stationRoster = new();
+
+        [Tooltip("Fraction of build cost returned on demolish (§4.3). 0.5 = 50%. Data, not a literal.")]
+        public float refundPercent = 0.5f;
+
         [Header("Start block (§5.3)")]
         public List<StartingResource> startingResources = new();
 

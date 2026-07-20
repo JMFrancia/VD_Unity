@@ -76,6 +76,7 @@ namespace VoidDay.View
 
             _bus.Subscribe<StationPanelRequested>(OnPanelRequested);
             _bus.Subscribe<BackgroundTapped>(_ => Close()); // tap off the panel dismisses it
+            _bus.Subscribe<ExclusiveUiOpened>(e => { if (e.Source != "station") Close(); }); // one menu at a time
             _bus.Subscribe<JobQueued>(e => RefreshIf(e.StationId));
             _bus.Subscribe<JobStarted>(e => RefreshIf(e.StationId));
             _bus.Subscribe<JobCompleted>(e => RefreshIf(e.StationId));
@@ -98,6 +99,7 @@ namespace VoidDay.View
             if (_openStationId != e.StationId) _selected = 0; // keep selection only when re-tapping the same one
             _openStationId = e.StationId;
             popup.gameObject.SetActive(true);
+            _bus.Publish(new ExclusiveUiOpened("station")); // retract the build menu / other panels
             Rebuild();
             PositionOverBuilding();
         }

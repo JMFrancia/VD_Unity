@@ -1,4 +1,5 @@
 using UnityEngine;
+using VoidDay.Core.Rules;
 using VoidDay.Data;
 
 namespace VoidDay.Systems
@@ -30,6 +31,18 @@ namespace VoidDay.Systems
             Require(config.xpConfig != null, config, nameof(config.xpConfig), "must be assigned");
             Require(config.xpConfig.perJobCollected >= 0, config.xpConfig,
                 nameof(config.xpConfig.perJobCollected), "must be >= 0");
+            Require(config.xpConfig.perStationBuilt >= 0, config.xpConfig,
+                nameof(config.xpConfig.perStationBuilt), "must be >= 0");
+
+            Require(config.refundPercent >= 0f && config.refundPercent <= 1f, config,
+                nameof(config.refundPercent), "must be within [0, 1]");
+            Require(config.stationRoster != null && config.stationRoster.Count > 0, config,
+                nameof(config.stationRoster), "must list every buildable station type (the build menu reads it)");
+            foreach (var s in config.stationRoster)
+            {
+                Require(s != null, config, nameof(config.stationRoster), "contains a null station ref");
+                ValidateStation(s);
+            }
         }
 
         static void ValidateOrderConfig(OrderConfigSO o)
@@ -64,6 +77,15 @@ namespace VoidDay.Systems
             Require(s.width > 0, s, nameof(s.width), "must be > 0");
             Require(s.height > 0, s, nameof(s.height), "must be > 0");
             Require(s.queueDepth > 0, s, nameof(s.queueDepth), "must be > 0");
+            Require(s.buildCost >= 0, s, nameof(s.buildCost), "must be >= 0");
+            Require(s.cap > 0, s, nameof(s.cap), "must be > 0");
+            Require(s.unlockLevel >= Progression.StartingLevel, s, nameof(s.unlockLevel),
+                $"must be >= {Progression.StartingLevel} (the starting level)");
+            // A type buildable from the start must have a prefab to instantiate; level-locked types get theirs
+            // when M8 makes them placeable (they only render as menu thumbnails until then).
+            if (s.unlockLevel <= Progression.StartingLevel)
+                Require(s.prefab != null, s, nameof(s.prefab),
+                    "must be assigned for a type buildable at the starting level");
 
             Require(s.recipes != null, s, nameof(s.recipes), "must not be null");
             foreach (var r in s.recipes)

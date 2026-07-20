@@ -10,16 +10,16 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: fb1a50da890254b5ba333fa72eefd095, type: 3}
-  m_Name: Station_Silo
+  m_Name: Station_Pasture
   m_EditorClassIdentifier: Assembly-CSharp::VoidDay.Data.StationSO
-  stationType: silo
-  displayName: Silo
+  stationType: pasture
+  displayName: Pasture
   width: 1
   height: 1
-  buildCost: 300
+  buildCost: 200
   cap: 1
-  unlockLevel: 1
-  placeholderColor: {r: 0.54, g: 0.56, b: 0.60, a: 1}
-  prefab: {fileID: 8812913458745746032, guid: fa1786f3fe3f34ffbaf9191282680326, type: 3}
+  unlockLevel: 4
+  placeholderColor: {r: 0.55, g: 0.72, b: 0.42, a: 1}
+  prefab: {fileID: 0}
   queueDepth: 3
   recipes: []

@@ -47,6 +47,7 @@ namespace VoidDay.View
 
             _bus.Subscribe<StationPanelRequested>(OnPanelRequested);
             _bus.Subscribe<BackgroundTapped>(_ => Close());
+            _bus.Subscribe<ExclusiveUiOpened>(e => { if (e.Source != "orderBoard") Close(); }); // one menu at a time
             _bus.Subscribe<GameReset>(_ => Close());
             _bus.Subscribe<OrderGenerated>(_ => RebuildIfOpen());
             _bus.Subscribe<OrderFulfilled>(_ => RebuildIfOpen());
@@ -60,6 +61,7 @@ namespace VoidDay.View
             if (_jobs.StationTypeOf(e.StationId) != orderBoardStation.stationType) { Close(); return; }
             _open = true;
             panelRoot.SetActive(true);
+            _bus.Publish(new ExclusiveUiOpened("orderBoard")); // retract the build menu / other panels
             Rebuild();
         }
 

@@ -15,11 +15,17 @@ namespace VoidDay.View
     {
         const float TapMoveThresholdPixels = 20f; // beyond this the gesture was a pan, not a tap
 
+        [Tooltip("Hold this long on a station (without moving) to pick it up for a move (§12.2).")]
+        [SerializeField] float longPressSeconds = 0.5f;
+
         EventBus _bus;
         Camera _camera;
 
         Vector2 _pressPosition;
         bool _pressStartedOverUi;
+        double _pressTime;
+        string _pressStationId;   // station under the press, if any (candidate for long-press pickup)
+        bool _pickedUp;           // a long-press pickup fired this gesture → suppress the release tap
 
         public void Init(EventBus bus, Camera camera)
         {
@@ -37,15 +43,45 @@ namespace VoidDay.View
             {
                 _pressPosition = pointer.position.ReadValue();
                 _pressStartedOverUi = IsOverUi();
+                _pressTime = Time.timeAsDouble;
+                _pickedUp = false;
+                _pressStationId = _pressStartedOverUi ? null : StationUnder(_pressPosition);
+            }
+            else if (pointer.press.isPressed)
+            {
+                TryLongPressPickup(pointer);
             }
             else if (pointer.press.wasReleasedThisFrame)
             {
+                if (_pickedUp) return;         // the move ghost owns this gesture — no tap
                 if (_pressStartedOverUi) return;
                 Vector2 release = pointer.position.ReadValue();
                 if (Vector2.Distance(release, _pressPosition) > TapMoveThresholdPixels) return; // it was a pan
                 if (IsOverUi()) return;
                 TryTapStation(release);
             }
+        }
+
+        /// Held long enough on a station without drifting → pick it up (§12.2). One shot per gesture.
+        void TryLongPressPickup(Pointer pointer)
+        {
+            if (_pickedUp || _pressStationId == null) return;
+            Vector2 pos = pointer.position.ReadValue();
+            if (Vector2.Distance(pos, _pressPosition) > TapMoveThresholdPixels) { _pressStationId = null; return; }
+            if (Time.timeAsDouble - _pressTime < longPressSeconds) return;
+            _pickedUp = true;
+            _bus.Publish(new StationPickedUp(_pressStationId));
+        }
+
+        string StationUnder(Vector2 screenPosition)
+        {
+            Ray ray = _camera.ScreenPointToRay(screenPosition);
+            if (Physics.Raycast(ray, out RaycastHit hit, 500f))
+            {
+                var station = hit.collider.GetComponentInParent<StationView>();
+                if (station != null) return station.Id;
+            }
+            return null;
         }
 
         void TryTapStation(Vector2 screenPosition)

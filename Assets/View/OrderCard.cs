@@ -50,7 +50,7 @@ namespace VoidDay.View
             }
 
             cashText.text = order.Cash.ToString();
-            xpText.text = $"+{order.Xp} XP";
+            xpText.gameObject.SetActive(false); // XP hidden until the level/XP milestone (M8); cash reward stays
 
             fillButton.onClick.RemoveAllListeners();
             fillButton.interactable = canFill;
