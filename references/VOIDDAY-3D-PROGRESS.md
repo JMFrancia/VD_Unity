@@ -64,6 +64,14 @@ Individual flat refs: `references/voidpet-ip/pet-<species>.png` (+ `voidpets-she
 | Workshop 3D | `references/stations/station-workshop.glb` (concept `concept-workshop.png`) | ✅ **7,693 tris**, textured. Task `019f7313-4c88` |
 | Pet billboards ×7 | `references/voidpet-ip/cutouts/<species>-cut.png` (apathy, conviction, cringe, grumpy, joy, merry, wonder) | ✅ **current pet pipeline** (2D billboards). Cringe needs coil-interior cleanup. Low-res (~135px) — final wants higher-res source |
 
+## 2D ICONS — 17 done 2026-07-20 (resource + state/HUD)
+Concept-first is NOT needed for icons — generated directly. **Style anchor = `references/2d-review/icon-anchor.png`** (wheat sheaf #3, soft-rounded flat-toon dimensional, warm, soft edge outline, user-approved). Every icon generated via `asset-bot generate image --refs <anchor absolute> --aspect-ratio 1:1` (subject-only prompt; negatives: "no glow, no ring, no halo, no border, no frame, no text").
+- **11 resource/coin:** wheat, corn, egg, milk, cream, cheese, bread, cornbread, brioche, cheesecake, coin.
+- **6 state/HUD:** ready (violet→cyan sparkle), storagefull (amber/red warning triangle), heart (void), build (hammer), gear, voidpet (near-black head + violet eyes). **Void icons carry NO baked glow** — Unity bloom adds it; cleaner cut.
+- **Cutout:** `scratchpad/cutout_icons.py` — local-tolerance exterior flood (STEP=30, CAP=165) → transparent 512² sprites, autocropped + square-padded. Walks the smooth bg→drop-shadow gradient, halts at the object's crisp outline, so the warm drop-shadow is removed and pale interiors survive. (Global color/dist keys FAIL: warm shadow chroma overlaps pale-fill chroma; cheesecake had to be regenerated with richer color so it cuts cleanly.)
+- Finals: `references/icons/<name>.png`. Wired into `_view.html` (on warm-UI + void tones).
+- **IMPORTED to Unity 2026-07-20:** all 17 → `Assets/Art/UI/Icons/*.png`, TextureImporter set Sprite/Single, alphaIsTransparency, no mipmaps. Added `public Sprite icon;` to `ResourceSO`. Wired `wheat`→`Resource_Wheat.icon`, `corn`→`Resource_Corn.icon` (the only two ResourceSOs that exist). The other 8 resources have no SO yet → wire their icons as those SOs are authored (station/recipe milestones). State/HUD icons imported but not yet referenced (no UI prefab fields yet).
+
 ## Preview / gallery
 Rotatable viewer (relaunch after refresh):
 ```bash
