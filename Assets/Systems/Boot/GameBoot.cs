@@ -39,6 +39,7 @@ namespace VoidDay.Systems
         [SerializeField] LevelXpHud levelXpHud;
         [SerializeField] LevelUpPopup levelUpPopup;
         [SerializeField] SfxController sfxController;
+        [SerializeField] StationFlattenMask stationFlattenMask;
 
         [Tooltip("Fixed seed makes a session's orders reproducible; 0 = seed from the clock.")]
         [SerializeField] int orderSeed = 12345;
@@ -194,6 +195,7 @@ namespace VoidDay.Systems
             levelXpHud.Init(bus, progression);
             levelUpPopup.Init(bus, config.stationRoster);
             sfxController.Init(bus);
+            stationFlattenMask.Init(bus, roots);
 
             foreach (var kv in startingCounts)
                 if (kv.Value != 0) pool.Add(kv.Key, kv.Value); // emits resource:changed (views already listening)
@@ -224,6 +226,7 @@ namespace VoidDay.Systems
             Require(levelUpPopup, nameof(levelUpPopup));
             Require(siloPanel, nameof(siloPanel));
             Require(sfxController, nameof(sfxController));
+            Require(stationFlattenMask, nameof(stationFlattenMask));
         }
 
         static void Require(Object reference, string field)

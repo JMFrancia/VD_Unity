@@ -7,7 +7,7 @@ Material:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: Island
+  m_Name: GrassTuft
   m_Shader: {fileID: 4800000, guid: dc6170ef2f7e94d8b8a494a89720e4c8, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
@@ -25,15 +25,19 @@ Material:
     m_TexEnvs: []
     m_Ints: []
     m_Floats:
-    - _AmbientBoost: 0.6
-    - _PatchDetailBlend: 0.45
-    - _PatchDetailMul: 3.5
-    - _PatchScale: 4.5
+    - _AmbientBoost: 0.9
+    - _FlattenEnable: 1
+    - _FlattenFeather: 0.14
+    - _FlattenGroundY: 0
+    - _FlattenSink: 0.12
+    - _PatchDetailBlend: 0.35
+    - _PatchDetailMul: 4
+    - _PatchScale: 1.5
     - _PatchSteps: 3
-    - _PatchStrength: 0.6
-    - _ShadeBand: 0.58
+    - _PatchStrength: 0
+    - _ShadeBand: 0.62
     m_Colors:
-    - _PatchColor: {r: 0.74, g: 0.88, b: 0.55, a: 1}
+    - _PatchColor: {r: 0.85, g: 0.95, b: 0.72, a: 1}
     - _Tint: {r: 1, g: 1, b: 1, a: 1}
   m_BuildTextureStacks: []
   m_AllowLocking: 1
