@@ -339,3 +339,119 @@ Running record across milestones. Read this first when picking up cold.
   survive a domain reload.
 - **The `SiloCanvas` hierarchy was authored by a one-shot editor script** (as every other UI surface was). It is
   now source-of-truth — edit it in the editor / via MCP, do not re-run the builder.
+
+---
+
+## Milestone 08 — Levels & Unlocks
+**Status:** ✅ Complete · **Commit:** `f09e6c1` · **Date:** 2026-07-21
+
+> **M6 remains SKIPPED** (user decision, confirmed again this session). The plan's order was M7 → M8 with
+> M6 before both; we have now gone M5 → M7 → M8. See *Deviations* for what M8 paid off M6's behalf.
+
+**Built:**
+- **`LevelCurve` (`Core/Rules`)** — the explicit XP→level table (20 levels, no formula, §9). It also owns the
+  two numbers `hud.levelXp` renders (`XpIntoLevel` / `XpSpanOfLevel`), because §12.1 is explicit that the View
+  *reads* the threshold rather than computing it.
+- **`LevelGrants` (`Core/Rules`)** — a dumb accumulator of standing bonuses keyed by `(kind, targetId)`. An
+  **empty targetId means "every station type"**, which is how one grant deepens every queue at once.
+- **`Progression` now increments.** `AwardXp` → `AdvanceLevels()` → one loop over the level's grant list.
+  **One `level:up` fires PER LEVEL CROSSED** — a 3-threshold grant publishes three payloads, so nothing
+  downstream has to reconstruct the steps from a jump.
+- **★ Gates have exactly ONE home.** A station type's gate is `StationSO.unlockLevel`; an upgrade track's is
+  the new `UpgradeSO.unlockLevel`. The level asset never restates them — `ModelProjector.ProjectLevelGates`
+  derives them from the roster and `Progression` announces whichever open at the level just reached.
+  **Boot validation rejects a `StationType`/`Upgrade` grant authored on a level**, naming the real home.
+- **★ The seams were activated WITHOUT touching a read site.** `ValueResolver` gained a *second contributor*
+  (`SetGrantSource`) beside the effect source: **a level grant moves the BASE, the effect stack then applies
+  on top** (`base + grant`, then Pct/Mult). `ResolveContext` gained **`StationType`** — a cap belongs to a
+  *type* and the cap read has no instance, so `StationId` could not carry it. `BuildSystem.Cap` and
+  `JobSystem.QueueDepth` each pass it; that is the whole diff at the call sites.
+- **`hud.levelXp`** (`View/LevelXpHud.cs` + authored `HudCanvas/LevelXpPill`): badge + XP bar, top-center,
+  built to sheet `37:2`. Bar chases its target (`MoveTowards`) instead of snapping; badge does a sine pop on
+  level-up. The bar is reset to 0 on level-up so the new level starts from empty.
+- **`popup.levelUp`** (`View/LevelUpPopup.cs` + authored `LevelUpCanvas` + `UnlockRow.prefab`), built to
+  `24:2`. **Level-ups QUEUE** — each crossed level gets its own screen, "Nice!" advances, the queue drains to
+  a close. Publishes `ExclusiveUiOpened("levelUp")` on the *first* screen only; deliberately does **not**
+  listen (a celebration is modal, nothing dismisses it but its own button).
+- **`UpgradeRow.BindLocked`** — a level-gated track renders visible-but-locked ("Unlocks at level N"), wired
+  identically in `StationPanel` and `SiloPanel`. `UpgradeSystem.Purchase` fails loud on a locked track.
+- **Debug (§12.7):** a **Level Up** button granting exactly `Progression.XpToNextLevel`. Core owns what
+  "enough" is; at the cap the debt is 0 and the award is a no-op, so the cap needs no special case.
+  The old "XP has no HUD until M8" readout is now **live** (`L5 · 0/100 xp`) — bar + numbers together.
+- **Data:** `Levels.asset` (20 levels, thresholds 0…7000, grants = queue depth / order slots / station caps /
+  money), `GameConfigSO.levels`, `UpgradeSO.displayName` + `unlockLevel`, `SfxCue.LevelUp`.
+- **Tests:** `Assets/Tests/LevelTests.cs` — 16 tests (crossing, multi-crossing, cap-of-curve, grant
+  application per kind, derived gates, reset, and grant+upgrade stacking). Full suite **71/71 green**.
+
+**Deviations from the plan:**
+- **★ The reward is MONEY, not eggs.** M8's *Do NOT Build* forbids egg rewards; the mockup's "1 Egg" reward
+  beat is therefore filled with a coin + `$N`. Boot validation caps a level at **one** Money grant, matching
+  the popup's single-reward block. When M9 lands, eggs join `LevelEntryKind` as a second reward kind.
+- **`level:up` carries STRUCTURED entries, not sentences.** §15 says `{level, unlocks, rewards}`; the payload
+  is `LevelEntry {Kind, Id, Label, Amount}` and the wording lives as serialized copy on the popup
+  (`stationFormat`, `capFormat`, `queueAllFormat`, …). Core supplies facts; the View supplies English.
+- **The popup card is a FLOW COLUMN, not the mockup's fixed offsets.** `24:2` positions everything absolutely
+  and assumes two unlock rows; three rows collided with the REWARD block. The card is now a
+  `VerticalLayoutGroup` + `ContentSizeFitter`, so it grows with content and a level that unlocks nothing
+  simply has a shorter card. Visual order and measurements otherwise match the frame.
+- **M6's debt, revisited.** M8 needed `order.slots` to actually move, which M6 was to have wired. It moves
+  **by level grant**, not by effect — so `ResolveKind.OrderSlots` and `ResolveKind.StationCap` are now
+  *grant-only* reads and their **effect half is still passthrough**. M6, if built, adds
+  `Applied(..., EffectType.OrderSlots, ctx)` around the existing expression. `BuildCost` and `OrderPayout`
+  remain fully passthrough — untouched by this milestone.
+- **`EffectsRecalculated` is published on level-up and on reset.** Grants are not Effects, but they change
+  *resolved values*, and that event is already the "re-read what you resolved" signal every panel listens to.
+  Publishing it avoided adding a `LevelUp` subscription to four Views. Its doc comment was updated to say so.
+
+**Tech debt:**
+- **The badge "glow" is a tinted `UI/Skin/Knob` circle** and reads as a grey halo rather than the mockup's
+  purple bloom. Needs a real soft-glow sprite (`vfx.levelUp` is still unbuilt too).
+- **`sfx.level.up` has no clip** — the cue exists and fires, silently. `SfxCue.LevelUp` was **appended at the
+  end of the enum on purpose**: the library serializes cue *integers*, so inserting mid-enum would silently
+  reassign every clip below it.
+- **Tapping debug Level Up closes the debug menu** (the popup takes UI exclusivity). Repeat cheating means
+  reopening the menu each time. User saw it and accepted it.
+- **Levels 11–20 are unreachable in practice** at current XP rates and were authored by extrapolation, not by
+  play. Treat their thresholds and grants as untested placeholders.
+- **`Progression.AwardXp` still resolves XP through `ResolveKind.XpGain`,** so an `xp.gain` effect would make
+  the debug cheat's "exactly enough" inexact (it would overshoot). Harmless — nothing authors `xp.gain` yet.
+
+**Assumptions:**
+- **The whole curve is a first-guess placeholder** — thresholds (0/20/50/100/175/…/7000), the grant schedule,
+  and the money rewards. All in `Levels.asset`; tune in the inspector. L2 lands after roughly two orders.
+- **Every station type keeps `cap` and `queueDepth` on its own SO as the base**; a level only ever *adds*.
+  Nothing validates that a level's cap grants don't out-run what the grid can hold.
+- **Henhouse / Pasture / Creamery / Bakery are now buildable** (levels 3/4/5/7) but **have no recipes
+  authored** — their `StationSO.recipes` are empty, so a built one opens a panel that says "NoRecipes".
+  That is pre-existing, not new, but M8 is the first milestone where a player can actually reach it.
+- **Animation was not machine-verified.** The editor does not tick frames while unfocused (see *Gotchas*), so
+  the bar chase and badge pop were never observed in motion. The layout was verified via a camera capture; the
+  logic was driven through the real bus. User played it.
+
+**Gotchas for later milestones:**
+- **★ `ResolveContext` now has THREE fields** (`StationId`, `ResourceId`, `StationType`). It is a struct with
+  optional params, so old call sites still compile — but a new grant-keyed read **must pass `stationType:`**
+  or it silently gets only the untargeted pool. `BuildSystem.Cap` / `JobSystem.QueueDepth` are the examples.
+- **★ Grant vs. Effect is a real distinction.** A level moves a **base** (flat, pre-stack); an upgrade/trait/
+  event scales it (§3.5 additive pool). Do **not** implement a level bonus as an `Effect` — it would join the
+  percentage pool and compound wrongly. `LevelTests.AQueueUpgradeAppliesOnTopOfTheLevelRaisedBase` pins this.
+- **★ `LevelEntryKind` is ONE vocabulary for two jobs** — authored grants *and* payload lines. Adding a kind
+  means: the enum, a `Describe` case + serialized copy on `LevelUpPopup`, an `IconFor` case, a branch in
+  `Progression.ApplyLevel` if it is not a standing bonus, and (if it is) a `Granted(...)` read in
+  `ValueResolver`. M9's egg reward is exactly this walk.
+- **Level 1 must have NO grants** — it is never crossed, so its grants would never apply. Boot validation
+  throws, pointing at the station/order SOs as the home for starting values.
+- **`Progression.Reset` clears `LevelGrants` and publishes `EffectsRecalculated`.** Any future state that a
+  level grants must be cleared there too, or a debug reset leaves it stranded.
+- **The Unity editor does not advance frames while unfocused.** `Time.frameCount` stuck at 2;
+  `EditorApplication.QueuePlayerLoopUpdate()` does not help, and the Game View render texture goes stale, so
+  `screenshot-game-view` returns the last frame from *entering* play mode. Workaround used here: temporarily
+  set a Screen-Space-Overlay canvas to **ScreenSpaceCamera** on the main camera and use `screenshot-camera`,
+  then revert. That is the only way found to see a new UI surface rendered. (Pointer injection is still
+  unavailable — same gap every milestone has had.)
+- **`LevelUpCanvas` and the `LevelXpPill` were authored by a one-shot editor script**, as every other UI
+  surface was. They are now source-of-truth — edit them in the editor / via MCP, do not re-run the builder.
+- **The popup's unlock rows are `Destroy`d then re-instantiated per screen.** Same pattern as every other
+  panel; it looks wrong when inspected from a frozen editor (old rows still present) but resolves normally in
+  a running frame.
+- **Spec §7 is STILL stale** (M7's debt — it describes per-resource storage caps). §9 is accurate as built.
