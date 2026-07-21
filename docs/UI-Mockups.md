@@ -30,7 +30,8 @@ using `fileKey` above and the node id below.
 | `panel.station` — alt kept | Screen — panel.station (HayDay-simple) | `5:2` |
 | `panel.orderBoard` | Screen — panel.orderBoard | `14:2` |
 | `panel.workshop` | Screen — panel.workshop | `17:2` |
-| `panel.silo` | Screen — panel.silo | `19:2` |
+| **`panel.silo` — CHOSEN** | Screen — panel.silo v2 (shared pool) | `65:2` |
+| `panel.silo` — superseded | Screen — panel.silo (per-resource caps) | `19:2` |
 | `popup.levelUp` | Screen — popup.levelUp | `24:2` |
 | `popup.hatchEgg` | Screen — popup.hatchEgg | `25:2` |
 | `popup.petDetails` | Screen — popup.petDetails | `26:2` |
@@ -59,6 +60,22 @@ The chosen model is `42:2` — a **world-view**, not an all-in-one modal:
 
 The HayDay-simple version (`5:2`) keeps all of that in one panel and is retained as a fallback
 in case we switch back.
+
+### Design decision: storage is ONE shared pool (Hay Day's silo), not per-resource caps
+
+**2026-07-21, user decision.** `panel.silo` v2 (`65:2`) supersedes `19:2`. The spec's §7 model —
+per-resource caps raised together by one global upgrade — was replaced with Hay Day's actual model:
+**a single shared capacity across every good.** 40 wheat and 10 corn fill a 50-pool exactly as 50
+wheat would, so hoarding any one good squeezes every other. That pressure is the mechanic.
+
+Consequences:
+1. **§7 of the spec is now wrong** and needs updating — it still says "each resource has its own cap".
+2. **`storage.cap` raises one number**, not N caps. `Effect.resource` goes unused for this type.
+3. The surface gained a **contents list** (what's in the silo) and a **capacity bar**, both Hay Day
+   staples; the upgrade is a single `pattern.purchaseRow` track paid in **money** (Hay Day uses
+   expansion materials — deliberately not copied; that is its own economy subsystem, deferred).
+4. Two pools (Hay Day's Silo + Barn) were considered and **deferred** — the Barn slot is already the
+   Workshop (R3 #12), and with only wheat + corn there is nothing to split. Revisit when products exist.
 
 ---
 

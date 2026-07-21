@@ -53,7 +53,7 @@ namespace VoidDay.View
             _resources = resources;
 
             moneyButton.onClick.AddListener(ToggleTotals);
-            totalsCloseButton.onClick.AddListener(() => totalsPopup.SetActive(false));
+            totalsCloseButton.onClick.AddListener(() => SetTotals(false));
             debugToggleButton.onClick.AddListener(ToggleDebugMenu);
             debugAddMoneyButton.onClick.AddListener(() => _bus.Publish(new DebugAddMoneyRequested(cheatMoneyAmount)));
             debugAddMoneyButton.GetComponentInChildren<Text>().text = $"+${cheatMoneyAmount}";
@@ -69,19 +69,24 @@ namespace VoidDay.View
             _bus.Subscribe<GameReset>(_ => { if (totalsPopup.activeSelf) RefreshTotals(); });
             _bus.Subscribe<ExclusiveUiOpened>(e => // one menu at a time — totals + debug both retract for any other surface
             {
-                if (e.Source != "debug") debugMenu.SetActive(false);
-                if (e.Source != "totals") totalsPopup.SetActive(false);
+                if (e.Source != "debug") SetDebugMenu(false);
+                if (e.Source != "totals") SetTotals(false);
             });
 
             // XP is invisible infrastructure until M8 (level/XP milestone) — hide every XP surface for now.
             debugXpReadout.gameObject.SetActive(false);
         }
 
-        void ToggleDebugMenu()
+        void ToggleDebugMenu() => SetDebugMenu(!debugMenu.activeSelf);
+
+        /// Both HUD popups go through one setter each so open and close are announced on the real transition
+        /// only — the exclusivity handler closes them blind, and a repeat close must stay silent.
+        void SetDebugMenu(bool show)
         {
-            bool show = !debugMenu.activeSelf;
+            if (debugMenu.activeSelf == show) return;
             debugMenu.SetActive(show);
             if (show) _bus.Publish(new ExclusiveUiOpened("debug")); // retract the build menu / panels
+            else _bus.Publish(new ExclusiveUiClosed("debug"));
         }
 
         void BuildCheatButtons()
@@ -96,15 +101,18 @@ namespace VoidDay.View
             }
         }
 
-        void ToggleTotals()
+        void ToggleTotals() => SetTotals(!totalsPopup.activeSelf);
+
+        void SetTotals(bool show)
         {
-            bool show = !totalsPopup.activeSelf;
+            if (totalsPopup.activeSelf == show) return;
             totalsPopup.SetActive(show);
             if (show)
             {
                 _bus.Publish(new ExclusiveUiOpened("totals")); // retract the order board / build menu / other panels
                 RefreshTotals();
             }
+            else _bus.Publish(new ExclusiveUiClosed("totals"));
         }
 
         void RefreshTotals()

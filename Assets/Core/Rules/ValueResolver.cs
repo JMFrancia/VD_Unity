@@ -21,7 +21,10 @@ namespace VoidDay.Core.Rules
 
         // M4 sites. M6 gives BuildCost teeth (the build.cost effect); M8 gives StationCap teeth (level raises caps).
         BuildCost,
-        StationCap
+        StationCap,
+
+        // M7 site: the per-resource storage cap, raised by the Silo's storage.cap track.
+        StorageCap
     }
 
     /// Context a resolver needs to decide whether an effect applies (which station, which resource).
@@ -60,13 +63,14 @@ namespace VoidDay.Core.Rules
                 // speed => duration/1.5 (not duration×1.5), and it stacks additively per §3.5.
                 case ResolveKind.RecipeDuration:
                 {
-                    float speed = Applied(1f, EffectType.StationSpeed, ctx);
+                    float speed = Applied(1f, EffectType.StationSpeed, EffectType.GlobalSpeed, ctx);
                     return speed <= 0f ? baseValue : baseValue / speed;
                 }
-                case ResolveKind.OutputQuantity: return Applied(baseValue, EffectType.StationYield, ctx);
-                case ResolveKind.InputCost: return Applied(baseValue, EffectType.StationCost, ctx);
+                case ResolveKind.OutputQuantity: return Applied(baseValue, EffectType.StationYield, EffectType.GlobalYield, ctx);
+                case ResolveKind.InputCost: return Applied(baseValue, EffectType.StationCost, EffectType.GlobalCost, ctx);
                 case ResolveKind.QueueDepth: return Applied(baseValue, EffectType.StationQueueDepth, ctx);
                 case ResolveKind.XpGain: return Applied(baseValue, EffectType.XpGain, ctx);
+                case ResolveKind.StorageCap: return Applied(baseValue, EffectType.StorageCap, ctx);
 
                 // No emitter for these until M6/M8 — passthrough keeps the read site honest meanwhile.
                 default: return baseValue;
@@ -78,6 +82,19 @@ namespace VoidDay.Core.Rules
             if (_effects == null) return baseValue;
             _scratch.Clear();
             _effects.Collect(type, ctx, _scratch);
+            return _scratch.Count == 0 ? baseValue : EffectResolver.Apply(baseValue, _scratch);
+        }
+
+        /// Two reaches of the SAME stat (station.speed + global.speed) fold into ONE pool, so +25% from an
+        /// upgrade and +25% from a world event read as +50%, not ×1.5625 (§3.5). Reach decides which effects
+        /// are collected; it never earns a modifier its own separate multiplication. local.* joins these pools
+        /// at M10 by the same route.
+        private float Applied(float baseValue, EffectType own, EffectType global, in ResolveContext ctx)
+        {
+            if (_effects == null) return baseValue;
+            _scratch.Clear();
+            _effects.Collect(own, ctx, _scratch);
+            _effects.Collect(global, ctx, _scratch);
             return _scratch.Count == 0 ? baseValue : EffectResolver.Apply(baseValue, _scratch);
         }
     }

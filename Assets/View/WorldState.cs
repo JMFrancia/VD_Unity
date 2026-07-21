@@ -124,8 +124,12 @@ namespace VoidDay.View
                 rig.Widget.SetRadialVisible(showRadial);
                 if (showRadial) rig.Widget.SetRadialProgress(fraction);
 
-                bool ready = has && complete;
+                // A completed head is either collectable (ready) or refused for want of silo room (§4.4). The
+                // two are mutually exclusive and read differently in-world: bouncing crop vs still warning.
+                bool storageBlocked = _jobs.IsStorageBlocked(rig.StationId);
+                bool ready = has && complete && !storageBlocked;
                 rig.Widget.SetReady(ready);
+                rig.Widget.SetStorageFull(storageBlocked);
                 if (ready)
                 {
                     var queue = _jobs.GetQueue(rig.StationId);

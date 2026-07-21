@@ -103,6 +103,11 @@ namespace VoidDay.View
                 if (_mode == Mode.Placing) _bus.Publish(new PlaceRequested(_stationType, _cell));
                 else _bus.Publish(new MoveRequested(_movingId, _cell));
             }
+            else
+            {
+                string type = _mode == Mode.Placing ? _stationType : TypeOf(_movingId).stationType;
+                _bus.Publish(new PlaceRejected(type, _grid.InBounds(_cell) ? "occupied" : "outOfBounds"));
+            }
             if (_ghost != null) Destroy(_ghost);
             _ghost = null;
             _mode = Mode.None;

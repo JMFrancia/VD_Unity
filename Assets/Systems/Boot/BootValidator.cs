@@ -37,6 +37,8 @@ namespace VoidDay.Systems
 
             Require(config.refundPercent >= 0f && config.refundPercent <= 1f, config,
                 nameof(config.refundPercent), "must be within [0, 1]");
+            Require(config.startingStorageCapacity > 0, config, nameof(config.startingStorageCapacity),
+                "must be > 0 — a 0 capacity blocks every collection forever");
             Require(config.stationRoster != null && config.stationRoster.Count > 0, config,
                 nameof(config.stationRoster), "must list every buildable station type (the build menu reads it)");
             foreach (var s in config.stationRoster)

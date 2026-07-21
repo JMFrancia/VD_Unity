@@ -131,6 +131,7 @@ namespace VoidDay.View
 
         void SwitchTab(Tab tab)
         {
+            _bus.Publish(new UiTapped("tab")); // a tab switch announces nothing else — this is its only voice
             _tab = tab;
             Rebuild();
             PositionOverBuilding();
@@ -147,6 +148,7 @@ namespace VoidDay.View
             _openStationId = null;
             popup.gameObject.SetActive(false);
             _bus.Publish(new StationPanelClosed()); // WorldState restores the working station's radial, hides the queue
+            _bus.Publish(new ExclusiveUiClosed("station"));
         }
 
         void LateUpdate()
@@ -193,7 +195,12 @@ namespace VoidDay.View
                 var tile = Instantiate(tileTemplate, tilesRow);
                 tile.Bind(RecipeLabel(_recipes[i]), OutputIcon(_recipes[i]), TimerText(_recipes[i]), i == _selected);
                 int index = i;
-                tile.Button.onClick.AddListener(() => { _selected = index; Rebuild(); });
+                tile.Button.onClick.AddListener(() =>
+                {
+                    _bus.Publish(new UiTapped("recipeTile")); // selection only — the job intent comes from Queue
+                    _selected = index;
+                    Rebuild();
+                });
             }
         }
 

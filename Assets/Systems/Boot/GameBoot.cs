@@ -27,6 +27,7 @@ namespace VoidDay.Systems
         [SerializeField] WorldState worldState;
         [SerializeField] StationPanel stationPanel;
         [SerializeField] OrderBoardPanel orderBoardPanel;
+        [SerializeField] SiloPanel siloPanel;
         [SerializeField] OrderBoardSystem orderBoardSystem;
         [SerializeField] ProgressionSystem progressionSystem;
         [SerializeField] UpgradesSystem upgradesSystem;
@@ -35,6 +36,7 @@ namespace VoidDay.Systems
         [SerializeField] BuildMenu buildMenu;
         [SerializeField] PlacementController placementController;
         [SerializeField] Hud hud;
+        [SerializeField] SfxController sfxController;
 
         [Tooltip("Fixed seed makes a session's orders reproducible; 0 = seed from the clock.")]
         [SerializeField] int orderSeed = 12345;
@@ -46,10 +48,10 @@ namespace VoidDay.Systems
             var stations = FindStations();
 
             var bus = new EventBus();
-            var pool = new ResourcePool(bus);
+            var resolver = new ValueResolver(); // one seam instance — M5 gives it teeth for every rule at once
+            var pool = new ResourcePool(bus, resolver);
             var wallet = new Wallet(bus);
             var catalog = new RecipeCatalog();
-            var resolver = new ValueResolver(); // one seam instance — M5 gives it teeth for every rule at once
             var jobs = new JobSystem(bus, pool, catalog, resolver);
             var grid = new StationGrid(config.gridCols, config.gridRows);
             var projection = new GridProjection(config.gridCols, config.gridRows, config.cellSize);
@@ -117,6 +119,10 @@ namespace VoidDay.Systems
                     foreach (var output in recipe.outputs) resourceDisplays[output.resource.id] = output.resource;
                 }
 
+            // One shared silo capacity across every good (§7), set before anything is added so the very first
+            // collection is already gated.
+            pool.SetBaseCapacity(config.startingStorageCapacity);
+
             // Every resource any placed station can produce — the order pool's candidate set (§6.1). Built
             // from recipe outputs, so a station type placed in M4 widens the pool with no change here.
             var resourceModels = new Dictionary<string, ResourceModel>();
@@ -146,12 +152,14 @@ namespace VoidDay.Systems
             worldState.Init(bus, jobs, catalog, resourceDisplays, roots);
             stationPanel.Init(bus, jobs, catalog, pool, wallet, upgrades, resourceDisplays, roots, worldCamera);
             orderBoardPanel.Init(bus, orderBoard, pool, jobs, resourceDisplays);
+            siloPanel.Init(bus, pool, jobs, upgrades, wallet, resourceList);
             orderBoardSystem.Init(bus, orderBoard, wallet);
             progressionSystem.Init(bus, progression, xpConfig);
             upgradesSystem.Init(bus, upgrades);
             buildMenu.Init(bus, buildSystem, wallet, () => progression.PlayerLevel, config.stationRoster);
             placementController.Init(bus, grid, projection, worldCamera, config.stationRoster);
             hud.Init(bus, pool, progression, resourceList);
+            sfxController.Init(bus);
 
             foreach (var kv in startingCounts)
                 if (kv.Value != 0) pool.Add(kv.Key, kv.Value); // emits resource:changed (views already listening)
@@ -178,6 +186,8 @@ namespace VoidDay.Systems
             Require(buildMenu, nameof(buildMenu));
             Require(placementController, nameof(placementController));
             Require(hud, nameof(hud));
+            Require(siloPanel, nameof(siloPanel));
+            Require(sfxController, nameof(sfxController));
         }
 
         static void Require(Object reference, string field)

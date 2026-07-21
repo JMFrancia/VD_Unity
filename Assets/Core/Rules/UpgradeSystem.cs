@@ -10,9 +10,10 @@ namespace VoidDay.Core.Rules
     /// are currently active for a given station. Buying a tier charges the wallet, bumps the tier, and
     /// announces effects:recalculated so views/systems re-read resolved values.
     ///
-    /// Scope this milestone is passive, own-station only: a track bought on Field#0 affects only Field#0
-    /// (§3.2 "at the upgrade's own station"). Global/order/build scopes and triggered effects arrive in later
-    /// milestones and slot into Collect without touching the resolver or its call sites.
+    /// All effects here are passive (TriggerType.None); triggers arrive in M9. Reach is per effect TYPE, via
+    /// EffectScopes: a station.* track bought on Field#0 affects only Field#0 (§3.2 "at the upgrade's own
+    /// station"), while a global-scoped one (storage.cap from the Silo, M7; global.speed from the Workshop)
+    /// applies everywhere regardless of which station sold it.
     public sealed class UpgradeSystem : IEffectSource
     {
         private readonly EventBus _bus;
@@ -87,18 +88,42 @@ namespace VoidDay.Core.Rules
                     $"Cannot afford upgrade '{trackId}': costs {next.Cost}, have {_wallet.Money}");
 
             _wallet.Add(-next.Cost);
-            _levels[stationId][trackId] = TierOf(stationId, trackId) + 1;
+            int tier = TierOf(stationId, trackId) + 1;
+            _levels[stationId][trackId] = tier;
+            _bus.Publish(new UpgradePurchased(stationId, trackId, tier, next.Cost));
             _bus.Publish(new EffectsRecalculated());
         }
 
-        // ---- IEffectSource: the active passive effects for a station (own-station scope only in M5) ----
+        // ---- IEffectSource: the active passive effects that apply to a resolve ----
 
+        /// Which purchased tiers contribute is decided by the effect TYPE's scope (§3.2), not by which building
+        /// sold the upgrade. An own-station effect contributes only to its own station's resolves; a global one
+        /// contributes to every resolve, station-scoped or not — which is how the Silo's storage.cap reaches a
+        /// station-less cap read (M7) and how a Workshop's global.speed would reach a station's job timer.
         public void Collect(EffectType type, in ResolveContext ctx, List<Effect> into)
         {
-            if (ctx.StationId == null) return; // own-station only this milestone; global sources arrive in M6
-            if (!_levels.TryGetValue(ctx.StationId, out var levels)) return;
+            switch (EffectScopes.Of(type))
+            {
+                case EffectScope.OwnStation:
+                    if (ctx.StationId != null) CollectFrom(ctx.StationId, type, ctx, into);
+                    break;
 
-            foreach (var track in TracksFor(ctx.StationId))
+                case EffectScope.Global:
+                    foreach (var stationId in _levels.Keys) CollectFrom(stationId, type, ctx, into);
+                    break;
+
+                // local.* / pet.* need grid + pet positions to measure range against; upgrades carry neither.
+                // Declared vocabulary until M10 — no upgrade authors them, so nothing is silently dropped.
+                default:
+                    break;
+            }
+        }
+
+        private void CollectFrom(string stationId, EffectType type, in ResolveContext ctx, List<Effect> into)
+        {
+            if (!_levels.TryGetValue(stationId, out var levels)) return;
+
+            foreach (var track in TracksFor(stationId))
             {
                 int tier = levels.TryGetValue(track.Id, out var n) ? n : 0;
                 for (int t = 0; t < tier; t++)

@@ -130,6 +130,15 @@ namespace VoidDay.Core.Events
         public PlaceRequested(string stationType, GridCoord cell) { StationType = stationType; Cell = cell; }
     }
 
+    /// A placement/move drag was released over a cell that cannot take the station — off-grid, or occupied.
+    /// The View owns the validity preview (§12.2), so it owns the rejection too: Core never sees this drop.
+    public readonly struct PlaceRejected
+    {
+        public readonly string StationType;
+        public readonly string Reason;
+        public PlaceRejected(string stationType, string reason) { StationType = stationType; Reason = reason; }
+    }
+
     /// A picked-up station dropped on a valid empty cell (§12.2). Move is free (§4.3).
     public readonly struct MoveRequested
     {
@@ -167,6 +176,24 @@ namespace VoidDay.Core.Events
     {
         public readonly string Source;
         public ExclusiveUiOpened(string source) { Source = source; }
+    }
+
+    /// The peer of ExclusiveUiOpened: the same surface went open→closed, whatever closed it (its ✕, a
+    /// background tap, another surface taking exclusivity). Published once per real transition, never on a
+    /// close-while-already-closed. View-routing only.
+    public readonly struct ExclusiveUiClosed
+    {
+        public readonly string Source;
+        public ExclusiveUiClosed(string source) { Source = source; }
+    }
+
+    /// A UI control was pressed that announces nothing else — a tab switch, a recipe tile. Buttons that DO
+    /// produce a domain event (Queue, Buy, Fill, Skip) never publish this, so one press is one announcement.
+    /// View-routing only.
+    public readonly struct UiTapped
+    {
+        public readonly string Source;
+        public UiTapped(string source) { Source = source; }
     }
 
     // ---- Stations built / moved / demolished (published by Core) ----
@@ -216,6 +243,15 @@ namespace VoidDay.Core.Events
         public readonly int Delta;
         public readonly int Total;
         public MoneyChanged(int delta, int total) { Delta = delta; Total = total; }
+    }
+
+    /// The shared silo is full and a completed job's output could not fit (§7, §4.4). ResourceId is the good
+    /// that was turned away — informative for a toast, not a per-resource cap (there is one pool). The
+    /// station's blocked state rides the existing StationBlocked with reason "storage-full".
+    public readonly struct StorageFull
+    {
+        public readonly string ResourceId;
+        public StorageFull(string resourceId) { ResourceId = resourceId; }
     }
 
     // ---- Order input intents ----
@@ -285,6 +321,18 @@ namespace VoidDay.Core.Events
         public readonly string UpgradeId; // the track id
         public UpgradePurchaseRequested(string stationId, string upgradeId)
         { StationId = stationId; UpgradeId = upgradeId; }
+    }
+
+    /// A tier of a station-upgrade track was actually bought. effects:recalculated fires alongside it, but
+    /// that one also fires on a reset and says nothing about who paid what — this names the purchase itself.
+    public readonly struct UpgradePurchased
+    {
+        public readonly string StationId;
+        public readonly string UpgradeId; // the track id
+        public readonly int Tier;         // the tier now owned (1-based)
+        public readonly int Cost;
+        public UpgradePurchased(string stationId, string upgradeId, int tier, int cost)
+        { StationId = stationId; UpgradeId = upgradeId; Tier = tier; Cost = cost; }
     }
 
     /// §15 effects:recalculated — the active effect set changed (an upgrade was bought, or a reset cleared

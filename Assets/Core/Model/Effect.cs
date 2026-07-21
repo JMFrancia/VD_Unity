@@ -23,6 +23,55 @@ namespace VoidDay.Core.Model
         EggChance, PetEffectStrength, PetAutoCollectSpeed
     }
 
+    /// How far an EffectType reaches — the §3.2 "Touches" column, expressed once. The effect source asks a
+    /// type for its SCOPE rather than switching on the type itself, which is what keeps "add a new effect
+    /// type" from meaning "add a new code path". OwnStation resolves from M5, Global from M7; the two range
+    /// scopes are declared vocabulary until M10 gives them grid/pet positions to measure against.
+    public enum EffectScope { OwnStation, Global, LocalRange, PetRange }
+
+    public static class EffectScopes
+    {
+        /// Exhaustive by design: a newly-added EffectType throws here rather than silently defaulting to a
+        /// scope nobody chose for it.
+        public static EffectScope Of(EffectType type)
+        {
+            switch (type)
+            {
+                case EffectType.StationSpeed:
+                case EffectType.StationCost:
+                case EffectType.StationYield:
+                case EffectType.StationQueueDepth:
+                    return EffectScope.OwnStation;
+
+                case EffectType.LocalSpeed:
+                case EffectType.LocalCost:
+                case EffectType.LocalYield:
+                    return EffectScope.LocalRange;
+
+                case EffectType.PetEffectStrength:
+                case EffectType.PetAutoCollectSpeed:
+                    return EffectScope.PetRange;
+
+                // Reach the whole map or the economy at large, so the station being resolved is irrelevant:
+                // an emitter anywhere applies everywhere (§3.2).
+                case EffectType.GlobalSpeed:
+                case EffectType.GlobalCost:
+                case EffectType.GlobalYield:
+                case EffectType.BuildCost:
+                case EffectType.OrderPayout:
+                case EffectType.OrderSlots:
+                case EffectType.XpGain:
+                case EffectType.StorageCap:
+                case EffectType.EggChance:
+                    return EffectScope.Global;
+
+                default:
+                    throw new System.ArgumentOutOfRangeException(
+                        nameof(type), type, "EffectType has no declared scope — add it to EffectScopes.Of");
+            }
+        }
+    }
+
     /// None = passive modifier, always applied (all M5 upgrades). A real trigger fires once on that event,
     /// subject to triggerChance — resolved starting M9.
     public enum TriggerType

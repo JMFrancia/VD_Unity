@@ -19,6 +19,7 @@ namespace VoidDay.View
         [SerializeField] MeshRenderer radialRenderer; // VoidDay/RadialProgress material; _Fill = job progress
         [SerializeField] GameObject readyRoot;
         [SerializeField] SpriteRenderer readyIcon; // the finished good's crop icon, hops while output waits
+        [SerializeField] GameObject storageFullRoot; // world.storageFull — warning triangle, deliberately still
         [SerializeField] Transform queueRow;
         [SerializeField] float hopAmplitude = 0.12f;
         [SerializeField] float hopSpeed = 6f;
@@ -34,6 +35,7 @@ namespace VoidDay.View
             _mpb = new MaterialPropertyBlock();
             radialRoot.SetActive(false);
             readyRoot.SetActive(false);
+            storageFullRoot.SetActive(false);
         }
 
         public void SetRadialVisible(bool visible)
@@ -44,6 +46,14 @@ namespace VoidDay.View
         public void SetReady(bool ready)
         {
             if (readyRoot.activeSelf != ready) readyRoot.SetActive(ready);
+        }
+
+        /// world.storageFull (§4.4, §12.6). Deliberately does NOT hop — the ready icon's bounce says "tap me",
+        /// and this state is the one where tapping will not collect. Stillness plus the warning triangle is the
+        /// distinction the spec asks for.
+        public void SetStorageFull(bool full)
+        {
+            if (storageFullRoot.activeSelf != full) storageFullRoot.SetActive(full);
         }
 
         /// The crop icon for the finished good (WorldState resolves it from the completed job's recipe output).

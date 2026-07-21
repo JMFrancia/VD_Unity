@@ -91,12 +91,24 @@ namespace VoidDay.Core.Rules
         }
 
         /// Generic collection predicate (§4.5, 00-summary gotcha). A tap collects iff this is true, else it
-        /// opens the panel. M7 adds "&& storage has room" as another false-reason WITHOUT touching the tap
-        /// branch — that is the whole point of routing tap-resolution through one predicate.
+        /// opens the panel. M7 added "&& storage has room" as a second false-reason and the tap branch did not
+        /// move — that is the whole point of routing tap-resolution through one predicate.
         public bool IsCollectionPossible(string stationId)
         {
             var s = GetStation(stationId);
-            return s.Queue.Count > 0 && s.Queue[0].State == JobState.Complete;
+            return s.Queue.Count > 0
+                && s.Queue[0].State == JobState.Complete
+                && _pool.HasRoomForAll(s.Queue[0].Outputs);
+        }
+
+        /// True when the head is done but its output has nowhere to go (§4.4 storage-full). Distinguishes the
+        /// two blocked states for the View: "ready, tap to collect" vs "full, go free some space".
+        public bool IsStorageBlocked(string stationId)
+        {
+            var s = GetStation(stationId);
+            return s.Queue.Count > 0
+                && s.Queue[0].State == JobState.Complete
+                && !_pool.HasRoomForAll(s.Queue[0].Outputs);
         }
 
         public bool TryGetHeadProgress(string stationId, double now, out float fraction, out bool complete)
@@ -155,6 +167,9 @@ namespace VoidDay.Core.Rules
 
         public void Collect(string stationId, double now, bool byPet)
         {
+            if (IsStorageBlocked(stationId))
+                throw new InvalidOperationException(
+                    $"Collection refused at '{stationId}' — storage is full (§4.4); free space first");
             if (!IsCollectionPossible(stationId))
                 throw new InvalidOperationException($"Nothing to collect at '{stationId}'");
             var s = GetStation(stationId);
@@ -207,7 +222,13 @@ namespace VoidDay.Core.Rules
             var recipe = _catalog.Get(head.RecipeId);
             head.Outputs = Effective(recipe.Outputs, ResolveKind.OutputQuantity, s.Id);
             _bus.Publish(new JobCompleted(s.Id, head.Outputs));
-            _bus.Publish(new StationBlocked(s.Id, "output-uncollected"));
+
+            // Nothing is destroyed either way (§4.4) — the output sits on the station. The reason differs only
+            // in what the player must do to clear it: tap, or go free some silo space first.
+            bool full = !_pool.HasRoomForAll(head.Outputs);
+            if (full)
+                _bus.Publish(new StorageFull(head.Outputs.Count > 0 ? head.Outputs[0].ResourceId : null));
+            _bus.Publish(new StationBlocked(s.Id, full ? "storage-full" : "output-uncollected"));
         }
 
         /// Resolve each amount through the value seam (00-summary decision #2). Passthrough in M2.

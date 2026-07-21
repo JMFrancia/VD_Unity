@@ -32,7 +32,7 @@ namespace VoidDay.Tests
 
             var resolver = new ValueResolver();
             _bus = new EventBus();
-            _pool = new ResourcePool(_bus);
+            _pool = new ResourcePool(_bus, resolver);
             _wallet = new Wallet(_bus);
             _progression = new Progression(_bus, resolver);
 

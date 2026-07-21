@@ -22,6 +22,10 @@ namespace VoidDay.Data
         [Tooltip("Fraction of build cost returned on demolish (§4.3). 0.5 = 50%. Data, not a literal.")]
         public float refundPercent = 0.5f;
 
+        [Header("Storage (§7)")]
+        [Tooltip("Silo capacity before any upgrade — ONE shared pool across every good (Hay Day's silo model), not a per-resource cap. Raised by the Silo's storage.cap track.")]
+        public int startingStorageCapacity = 30;
+
         [Header("Start block (§5.3)")]
         public List<StartingResource> startingResources = new();
 

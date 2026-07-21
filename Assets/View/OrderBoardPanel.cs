@@ -67,8 +67,10 @@ namespace VoidDay.View
 
         void Close()
         {
+            if (!_open) return; // only a real open→closed transition announces itself (many callers)
             _open = false;
             panelRoot.SetActive(false);
+            _bus.Publish(new ExclusiveUiClosed("orderBoard"));
         }
 
         void RebuildIfOpen()

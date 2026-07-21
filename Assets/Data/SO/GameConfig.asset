@@ -25,6 +25,7 @@ MonoBehaviour:
   - {fileID: 11400000, guid: d1e2f3a4b5c60718293a4b5c6d7e8f13, type: 2}
   - {fileID: 11400000, guid: 3e9c1c597c857480e99e68a8d7cfb224, type: 2}
   refundPercent: 0.5
+  startingStorageCapacity: 30
   startingResources:
   - resource: {fileID: 11400000, guid: ab16cbc8f42d841a6b9bc8e41c13aee9, type: 2}
     amount: 1

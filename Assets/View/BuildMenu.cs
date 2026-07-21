@@ -94,9 +94,11 @@ namespace VoidDay.View
         /// announce it so the other exclusive menus retract.
         void SetTrayOpen(bool open)
         {
+            bool was = tray.activeSelf;
             tray.SetActive(open);
             _buttonRect.anchoredPosition = open ? buttonOpenPosition : buttonClosedPosition;
             if (open) _bus.Publish(new ExclusiveUiOpened(SourceId));
+            else if (was) _bus.Publish(new ExclusiveUiClosed(SourceId)); // real transition only — Init closes an already-closed tray
         }
 
         void OnMoneyChanged(MoneyChanged _) => Refresh();
