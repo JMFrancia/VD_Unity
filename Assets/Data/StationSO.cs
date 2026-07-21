@@ -27,8 +27,8 @@ namespace VoidDay.Data
         [Tooltip("Player level that unlocks building this type (§9). 1 = buildable from the start. > current level = shown locked in the build menu.")]
         public int unlockLevel = 1;
 
-        [Tooltip("Menu-thumbnail tint (§12.3 — placeholder colored square until real meshes/icons land). Presentation, but per-type game data the build menu reads.")]
-        public Color placeholderColor = Color.white;
+        [Tooltip("Build-menu thumbnail (§12.3) — the station's own model rendered at the world camera's angle. Baked from the prefab into Assets/Art/UI/StationThumbs.")]
+        public Sprite buildThumbnail;
 
         [Tooltip("Authored prefab instantiated when this type is placed at runtime (CLAUDE.md rule 4). Required for types buildable now (unlockLevel 1); level-locked types add theirs when M8 makes them placeable.")]
         public GameObject prefab;

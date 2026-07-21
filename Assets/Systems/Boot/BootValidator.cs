@@ -86,6 +86,8 @@ namespace VoidDay.Systems
             Require(s.cap > 0, s, nameof(s.cap), "must be > 0");
             Require(s.unlockLevel >= Progression.StartingLevel, s, nameof(s.unlockLevel),
                 $"must be >= {Progression.StartingLevel} (the starting level)");
+            Require(s.buildThumbnail != null, s, nameof(s.buildThumbnail),
+                "must be assigned — every station type renders a thumbnail in the build menu");
             // A type buildable from the start must have a prefab to instantiate; level-locked types get theirs
             // when M8 makes them placeable (they only render as menu thumbnails until then).
             if (s.unlockLevel <= Progression.StartingLevel)

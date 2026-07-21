@@ -5,7 +5,7 @@ using VoidDay.Data;
 
 namespace VoidDay.View
 {
-    /// One station entry in the build tray (menu.build, mockup 20:2). Shows a tinted thumbnail, name, and a
+    /// One station entry in the build tray (menu.build, mockup 20:2). Shows the station's thumbnail, name, and a
     /// state marker: money cost (ink) when available, cost in warning color when unaffordable, an owned/cap
     /// badge when capped, or a grayscale + lock + "Lv N" when level-locked. Only an AVAILABLE entry is
     /// draggable — dragging it off the tray begins a placement (§12.2). Look is authored in the prefab;
@@ -26,16 +26,14 @@ namespace VoidDay.View
 
         PlacementController _placement;
         string _stationType;
-        Color _baseColor;
         bool _draggable;
 
-        public void Bind(PlacementController placement, string stationType, string displayName, Color color)
+        public void Bind(PlacementController placement, string stationType, string displayName, Sprite thumb)
         {
             _placement = placement;
             _stationType = stationType;
-            _baseColor = color;
             nameText.text = displayName;
-            thumbnail.color = color;
+            thumbnail.sprite = thumb;
         }
 
         public void Apply(State state, int cost, int count, int cap, int unlockLevel, UiThemeSO theme)
@@ -46,8 +44,8 @@ namespace VoidDay.View
             bool capped = state == State.CapReached;
             bool showCost = state == State.Available || state == State.CantAfford;
 
-            // Locked types desaturate toward gray; every other state shows the true tint.
-            thumbnail.color = locked ? Color.Lerp(_baseColor, theme.lockedText, 0.85f) : _baseColor;
+            // Locked types dim under the disabled gray; every other state shows the thumbnail untinted.
+            thumbnail.color = locked ? theme.lockedText : Color.white;
 
             costRow.SetActive(showCost);
             if (showCost)

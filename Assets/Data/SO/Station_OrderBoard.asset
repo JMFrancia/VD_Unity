@@ -19,7 +19,8 @@ MonoBehaviour:
   buildCost: 250
   cap: 1
   unlockLevel: 1
-  placeholderColor: {r: 0.55, g: 0.40, b: 0.28, a: 1}
+  buildThumbnail: {fileID: 21300000, guid: b34dad20b98e34391a6ac96ac58c085b, type: 3}
   prefab: {fileID: 3568611185497313402, guid: 36bebf2fe7f5445fdb0e4e2796fb3ede, type: 3}
   queueDepth: 3
   recipes: []
+  upgrades: []
