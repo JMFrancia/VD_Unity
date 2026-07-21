@@ -117,7 +117,7 @@ The dotted names below are the design vocabulary; the C# `EffectType` enum membe
 | `order.payout` | cash from fulfilling an order |
 | `order.slots` | Order Board slot count |
 | `xp.gain` | XP from all sources |
-| `storage.cap` | per-resource storage cap |
+| `storage.cap` | the shared silo capacity (§7) — one number, not per resource |
 | `egg.chance` | egg drop rate on order fulfillment (§10.1) |
 | `pet.effectStrength` | scales the magnitude of another pet's effects |
 | `pet.autoCollectSpeed` | how fast a pet auto-collects |
@@ -189,7 +189,9 @@ One station type covers everything — the **recipe** decides behavior. Every re
 
 The Silo and Workshop hold nothing — resources are a global pool of numbers, per the pitch. Both are buildings whose only function is selling upgrades, which is the pitch's "Upgrade Stations: place to purchase specific universal upgrades." **Workshop** is the R3 #12 rename of the pitch's "barn (universal upgrades)."
 
-> **On the name "Silo":** it was briefly renamed to Vault over a HayDay collision (HayDay's silo *holds* crops; ours sells cap upgrades). Reverted — the confusion is theoretical, it's one tap to resolve, "Vault" was never actually approved, and Silo fits the place-noun pattern that "Storage" breaks. It's a `displayName` on the `StationSO`; change it freely once it's on a real button.
+> **On the name "Silo":** it was briefly renamed to Vault over a HayDay collision (HayDay's silo *holds* crops; ours sells capacity upgrades). Reverted — it's one tap to resolve, "Vault" was never actually approved, and Silo fits the place-noun pattern that "Storage" breaks. It's a `displayName` on the `StationSO`; change it freely once it's on a real button.
+>
+> *(2026-07-21: the original argument was that the collision was "theoretical." It is less so now — §7 adopted Hay Day's shared-pool storage, so our Silo governs exactly the number HayDay's silo governs. It still holds nothing; the pool is global. The name stands, but the distinction is now purely "sells the capacity" vs "is the container.")*
 
 ### 4.3 Economy
 
@@ -285,9 +287,22 @@ Procedural. Random pick from resources the player has unlocked a station for, qu
 
 ## 7. Storage
 
-- **Per-resource caps.** Each resource has its own cap (`ResourceSO.startingCap`).
-- **The Silo raises all caps at once** (one upgrade track, applies globally via a `storage.cap` effect).
+- **One shared capacity across every good** — Hay Day's silo model. The base is
+  `GameConfigSO.startingStorageCapacity`; every unit of every resource counts 1 against it. 40 wheat and
+  10 corn fill a 50-capacity silo exactly as 50 wheat would.
+- **Hoarding any one good squeezes every other.** A silo full of wheat blocks the corn harvest. That pressure
+  *is* the mechanic — it forces the recurring "what do I spend to make room?" decision. There are **no
+  per-resource caps**; a `storage.cap` effect narrowed to a single resource would be meaningless.
+- **The Silo raises that one number** (one tiered upgrade track, via a `storage.cap` effect, paid in money).
 - Full storage blocks collection per §4.4 — never destroys anything.
+
+> **Changed 2026-07-21 (M7).** This section previously specified per-resource caps
+> (`ResourceSO.startingCap`) raised together by one upgrade. Replaced with the shared pool after comparing
+> against how Hay Day actually works. Two Hay Day traits were deliberately **not** copied: its two pools
+> (Silo for crops, Barn for products — our Barn slot is the Workshop, R3 #12, and there is nothing to split
+> until products exist), and its expansion currency (materials from crates rather than money — that needs a
+> drop source, a material inventory, and a non-money purchase path, so it is its own feature).
+> See `docs/UI-Mockups.md` for the decision record and `panel.silo` frame `65:2`.
 
 ---
 
@@ -297,7 +312,7 @@ Both kinds are **tiered**, with per-tier costs listed explicitly on the `Upgrade
 
 - **Station upgrades** — bought in the station panel. Job speed, queue depth, output yield.
 - **Universal upgrades** — bought at the **Workshop** (a building you place and tap). Global job speed %, global build cost %, order payout %, extra order slot.
-- **Silo upgrades** — storage cap. Bought at the **Silo** (a building you place and tap). Raises every resource's cap at once.
+- **Silo upgrades** — storage capacity. Bought at the **Silo** (a building you place and tap). Raises the one shared capacity (§7).
 
 ---
 
@@ -470,8 +485,8 @@ Reset lives in the debug menu.
 
 | 2D file | SO type(s) | Holds |
 |---|---|---|
-| `game.json` | `GameConfigSO` (single) | grid dimensions, cell size, camera min/max zoom, pan bounds |
-| `resources.json` | `ResourceSO` (per resource) | id, display name, base value, starting storage cap, `sellable` flag, **mesh/icon ref** |
+| `game.json` | `GameConfigSO` (single) | grid dimensions, cell size, camera min/max zoom, pan bounds, **starting silo capacity** (§7) |
+| `resources.json` | `ResourceSO` (per resource) | id, display name, base value, `sellable` flag, tier, **mesh/icon ref** |
 | `recipes.json` | `RecipeSO` (per recipe) | inputs, outputs, optional timer, station type |
 | `stations.json` | `StationSO` (per station) | build cost, cap, footprint, unlock level, recipe refs, **mesh/prefab ref**, `placeholderColor` |
 | `orders.json` | `OrderConfigSO` (single) | slot count, refill timer, payout multipliers, generation weights |

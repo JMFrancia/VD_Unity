@@ -19,7 +19,7 @@ Drawn once, reused across surfaces. A surface entry that says "purchase row" or 
 ### pattern.purchaseRow — HayDay-simple purchase / queue row
 Used by `panel.station` (recipe rows **and** station-upgrade rows), `panel.workshop`, and `panel.silo`. One flat rounded row:
 - **What you get** — the output/effect: an icon (recipe output, §5.2) or a one-line procedural effect description (§3.6, for upgrades).
-- **What it costs** — input resources with quantities as small icons (recipe inputs / upgrade cost), or a money cost (build/universal/silo upgrades). For upgrades also show **current tier → next tier**.
+- **What it costs** — input resources with quantities as small icons (recipe inputs / upgrade cost), or a money cost (build/universal/silo-capacity upgrades). For upgrades also show **current tier → next tier**.
 - **One action control** — a single rounded button (`Queue` for recipes, `Buy` for upgrades). The whole row may be the tap target (HayDay taps the item, not a tiny button).
 - **States:** **available** (affordable) → button enabled; **can't-afford** (cost > held resources/money) → button + row **disabled, grayscale** (state-signal "locked"), cost shown in the warning color; **maxed** (upgrades only, top tier reached) → "Maxed", no button; **queue-full** (recipes only, at queue depth §4.3) → disabled until a slot frees.
 - **Interaction:** tap → the surface's intent (`input:jobQueueRequested` or `input:upgradePurchaseRequested`). Inputs/cost are consumed by Core, not the row.
@@ -296,16 +296,19 @@ Per-entity surfaces opened by tapping a building on the map. **Tap resolution (�
 - **Interactions:** buy a tier → `input:upgradePurchaseRequested {upgradeId}`.
 - **Visual:** steel-blue building identity (`#5B7A99`); farm-neutral panel.
 
-### panel.silo — Silo upgrades
-- **Type:** panel · **Spec:** §7, §8, §4.2
-- **Purpose:** buy **storage-cap** upgrades — one track that raises **every** resource's cap at once (via a `storage.cap` effect, §7).
+### panel.silo — Silo capacity
+- **Type:** panel · **Spec:** §7, §8, §4.2 · **Mockup:** `65:2` (supersedes `19:2`)
+- **Purpose:** show how full the shared silo is, what is taking up the room, and sell capacity upgrades. Storage is **one capacity shared by every good** (§7) — not per-resource caps.
 - **Trigger:** tap the Silo building. **Dismissal:** close / tap-off. **Modal:** yes (assumed).
 - **Position:** rounded panel.
-- **Contents:** a single tiered cap-upgrade track as **`pattern.purchaseRow`**s (§8) — effect description (§3.6), per-tier money cost, tier progression, `Buy` / `Maxed`. *(Inferred: may also show current global cap value — helpful context, not specified.)*
-- **States:** default; can't afford and maxed per `pattern.purchaseRow`.
-- **Interactions:** buy a tier → `input:upgradePurchaseRequested {upgradeId}`.
+- **Contents:** three blocks, top to bottom —
+  1. **Capacity** — `stored / capacity`, a horizontal fill bar, and a note ("shared by every good").
+  2. **Stored** — a row per good actually held (icon, name, amount). Goods at 0 are omitted; a roster of zeroes does not answer "what is taking up my room".
+  3. **Expand** — a single tiered capacity track as a **`pattern.purchaseRow`** (§8): procedural effect description (§3.6), per-tier money cost, tier progression, `Buy` / `Maxed`.
+- **States:** default; **full** (`stored >= capacity`) → the value, note, and bar switch to the warning color; can't-afford and maxed per `pattern.purchaseRow`.
+- **Interactions:** buy a tier → `input:upgradePurchaseRequested {stationId, upgradeId}`.
 - **Visual:** grey-metal building identity (`#8A8F98`); farm-neutral panel.
-- **Notes:** Silo **holds nothing** — resources are a global number pool (§4.2). This panel sells caps only.
+- **Notes:** Silo **holds nothing** — resources are a global number pool (§4.2). This panel sells capacity only. *(2026-07-21: rewritten with §7's shared-pool change; the old per-resource-cap description is superseded.)*
 
 ---
 
@@ -344,8 +347,8 @@ Modal, dismissable, centered. Void-flavored popups (`popup.hatchEgg`, `popup.lev
 - **Type:** popup · **Spec:** §12.4, §12.1, §7
 - **Purpose:** show every resource and the amount held.
 - **Trigger:** tap `hud.money`. **Dismissal:** tap `hud.money` again / close (§12.1). **Modal:** yes (light).
-- **Contents:** a row per resource (raw: wheat, corn, eggs, milk; processed: cream, cheese, bread, cornbread, brioche, cheesecake — §5.1): resource icon, name, **amount held**, and *(inferred: amount vs cap, since caps are per-resource, §7 — useful but not specified)*.
-- **States:** default; a resource at **0** still lists (shows 0); a resource **at cap** could be flagged *(inferred — ties to `world.storageFull`; not specified here)*.
+- **Contents:** a row per resource (raw: wheat, corn, eggs, milk; processed: cream, cheese, bread, cornbread, brioche, cheesecake — §5.1): resource icon, name, **amount held**. *(There is no per-resource cap to show against — storage is one shared capacity, §7; `panel.silo` owns that display.)*
+- **States:** default; a resource at **0** still lists (shows 0).
 - **Interactions:** display-only; dismiss.
 - **Visual:** farm-neutral; chunky rounded list.
 
@@ -457,8 +460,8 @@ Rendered on the entity in the 3D world, not in a layer above. **All world-space 
 
 ### world.storageFull — Storage-full state
 - **Type:** in-world · **Spec:** §12.6, §4.4, §7
-- **Purpose:** show a station is blocked because the output resource is at cap (collection refused).
-- **Trigger:** collection refused — resource at cap (`storage:full {resource}` / `station:blocked`). **Position:** on/above the station, billboarded.
+- **Purpose:** show a station is blocked because its finished output will not fit in the shared silo (collection refused, §7).
+- **Trigger:** collection refused — the silo has no room for the whole output (`storage:full {resource}` / `station:blocked {reason: storage-full}`). The event's `resource` is the good that was turned away, *not* a per-resource cap. **Position:** on/above the station, billboarded.
 - **Contents:** a distinct **warning tint + icon**, visually separate from "ready" (§12.6, §4.4).
 - **States:** active while blocked; queued jobs still run then block behind it; **nothing is ever destroyed** (§4.4). Clears when the player frees cap and collects.
 - **Interactions:** tapping the station opens `panel.station` immediately (collection refused, so tap resolves to open — §4.4). No intent unique to this state beyond `input:stationTapped`.
