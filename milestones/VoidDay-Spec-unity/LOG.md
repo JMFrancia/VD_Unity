@@ -242,3 +242,100 @@ Running record across milestones. Read this first when picking up cold.
 - **`UpgradeSystem.Collect` is own-station only** (`ctx.StationId == null` returns nothing). M6's global/universal source is a *second* `IEffectSource`; add a composite rather than overloading this one.
 - **`UpgradeSO` tiers are ADDITIVE** — authoring three "+25%" tiers stacks to +75% via the resolver. Do NOT author tier N as the cumulative total.
 - **The `UpgradeRow` prefab + the popup tab surgery were authored via one-shot editor scripts** (as the other UI prefabs were); they are now source-of-truth — edit in the editor / via MCP, don't re-run the builders.
+
+---
+
+## Milestone 07 — Storage & Silo
+**Status:** ✅ Complete · **Commit:** `263c105` · **Date:** 2026-07-21
+
+> **M6 was SKIPPED** (user decision, this session). The plan's order was M6 → M7; we went M5 → M7. See
+> *Deviations* for what M6 owed to later milestones and how much of that debt is now paid.
+
+**Built:**
+- **Storage is ONE SHARED POOL, Hay Day's silo model** — *not* the spec's per-resource caps. `ResourcePool`
+  gained a single `Capacity` (base from `GameConfigSO.startingStorageCapacity`, resolved through the effect
+  seam), `TotalStored` summing every good, and `HasRoomFor` / `HasRoomForAll`. 40 wheat + 10 corn fill a
+  50-pool exactly as 50 wheat would, so hoarding any one good squeezes every other.
+- **Capacity gates COLLECTION, never addition.** `ResourcePool.Add` stays dumb and never clamps (§4.4 forbids
+  destroying output). `JobSystem.IsCollectionPossible` gained storage as a second false-reason and
+  `IsStorageBlocked` distinguishes "ready, tap me" from "refused, go free space". **The tap-resolution branch
+  did not move** — exactly what M2's generic predicate was built for.
+- **`EffectScopes` (`Core/Model/Effect.cs`) — the M6 carry-forward slice.** Reach is now a property of the
+  effect TYPE (OwnStation / Global / LocalRange / PetRange), so `UpgradeSystem.Collect` resolves both scopes
+  through one mechanism instead of a branch per type. Exhaustive switch: a new `EffectType` throws rather than
+  defaulting to a scope nobody chose. This is what lets a Silo-sold `storage.cap` reach a station-less capacity
+  read, and a Workshop-sold `global.speed` reach every station's job timer.
+- **`global.speed/cost/yield` now fold into the SAME additive pool as their `station.*` counterpart** —
+  `+25%` station and `+25%` global read as `+50%`, not `×1.5625` (§3.5). Reach never earns its own separate
+  multiplication. `ValueResolver.Applied` gained a two-type overload for this.
+- **`panel.silo`** (`View/SiloPanel.cs` + authored `SiloCanvas`): capacity bar, a STORED contents list (goods
+  held, answering "what is taking up my room"), and one tiered EXPAND row reusing M5's `UpgradeRow`. Self-selects
+  on station type off the shared `StationPanelRequested`, exactly as `OrderBoardPanel` does.
+- **`world.storageFull`**: a still (deliberately non-hopping) warning triangle on `StationStateWidget`, using the
+  real `Assets/Art/UI/Icons/storagefull.png` the asset pipeline had already produced.
+- **Data:** `GameConfigSO.startingStorageCapacity` (30), `Upgrade_Silo_Cap` (3 tiers, uniform +25, $120/$300/$700)
+  on `Station_Silo.upgrades`. `BootValidator` requires capacity > 0.
+- **Tests:** `Assets/Tests/StorageTests.cs` — 18 tests. Full suite **55/55 green**.
+
+**Deviations from the plan:**
+- **★ The spec's §7 storage model was REPLACED, by user decision.** §7 says "each resource has its own cap" and
+  M7's *Do NOT Build* list explicitly named per-resource cap upgrades as out of scope. The user first asked for
+  per-resource caps *with per-resource upgrades* (the inverse of the spec), then — after comparing against how
+  Hay Day actually works — settled on **Hay Day's shared pool**. Recorded in `docs/UI-Mockups.md`.
+  **`docs/VoidDay-Spec-unity.md` §7 is now STALE and still describes per-resource caps.** Fix it before anyone
+  treats it as authoritative.
+- **★ M6 skipped.** Confirmed by reading M7's Context (it depends on M1/M2/M5, not M6) and by the seams: the
+  M6 sites (`OrderPayout` / `OrderSlots` / `BuildCost`) are still passthrough at `ValueResolver`, so nothing
+  broke — decision #2's whole purpose. **The only hard M6 dependency was M11** (Dopamine Rain *is*
+  `global.speed +25%`), and that debt is now **paid**: the scope mechanism plus the global-speed fold both
+  landed here, verified by `GlobalEffect_ReachesEveryStationsResolve`. M11 needs no M6 work.
+- **`panel.silo` was redesigned and re-mocked.** Frame `19:2` (per-resource) is superseded by **`65:2`
+  "panel.silo v2 (shared pool)"**, built in Figma and approved before any Unity authoring, per the standing
+  preference. `19:2` is kept and marked superseded in the manifest.
+- **Money, not Hay Day's expansion materials.** A true copy needs new material resources, a crate drop source,
+  a material inventory, and a non-money purchase path — its own milestone. Deliberately not attempted.
+- **One pool, not Hay Day's Silo + Barn.** The Barn slot is already the Workshop (R3 #12), and wheat + corn is
+  nothing to split. Revisit when products exist (M8+).
+- **`StorageFull` carries the resource that was turned away** — informative for a toast, *not* a per-resource
+  cap. Do not read it as one.
+- **Committed inside a combined commit.** A parallel audio session had edited the same shared files
+  (`GameEvents.cs`, `GameBoot.cs`, `UpgradeSystem.cs`, `SiloPanel.cs`, several Views), so M7 and the SFX cue
+  system could not be split without a non-compiling commit. `263c105` contains both.
+
+**Tech debt:**
+- **"54 / 55" does not say "full"** even when a 2-unit harvest is refused. The panel reports the literal number;
+  the station reports its own truth. Honest but possibly confusing — switching the panel's warning to "some
+  station is blocked" is a small change if it reads wrong in play.
+- **Dead space below the EXPAND row.** The panel is sized for a roster that grows; two goods leave it looking empty.
+- **`StorageFull` fires only at job completion.** A station that completes with room, and *later* becomes blocked
+  because the pool filled from elsewhere, never emits the event. The View polls the predicate so the visual is
+  always right; only one-shot reactions (SFX/toasts) miss that case.
+- **Spec §7 not updated** (above). Highest-value item here.
+
+**Assumptions:**
+- **Capacity 30 and the +25/$120/$300/$700 tiers are first-guess placeholders** — `GameConfigSO` and
+  `Upgrade_Silo_Cap`, tune in the inspector.
+- **Every good counts 1 toward capacity.** No per-good weight. If a late good should occupy more room, that's a
+  new field, not a rework.
+- **The literal finger-tap on the Silo was not machine-verified** (MCP still can't inject pointer input — same
+  gap every milestone has had). Everything downstream of the raycast was driven through the real bus. User played it.
+
+**Gotchas for later milestones:**
+- **★ `UpgradeSystem.Collect` is NO LONGER own-station only** — the M5 log's note about adding a "second
+  IEffectSource" for global reach is now **obsolete**. Do not add a composite source; add the effect type to
+  `EffectScopes.Of` and it resolves through the existing path.
+- **`EffectScopes.Of` is exhaustive and THROWS on an unmapped type.** Adding an `EffectType` without giving it a
+  scope fails loudly at first resolve. That is deliberate — map it.
+- **Reach types share one pool per stat.** `local.*` (M10) must join `station.*`/`global.*` in the *same*
+  `Applied(...)` call, not get its own multiplication, or §3.5's additive rule silently breaks.
+- **`ResourcePool.Add` never clamps, by design.** Debug cheats and refunds can push you over capacity; that just
+  means blocked-until-spent. Do not "fix" this with a clamp — it would destroy output, which §4.4 forbids.
+- **`Effect.resource` is unused for `StorageCap`.** One pool means a resource-narrowed cap effect is meaningless.
+  The narrowing still works for `*.cost`/`*.yield` per §3.2.
+- **Panel roots are authored INACTIVE in `Farm.unity`** (`OrderBoardCanvas/Panel`, `SiloCanvas/Panel`), matching
+  `RecipePopup`/`TotalsPopup`/`DebugMenu`. The *Canvas* stays active (M4's gotcha still holds) — only the child
+  panel is off, so it no longer blocks the Game view in edit mode. `Init` already deactivated it at runtime, so
+  this changed nothing at play. Edit the `.unity` YAML directly for such flags; a scripted `SetActive` does not
+  survive a domain reload.
+- **The `SiloCanvas` hierarchy was authored by a one-shot editor script** (as every other UI surface was). It is
+  now source-of-truth — edit it in the editor / via MCP, do not re-run the builder.
