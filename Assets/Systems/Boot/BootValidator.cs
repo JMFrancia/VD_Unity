@@ -69,6 +69,9 @@ namespace VoidDay.Systems
             Require(r.icon != null, r, nameof(r.icon), "must be assigned — every resource renders an icon in rows, cards, and totals");
             Require(r.baseValue > 0, r, nameof(r.baseValue), "must be > 0 — it is the basis of order payout");
             Require(r.tier > 0, r, nameof(r.tier), "must be > 0");
+            if (r is CropSO crop)
+                Require(crop.cropSprite != null, crop, nameof(crop.cropSprite),
+                    "must be assigned — the field renders this sprite rising out of the soil as the crop grows");
         }
 
         /// Called per scene-placed station at boot (GameBoot discovers them; the scene owns placement).

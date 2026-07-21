@@ -9,12 +9,13 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: fadf63b5cf16c4bec83b2833e36dcdfb, type: 3}
+  m_Script: {fileID: 11500000, guid: e7f354bd020944579a1aae982ed14288, type: 3}
   m_Name: Resource_Corn
-  m_EditorClassIdentifier: Assembly-CSharp::VoidDay.Data.ResourceSO
+  m_EditorClassIdentifier: Assembly-CSharp::VoidDay.Data.CropSO
   id: corn
   displayName: Corn
   icon: {fileID: 21300000, guid: 9bcfdc7cb85cf4c4bacb998e30f7078b, type: 3}
   baseValue: 3
   sellable: 1
   tier: 1
+  cropSprite: {fileID: 21300000, guid: 0b3ddb0135514d478a68f1e3073da3f6, type: 3}

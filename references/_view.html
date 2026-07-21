@@ -34,6 +34,41 @@
   .sw.light { background:#EFE7D6; }   /* warm UI panel tone */
   .sw.void  { background:#1F1836; }   /* void backdrop tone */
 </style>
+<style>
+  .crops-wrap { max-width:1000px; margin:0 auto; padding:8px 16px 24px; }
+  .crop-row { display:flex; gap:18px; align-items:flex-end; flex-wrap:wrap; justify-content:center;
+              background:#f4f4f4; border-radius:16px; padding:16px 18px 20px; box-shadow:0 2px 10px rgba(0,0,0,.12); margin-bottom:18px; }
+  .crop-row .label { width:100%; font-weight:700; font-size:15px; color:#333; margin-bottom:4px; }
+  .full { text-align:center; }
+  .full img { height:300px; object-fit:contain; background:#EAEAEA; border-radius:10px; padding:0 10px; }
+  .cap { font-size:11px; color:#777; text-align:center; margin-top:6px; letter-spacing:.03em; text-transform:uppercase; }
+  /* rise-out-of-soil demo: box clips at the surface line (its bottom edge) */
+  .plot { --sh:230px; width:150px; height:200px; position:relative; overflow:hidden; border-radius:10px 10px 0 0;
+          background:linear-gradient(#7ca85c 0%, #6a9a4e 100%); }
+  .plot .riser { position:absolute; left:50%; bottom:0; height:var(--sh); transform:translateX(-50%) translateY(var(--ty)); }
+  .plot .riser img { height:100%; object-fit:contain; display:block; }
+  .soil { width:150px; height:26px; background:linear-gradient(#7a5433,#5f4127); border-radius:0 0 6px 6px; margin-top:-1px; }
+  .stage { text-align:center; }
+</style>
+<h2 style="background:#2e3a12;color:#d6f08a;padding:10px;margin:0">🌱 GROWING CROP SPRITES — tall billboards that rise out of the soil as the field grows (0→100%)</h2>
+<div class="crops-wrap">
+  <div class="crop-row">
+    <div class="label">🌾 Wheat</div>
+    <div class="full"><img src="crops/wheat_crop.png"><div class="cap">full sprite</div></div>
+    <div class="stage"><div class="plot" style="--ty:calc(var(--sh) * 1.0)"><div class="riser"><img src="crops/wheat_crop.png"></div></div><div class="soil"></div><div class="cap">0%</div></div>
+    <div class="stage"><div class="plot" style="--ty:calc(var(--sh) * 0.62)"><div class="riser"><img src="crops/wheat_crop.png"></div></div><div class="soil"></div><div class="cap">40%</div></div>
+    <div class="stage"><div class="plot" style="--ty:calc(var(--sh) * 0.28)"><div class="riser"><img src="crops/wheat_crop.png"></div></div><div class="soil"></div><div class="cap">72%</div></div>
+    <div class="stage"><div class="plot" style="--ty:calc(var(--sh) * 0.0)"><div class="riser"><img src="crops/wheat_crop.png"></div></div><div class="soil"></div><div class="cap">100% · ready</div></div>
+  </div>
+  <div class="crop-row">
+    <div class="label">🌽 Corn</div>
+    <div class="full"><img src="crops/corn_crop.png"><div class="cap">full sprite</div></div>
+    <div class="stage"><div class="plot" style="--ty:calc(var(--sh) * 1.0)"><div class="riser"><img src="crops/corn_crop.png"></div></div><div class="soil"></div><div class="cap">0%</div></div>
+    <div class="stage"><div class="plot" style="--ty:calc(var(--sh) * 0.62)"><div class="riser"><img src="crops/corn_crop.png"></div></div><div class="soil"></div><div class="cap">40%</div></div>
+    <div class="stage"><div class="plot" style="--ty:calc(var(--sh) * 0.28)"><div class="riser"><img src="crops/corn_crop.png"></div></div><div class="soil"></div><div class="cap">72%</div></div>
+    <div class="stage"><div class="plot" style="--ty:calc(var(--sh) * 0.0)"><div class="riser"><img src="crops/corn_crop.png"></div></div><div class="soil"></div><div class="cap">100% · ready</div></div>
+  </div>
+</div>
 <h2 style="background:#3a2a12;color:#ffcf8a;padding:10px;margin:0">🌾 RESOURCE ICONS — 11 done · transparent cutouts · shown on warm-UI + void tones</h2>
 <div class="icons">
   <div class="icard"><h3>wheat</h3><div class="swatches"><div class="sw light"><img src="icons/wheat.png"></div><div class="sw void"><img src="icons/wheat.png"></div></div></div>

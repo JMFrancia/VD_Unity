@@ -24,6 +24,8 @@ namespace VoidDay.View
             public string StationId;
             public StationStateWidget Widget;
             public List<QueueSlot> Slots = new();
+            public CropField Crops;        // null unless the station body authors a crop cluster (fields)
+            public string GrowingRecipeId; // which crop the cluster is currently growing, so StartGrow fires once
         }
 
         JobSystem _jobs;
@@ -53,6 +55,7 @@ namespace VoidDay.View
             {
                 if (RigFor(kv.Key) != null) continue;
                 var rig = new Rig { StationId = kv.Key, Widget = Instantiate(widgetTemplate, kv.Value) };
+                rig.Crops = kv.Value.GetComponentInChildren<CropField>(true); // fields author one; everything else null
                 if (HasRecipes(kv.Key)) BuildSlots(rig); // non-producers keep a clean front (no queue slots)
                 rig.Widget.QueueRow.gameObject.SetActive(false);
                 _rigs.Add(rig);
@@ -128,8 +131,34 @@ namespace VoidDay.View
                     var queue = _jobs.GetQueue(rig.StationId);
                     if (queue.Count > 0) rig.Widget.SetReadyIcon(OutputIcon(queue[0].RecipeId));
                 }
+                if (rig.Crops != null) DriveCrops(rig, has, complete, fraction);
                 UpdateSlots(rig, now, panelOpen);
             }
+        }
+
+        /// Rise the field's crop cluster with the head job's growth: begin when a new crop starts, slide it each
+        /// frame (full-grown while it sits ready), hide when the head clears. Only fields have a CropField.
+        void DriveCrops(Rig rig, bool has, bool complete, float fraction)
+        {
+            Sprite sprite = has ? CropSpriteFor(_jobs.GetQueue(rig.StationId)[0].RecipeId) : null;
+            if (sprite == null) // idle field, or a non-crop head (fallow) → nothing rising
+            {
+                if (rig.GrowingRecipeId != null) { rig.Crops.Hide(); rig.GrowingRecipeId = null; }
+                return;
+            }
+            string recipeId = _jobs.GetQueue(rig.StationId)[0].RecipeId;
+            if (rig.GrowingRecipeId != recipeId) { rig.Crops.Begin(sprite); rig.GrowingRecipeId = recipeId; }
+            rig.Crops.Grow(complete ? 1f : fraction);
+        }
+
+        /// The world crop sprite a recipe grows: first output → its CropSO. Null if the output isn't a crop
+        /// (a fallow field produces nothing that rises).
+        Sprite CropSpriteFor(string recipeId)
+        {
+            var recipe = _catalog.Get(recipeId);
+            if (recipe.Outputs.Count == 0) return null;
+            return _resources.TryGetValue(recipe.Outputs[0].ResourceId, out var so) && so is CropSO crop
+                ? crop.cropSprite : null;
         }
 
         /// Tear down and rebuild the slot row to the current resolved depth. Cheap and rare — only runs on the
