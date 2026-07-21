@@ -97,15 +97,25 @@ namespace VoidDay.Systems
             stationRegistry.Init(bus, buildSystem, stationsParent.transform, projection, config.stationRoster, preplaced);
             var roots = stationRegistry.Roots; // shared live map, mutated by StationRegistry on build/demolish
 
-            var resourceNames = new Dictionary<string, string>();
+            // id → ResourceSO: the display lookup the UI reads for both name and icon. One SO per resource, so
+            // name and icon can't drift apart (a parallel name/sprite pair would). Seeded from starting
+            // resources for stable config order, then widened with every recipe input/output a station uses so
+            // ingredient rows and recipe tiles always resolve an icon.
+            var resourceDisplays = new Dictionary<string, ResourceSO>();
             var startingCounts = new Dictionary<string, int>();
-            var resourceList = new List<KeyValuePair<string, string>>(); // stable config order (totals + cheats)
+            var resourceList = new List<ResourceSO>(); // stable config order (totals + cheats)
             foreach (var sr in config.startingResources)
             {
-                resourceNames[sr.resource.id] = sr.resource.displayName;
+                resourceDisplays[sr.resource.id] = sr.resource;
                 startingCounts[sr.resource.id] = sr.amount;
-                resourceList.Add(new KeyValuePair<string, string>(sr.resource.id, sr.resource.displayName));
+                resourceList.Add(sr.resource);
             }
+            foreach (var station in stations)
+                foreach (var recipe in station.Station.recipes)
+                {
+                    foreach (var input in recipe.inputs) resourceDisplays[input.resource.id] = input.resource;
+                    foreach (var output in recipe.outputs) resourceDisplays[output.resource.id] = output.resource;
+                }
 
             // Every resource any placed station can produce — the order pool's candidate set (§6.1). Built
             // from recipe outputs, so a station type placed in M4 widens the pool with no change here.
@@ -133,9 +143,9 @@ namespace VoidDay.Systems
             cameraController.Init(Vector3.zero, config.gridCols * config.cellSize, config.gridRows * config.cellSize, bus, roots);
             producer.Init(bus, jobs, pool, wallet, startingCounts);
             inputRouter.Init(bus, worldCamera);
-            worldState.Init(jobs, catalog, roots);
-            stationPanel.Init(bus, jobs, catalog, pool, wallet, upgrades, resourceNames, roots, worldCamera);
-            orderBoardPanel.Init(bus, orderBoard, pool, jobs, resourceNames);
+            worldState.Init(bus, jobs, catalog, roots);
+            stationPanel.Init(bus, jobs, catalog, pool, wallet, upgrades, resourceDisplays, roots, worldCamera);
+            orderBoardPanel.Init(bus, orderBoard, pool, jobs, resourceDisplays);
             orderBoardSystem.Init(bus, orderBoard, wallet);
             progressionSystem.Init(bus, progression, xpConfig);
             upgradesSystem.Init(bus, upgrades);

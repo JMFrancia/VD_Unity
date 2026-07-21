@@ -66,6 +66,7 @@ namespace VoidDay.Systems
         {
             Require(!string.IsNullOrWhiteSpace(r.id), r, nameof(r.id), "must not be empty");
             Require(!string.IsNullOrWhiteSpace(r.displayName), r, nameof(r.displayName), "must not be empty");
+            Require(r.icon != null, r, nameof(r.icon), "must be assigned — every resource renders an icon in rows, cards, and totals");
             Require(r.baseValue > 0, r, nameof(r.baseValue), "must be > 0 — it is the basis of order payout");
             Require(r.tier > 0, r, nameof(r.tier), "must be > 0");
         }

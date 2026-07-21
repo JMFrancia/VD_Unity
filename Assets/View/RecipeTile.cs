@@ -9,13 +9,15 @@ namespace VoidDay.View
     {
         [SerializeField] Button button;
         [SerializeField] GameObject selectionOutline;
+        [SerializeField] Image icon;
         [SerializeField] Text nameText;
         [SerializeField] Text timerText;
 
         public Button Button => button;
 
-        public void Bind(string label, string timer, bool selected)
+        public void Bind(string label, Sprite iconSprite, string timer, bool selected)
         {
+            icon.sprite = iconSprite;
             nameText.text = label;
             timerText.text = timer;
             selectionOutline.SetActive(selected);

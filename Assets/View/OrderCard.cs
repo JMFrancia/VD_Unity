@@ -34,7 +34,7 @@ namespace VoidDay.View
         [SerializeField] UiThemeSO theme;
 
         public void BindOrder(OrderModel order, IReadOnlyDictionary<string, int> held,
-            IReadOnlyDictionary<string, string> resourceNames, Action onFill, Action onSkip)
+            IReadOnlyDictionary<string, ResourceSO> resources, Action onFill, Action onSkip)
         {
             filledRoot.SetActive(true);
             refillingRoot.SetActive(false);
@@ -45,8 +45,9 @@ namespace VoidDay.View
             {
                 held.TryGetValue(request.ResourceId, out int have);
                 if (have < request.Amount) canFill = false;
-                resourceNames.TryGetValue(request.ResourceId, out string name);
-                Instantiate(chipTemplate, requestList).Bind(name ?? request.ResourceId, request.Amount, have);
+                resources.TryGetValue(request.ResourceId, out var so);
+                Instantiate(chipTemplate, requestList)
+                    .Bind(so != null ? so.displayName : request.ResourceId, so != null ? so.icon : null, request.Amount, have);
             }
 
             cashText.text = order.Cash.ToString();

@@ -10,6 +10,7 @@ namespace VoidDay.View
     public sealed class OrderGoodChip : MonoBehaviour
     {
         [SerializeField] UiThemeSO theme;
+        [SerializeField] Image icon;
         [SerializeField] Text quantityText;
         [SerializeField] GameObject haveBadge;
         [SerializeField] GameObject needPill;
@@ -17,8 +18,9 @@ namespace VoidDay.View
         [SerializeField] Text needText;
         [SerializeField] Text goodNameText;
 
-        public void Bind(string displayName, int requested, int held)
+        public void Bind(string displayName, Sprite iconSprite, int requested, int held)
         {
+            icon.sprite = iconSprite;
             goodNameText.text = displayName;
             quantityText.text = $"×{requested}";
 

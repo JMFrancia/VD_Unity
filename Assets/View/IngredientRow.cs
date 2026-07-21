@@ -9,14 +9,16 @@ namespace VoidDay.View
     public sealed class IngredientRow : MonoBehaviour
     {
         [SerializeField] UiThemeSO theme;
+        [SerializeField] Image icon;
         [SerializeField] Text nameText;
         [SerializeField] Text haveNeedText;
         [SerializeField] Image badge;
         [SerializeField] Text badgeText;
 
-        public void Bind(string displayName, int held, int needed)
+        public void Bind(string displayName, Sprite iconSprite, int held, int needed)
         {
             bool ok = held >= needed;
+            icon.sprite = iconSprite;
             nameText.text = displayName;
             haveNeedText.text = $"{held} / {needed}";
             haveNeedText.color = ok ? theme.ink : theme.warning;

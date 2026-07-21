@@ -3,6 +3,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using VoidDay.Core.Events;
 using VoidDay.Core.Rules;
+using VoidDay.Data;
 
 namespace VoidDay.View
 {
@@ -41,10 +42,10 @@ namespace VoidDay.View
         EventBus _bus;
         ResourcePool _pool;
         Progression _progression;
-        IReadOnlyList<KeyValuePair<string, string>> _resources; // id → display name, stable order
+        IReadOnlyList<ResourceSO> _resources; // display data (name + icon), stable config order
 
         public void Init(EventBus bus, ResourcePool pool, Progression progression,
-            IReadOnlyList<KeyValuePair<string, string>> resources)
+            IReadOnlyList<ResourceSO> resources)
         {
             _bus = bus;
             _pool = pool;
@@ -84,8 +85,8 @@ namespace VoidDay.View
             foreach (var r in _resources)
             {
                 var button = Instantiate(cheatButtonTemplate, cheatButtonList);
-                button.GetComponentInChildren<Text>().text = $"+{cheatResourceAmount}  {r.Value}";
-                string id = r.Key;
+                button.GetComponentInChildren<Text>().text = $"+{cheatResourceAmount}  {r.displayName}";
+                string id = r.id;
                 button.onClick.AddListener(() =>
                     _bus.Publish(new DebugAddResourceRequested(id, cheatResourceAmount)));
             }
@@ -103,7 +104,7 @@ namespace VoidDay.View
             for (int i = totalsList.childCount - 1; i >= 0; i--)
                 Destroy(totalsList.GetChild(i).gameObject);
             foreach (var r in _resources)
-                Instantiate(resourceRowTemplate, totalsList).Bind(r.Value, _pool.Get(r.Key));
+                Instantiate(resourceRowTemplate, totalsList).Bind(r.displayName, r.icon, _pool.Get(r.id));
         }
     }
 }

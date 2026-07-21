@@ -3,14 +3,20 @@ using UnityEngine;
 namespace VoidDay.View
 {
     /// The per-station in-world state rig (§12.6, sheet 34:2), instantiated under each station root by
-    /// WorldState. The prefab authors the pieces: a billboarded anchor above the body holding the progress
-    /// bar and the ready icon, and a non-billboarded QueueRow in front of the body that WorldState fills
-    /// with QueueSlot instances. This component only animates what it owns; state decisions stay in
+    /// WorldState. The prefab authors the pieces: a billboarded anchor above the body holding the radial
+    /// progress ring and the ready icon, and a non-billboarded QueueRow in front of the body that WorldState
+    /// fills with QueueSlot instances. This component only animates what it owns; state decisions stay in
     /// WorldState (view-sync) and Core.
+    ///
+    /// The radial is a quad rendered by the VoidDay/RadialProgress shader (its _Fill drives the sweep), not a
+    /// UGUI Image — world-space canvases don't render in this project's URP camera setup, so the whole rig is
+    /// meshes. Progress is pushed through a MaterialPropertyBlock so every station shares one material asset.
     public sealed class StationStateWidget : MonoBehaviour
     {
-        [SerializeField] GameObject barRoot;
-        [SerializeField] Transform barFill;
+        static readonly int FillId = Shader.PropertyToID("_Fill");
+
+        [SerializeField] GameObject radialRoot;
+        [SerializeField] MeshRenderer radialRenderer; // VoidDay/RadialProgress material; _Fill = job progress
         [SerializeField] GameObject readyRoot;
         [SerializeField] Transform queueRow;
         [SerializeField] float hopAmplitude = 0.12f;
@@ -18,22 +24,20 @@ namespace VoidDay.View
 
         public Transform QueueRow => queueRow;
 
-        Vector3 _fillScale;    // authored full-width scale/pos, cached so progress can lerp from them
-        Vector3 _fillPosition;
         Vector3 _readyBasePosition;
+        MaterialPropertyBlock _mpb;
 
         void Awake()
         {
-            _fillScale = barFill.localScale;
-            _fillPosition = barFill.localPosition;
             _readyBasePosition = readyRoot.transform.localPosition;
-            barRoot.SetActive(false);
+            _mpb = new MaterialPropertyBlock();
+            radialRoot.SetActive(false);
             readyRoot.SetActive(false);
         }
 
-        public void SetRunning(bool running)
+        public void SetRadialVisible(bool visible)
         {
-            if (barRoot.activeSelf != running) barRoot.SetActive(running);
+            if (radialRoot.activeSelf != visible) radialRoot.SetActive(visible);
         }
 
         public void SetReady(bool ready)
@@ -41,11 +45,11 @@ namespace VoidDay.View
             if (readyRoot.activeSelf != ready) readyRoot.SetActive(ready);
         }
 
-        public void SetProgress(float fraction)
+        public void SetRadialProgress(float fraction)
         {
-            float width = _fillScale.x;
-            barFill.localScale = new Vector3(width * fraction, _fillScale.y, _fillScale.z);
-            barFill.localPosition = _fillPosition + new Vector3(-width * 0.5f * (1f - fraction), 0f, 0f);
+            radialRenderer.GetPropertyBlock(_mpb);
+            _mpb.SetFloat(FillId, fraction);
+            radialRenderer.SetPropertyBlock(_mpb);
         }
 
         void Update()

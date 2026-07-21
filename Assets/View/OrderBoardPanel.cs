@@ -28,19 +28,19 @@ namespace VoidDay.View
         OrderBoard _board;
         ResourcePool _pool;
         JobSystem _jobs;
-        IReadOnlyDictionary<string, string> _resourceNames;
+        IReadOnlyDictionary<string, ResourceSO> _resources;
 
         readonly List<OrderCard> _cards = new();
         bool _open;
 
         public void Init(EventBus bus, OrderBoard board, ResourcePool pool, JobSystem jobs,
-            IReadOnlyDictionary<string, string> resourceNames)
+            IReadOnlyDictionary<string, ResourceSO> resources)
         {
             _bus = bus;
             _board = board;
             _pool = pool;
             _jobs = jobs;
-            _resourceNames = resourceNames;
+            _resources = resources;
 
             closeButton.onClick.AddListener(Close);
             panelRoot.SetActive(false);
@@ -97,7 +97,7 @@ namespace VoidDay.View
                 }
 
                 string orderId = order.Id;
-                _cards[slot].BindOrder(order, _pool.All, _resourceNames,
+                _cards[slot].BindOrder(order, _pool.All, _resources,
                     onFill: () => _bus.Publish(new OrderFulfillRequested(orderId)),
                     onSkip: () => _bus.Publish(new OrderSkipRequested(orderId)));
             }

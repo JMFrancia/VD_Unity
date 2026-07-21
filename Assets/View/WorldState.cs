@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using VoidDay.Core.Events;
 using VoidDay.Core.Model;
 using VoidDay.Core.Rules;
 
@@ -28,12 +29,15 @@ namespace VoidDay.View
         RecipeCatalog _catalog;
         IReadOnlyDictionary<string, Transform> _stationRoots;
         readonly List<Rig> _rigs = new();
+        string _openStationId; // whose panel is open — its queue shows and its radial hides (BUG-03 design)
 
-        public void Init(JobSystem jobs, RecipeCatalog catalog, IReadOnlyDictionary<string, Transform> stationRoots)
+        public void Init(EventBus bus, JobSystem jobs, RecipeCatalog catalog, IReadOnlyDictionary<string, Transform> stationRoots)
         {
             _jobs = jobs;
             _catalog = catalog;
             _stationRoots = stationRoots; // shared live map — StationRegistry adds/removes runtime stations here
+            bus.Subscribe<StationPanelOpened>(e => _openStationId = e.StationId);
+            bus.Subscribe<StationPanelClosed>(_ => _openStationId = null);
             Reconcile();
         }
 
@@ -95,12 +99,16 @@ namespace VoidDay.View
                 if (HasRecipes(rig.StationId) && _jobs.QueueDepth(rig.StationId) != rig.Slots.Count)
                     RebuildSlots(rig);
 
+                bool panelOpen = rig.StationId == _openStationId;
                 bool has = _jobs.TryGetHeadProgress(rig.StationId, now, out float fraction, out bool complete);
                 bool running = has && !complete;
-                rig.Widget.SetRunning(running);
+                // The radial is the glance-able working indicator when the panel is closed; with the panel open
+                // the queue slots are visible and show the head's progress, so the radial steps aside (BUG-03).
+                bool showRadial = running && !panelOpen;
+                rig.Widget.SetRadialVisible(showRadial);
+                if (showRadial) rig.Widget.SetRadialProgress(fraction);
                 rig.Widget.SetReady(has && complete);
-                if (running) rig.Widget.SetProgress(fraction);
-                UpdateSlots(rig, now);
+                UpdateSlots(rig, now, panelOpen);
             }
         }
 
@@ -114,15 +122,17 @@ namespace VoidDay.View
             BuildSlots(rig);
         }
 
-        void UpdateSlots(Rig rig, double now)
+        void UpdateSlots(Rig rig, double now, bool panelOpen)
         {
             if (rig.Slots.Count == 0) return;
-            var queue = _jobs.GetQueue(rig.StationId);
-            bool anyJobs = queue.Count > 0; // the row shows only while the queue is non-empty (idle stays clean)
+            // The queue is a panel-open detail now (BUG-03): the row shows only while this station's panel is
+            // open — the closed-panel "what's cooking" readout is the radial instead. Tap-to-cancel still works
+            // because the slots are live exactly when the panel is open.
             var row = rig.Widget.QueueRow.gameObject;
-            if (row.activeSelf != anyJobs) row.SetActive(anyJobs);
-            if (!anyJobs) return;
+            if (row.activeSelf != panelOpen) row.SetActive(panelOpen);
+            if (!panelOpen) return;
 
+            var queue = _jobs.GetQueue(rig.StationId);
             for (int i = 0; i < rig.Slots.Count; i++)
             {
                 var slot = rig.Slots[i];

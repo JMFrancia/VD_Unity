@@ -58,6 +58,19 @@ namespace VoidDay.Core.Events
         public StationPanelRequested(string stationId) { StationId = stationId; }
     }
 
+    /// The station panel actually opened for a producer (StationPanel owns this truth — it fires only after the
+    /// producer guard, unlike the StationPanelRequested routing intent which also fires for rejected taps). The
+    /// in-world state rig listens: it shows the queue slots for the open station and hides that station's radial.
+    public readonly struct StationPanelOpened
+    {
+        public readonly string StationId;
+        public StationPanelOpened(string stationId) { StationId = stationId; }
+    }
+
+    /// The station panel closed (any open→closed transition). Peer of StationPanelOpened; the in-world rig hides
+    /// the queue slots again and restores the radial for a working station.
+    public readonly struct StationPanelClosed { }
+
     // ---- Jobs (published by Core) ----
     public readonly struct JobQueued
     {

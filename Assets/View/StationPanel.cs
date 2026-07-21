@@ -70,7 +70,7 @@ namespace VoidDay.View
         ResourcePool _pool;
         Wallet _wallet;
         UpgradeSystem _upgrades;
-        IReadOnlyDictionary<string, string> _resourceNames;
+        IReadOnlyDictionary<string, ResourceSO> _resources;
         IReadOnlyDictionary<string, Transform> _stationRoots;
         Camera _camera;
 
@@ -80,7 +80,7 @@ namespace VoidDay.View
         readonly List<RecipeModel> _recipes = new();
 
         public void Init(EventBus bus, JobSystem jobs, RecipeCatalog catalog, ResourcePool pool, Wallet wallet,
-            UpgradeSystem upgrades, IReadOnlyDictionary<string, string> resourceNames,
+            UpgradeSystem upgrades, IReadOnlyDictionary<string, ResourceSO> resources,
             IReadOnlyDictionary<string, Transform> stationRoots, Camera camera)
         {
             _bus = bus;
@@ -89,7 +89,7 @@ namespace VoidDay.View
             _pool = pool;
             _wallet = wallet;
             _upgrades = upgrades;
-            _resourceNames = resourceNames;
+            _resources = resources;
             _stationRoots = stationRoots;
             _camera = camera;
 
@@ -123,6 +123,7 @@ namespace VoidDay.View
             if (_openStationId != e.StationId) { _selected = 0; _tab = Tab.Recipes; } // reset only for a new station
             _openStationId = e.StationId;
             popup.gameObject.SetActive(true);
+            _bus.Publish(new StationPanelOpened(e.StationId)); // WorldState swaps this station's radial for its queue
             _bus.Publish(new ExclusiveUiOpened("station")); // retract the build menu / other panels
             Rebuild();
             PositionOverBuilding();
@@ -142,8 +143,10 @@ namespace VoidDay.View
 
         void Close()
         {
+            if (_openStationId == null) return; // already closed — don't spam StationPanelClosed (many callers)
             _openStationId = null;
             popup.gameObject.SetActive(false);
+            _bus.Publish(new StationPanelClosed()); // WorldState restores the working station's radial, hides the queue
         }
 
         void LateUpdate()
@@ -188,7 +191,7 @@ namespace VoidDay.View
             for (int i = 0; i < _recipes.Count; i++)
             {
                 var tile = Instantiate(tileTemplate, tilesRow);
-                tile.Bind(RecipeLabel(_recipes[i]), TimerText(_recipes[i]), i == _selected);
+                tile.Bind(RecipeLabel(_recipes[i]), OutputIcon(_recipes[i]), TimerText(_recipes[i]), i == _selected);
                 int index = i;
                 tile.Button.onClick.AddListener(() => { _selected = index; Rebuild(); });
             }
@@ -215,7 +218,7 @@ namespace VoidDay.View
             }
             foreach (var input in recipe.Inputs)
                 Instantiate(ingredientRowTemplate, ingredientList)
-                    .Bind(NameOf(input.ResourceId), _pool.Get(input.ResourceId), input.Amount);
+                    .Bind(NameOf(input.ResourceId), IconOf(input.ResourceId), _pool.Get(input.ResourceId), input.Amount);
         }
 
         void BuildQueueButton()
@@ -293,6 +296,7 @@ namespace VoidDay.View
         /// Grow recipes label as their output ("Wheat"); input-less Fallow recipes get the "Fallow" prefix.
         string RecipeLabel(RecipeModel r) => r.Inputs.Count == 0 ? $"Fallow {OutputName(r)}" : OutputName(r);
         string OutputName(RecipeModel r) => r.Outputs.Count == 0 ? "—" : NameOf(r.Outputs[0].ResourceId);
+        Sprite OutputIcon(RecipeModel r) => r.Outputs.Count == 0 ? null : IconOf(r.Outputs[0].ResourceId);
 
         // Timer and output are shown RESOLVED for the open station (§3) — base recipe data ignores this
         // station's speed/yield upgrades, so read the resolved value from Core (which owns the resolve rule).
@@ -303,7 +307,8 @@ namespace VoidDay.View
             return d <= 0f ? "instant" : $"{d:0.#}s";
         }
 
-        string NameOf(string resourceId) => _resourceNames.TryGetValue(resourceId, out var n) ? n : resourceId;
+        string NameOf(string resourceId) => _resources.TryGetValue(resourceId, out var so) ? so.displayName : resourceId;
+        Sprite IconOf(string resourceId) => _resources.TryGetValue(resourceId, out var so) ? so.icon : null;
         static string Pretty(string s) => string.IsNullOrEmpty(s) ? s : char.ToUpper(s[0]) + s.Substring(1);
 
         static void Clear(Transform t)
