@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using VoidDay.Core.Model;
+using VoidDay.Core.Rules;
 using VoidDay.Data;
 
 namespace VoidDay.Systems
@@ -36,7 +37,47 @@ namespace VoidDay.Systems
             var tiers = new UpgradeTierModel[so.tiers.Length];
             for (int i = 0; i < so.tiers.Length; i++)
                 tiers[i] = new UpgradeTierModel(so.tiers[i].cost, so.tiers[i].effects);
-            return new UpgradeTrackModel(so.id, tiers);
+            return new UpgradeTrackModel(so.id, so.displayName, so.unlockLevel, tiers);
+        }
+
+        /// Level curve → Core (§9). A level's number is its position in the list; a grant's target resolves
+        /// from the StationSO reference to the station type Core speaks, and an unassigned target means
+        /// "every station type" (LevelGrants.AllTargets).
+        public static LevelCurve ProjectLevels(LevelSO so)
+        {
+            var levels = new List<LevelModel>(so.levels.Count);
+            for (int i = 0; i < so.levels.Count; i++)
+            {
+                var def = so.levels[i];
+                var grants = new List<LevelGrantModel>(def.grants.Count);
+                foreach (var g in def.grants)
+                    grants.Add(new LevelGrantModel(g.kind,
+                        g.targetStation != null ? g.targetStation.stationType : LevelGrants.AllTargets,
+                        g.targetStation != null ? g.targetStation.displayName : "",
+                        g.amount));
+                levels.Add(new LevelModel(i + 1, def.xpThreshold, grants));
+            }
+            return new LevelCurve(levels);
+        }
+
+        /// Everything gated behind a level by its own asset (§9): station types and upgrade tracks. An upgrade
+        /// track sold at more than one building appears once — the gate is the track's, not the building's.
+        public static IReadOnlyList<LevelUnlockModel> ProjectLevelGates(IReadOnlyList<StationSO> roster)
+        {
+            var gates = new List<LevelUnlockModel>();
+            var seenTracks = new HashSet<string>();
+            foreach (var station in roster)
+            {
+                if (station.unlockLevel > Progression.StartingLevel)
+                    gates.Add(new LevelUnlockModel(LevelEntryKind.StationType, station.stationType,
+                        station.displayName, station.unlockLevel));
+
+                foreach (var upgrade in station.upgrades)
+                    if (upgrade.unlockLevel > Progression.StartingLevel && seenTracks.Add(upgrade.id))
+                        gates.Add(new LevelUnlockModel(LevelEntryKind.Upgrade, upgrade.id,
+                            upgrade.displayName, upgrade.unlockLevel));
+            }
+            return gates;
         }
 
         public static RecipeModel Project(RecipeSO so) =>

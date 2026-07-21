@@ -167,6 +167,8 @@ namespace VoidDay.View
                 bool affordable = !maxed && _wallet.Money >= cost;
 
                 var row = Instantiate(upgradeRowTemplate, upgradeList);
+                if (_upgrades.IsLocked(track)) { row.BindLocked(description, track.UnlockLevel); continue; }
+
                 row.Bind(description, tier, track.MaxTier, cost, affordable);
                 if (!maxed)
                 {

@@ -32,6 +32,9 @@ namespace VoidDay.Data
         [Header("Economy config (§6, §9)")]
         public OrderConfigSO orderConfig;
         public XpConfigSO xpConfig;
+
+        [Tooltip("The XP → level table and what each level hands out (§9).")]
+        public LevelSO levels;
     }
 
     [Serializable]

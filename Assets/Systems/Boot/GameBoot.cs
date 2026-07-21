@@ -36,6 +36,8 @@ namespace VoidDay.Systems
         [SerializeField] BuildMenu buildMenu;
         [SerializeField] PlacementController placementController;
         [SerializeField] Hud hud;
+        [SerializeField] LevelXpHud levelXpHud;
+        [SerializeField] LevelUpPopup levelUpPopup;
         [SerializeField] SfxController sfxController;
 
         [Tooltip("Fixed seed makes a session's orders reproducible; 0 = seed from the clock.")]
@@ -69,7 +71,15 @@ namespace VoidDay.Systems
             foreach (var so in config.stationRoster)
                 stationTypes[so.stationType] = ModelProjector.ProjectType(so);
 
-            var progression = new Progression(bus, resolver);
+            // Levelling (§9): the curve is the XP→level table, the grants object accumulates what levels have
+            // handed out. The grant source is a second contributor to the value seam, alongside the effect
+            // source — a level moves a base, an effect scales it.
+            var levelCurve = ModelProjector.ProjectLevels(config.levels);
+            var levelGrants = new LevelGrants();
+            resolver.SetGrantSource(levelGrants);
+            var progression = new Progression(bus, resolver, levelCurve, levelGrants, wallet,
+                ModelProjector.ProjectLevelGates(config.stationRoster));
+
             var buildSystem = new BuildSystem(bus, grid, jobs, wallet, resolver, stationTypes,
                 () => progression.PlayerLevel, config.refundPercent);
 
@@ -82,7 +92,7 @@ namespace VoidDay.Systems
                 foreach (var upgrade in so.upgrades) tracks.Add(ModelProjector.ProjectUpgrade(upgrade));
                 tracksByType[so.stationType] = tracks;
             }
-            var upgrades = new UpgradeSystem(bus, wallet, tracksByType);
+            var upgrades = new UpgradeSystem(bus, wallet, tracksByType, () => progression.PlayerLevel);
             resolver.SetEffectSource(upgrades); // seam now sums real effects; call sites unchanged since M2
 
             // Register the scene-authored pre-placed stations into grid + producer + upgrades; each cell is
@@ -159,6 +169,8 @@ namespace VoidDay.Systems
             buildMenu.Init(bus, buildSystem, wallet, () => progression.PlayerLevel, config.stationRoster);
             placementController.Init(bus, grid, projection, worldCamera, config.stationRoster);
             hud.Init(bus, pool, progression, resourceList);
+            levelXpHud.Init(bus, progression);
+            levelUpPopup.Init(bus, config.stationRoster);
             sfxController.Init(bus);
 
             foreach (var kv in startingCounts)
@@ -186,6 +198,8 @@ namespace VoidDay.Systems
             Require(buildMenu, nameof(buildMenu));
             Require(placementController, nameof(placementController));
             Require(hud, nameof(hud));
+            Require(levelXpHud, nameof(levelXpHud));
+            Require(levelUpPopup, nameof(levelUpPopup));
             Require(siloPanel, nameof(siloPanel));
             Require(sfxController, nameof(sfxController));
         }

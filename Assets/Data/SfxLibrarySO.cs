@@ -39,6 +39,10 @@ namespace VoidDay.Data
         UiOpen,
         UiClose,
         UiTap,
+
+        // New cues APPEND here — the enum's integer values are what the library asset serializes, so
+        // inserting one in the middle would silently reassign every clip below it.
+        LevelUp,
     }
 
     /// The one place a clip is assigned to a moment. The controller holds no clip and no volume — everything

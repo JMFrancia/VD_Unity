@@ -185,13 +185,13 @@ namespace VoidDay.Tests
 
         // ---- Rigs ----
 
-        static UpgradeTrackModel SpeedTrack() => new UpgradeTrackModel("field.speed", new[]
+        static UpgradeTrackModel SpeedTrack() => new UpgradeTrackModel("field.speed", "field.speed", 1, new[]
         {
             new UpgradeTierModel(50, new[] { E(EffectType.StationSpeed, EffectOp.Pct, 25) }),
             new UpgradeTierModel(120, new[] { E(EffectType.StationSpeed, EffectOp.Pct, 25) })
         });
 
-        static UpgradeTrackModel YieldTrack() => new UpgradeTrackModel("field.yield", new[]
+        static UpgradeTrackModel YieldTrack() => new UpgradeTrackModel("field.yield", "field.yield", 1, new[]
         {
             new UpgradeTierModel(60, new[] { E(EffectType.StationYield, EffectOp.Flat, 1) })
         });
@@ -201,7 +201,7 @@ namespace VoidDay.Tests
             var bus = new EventBus();
             var wallet = new Wallet(bus);
             var byType = new Dictionary<string, IReadOnlyList<UpgradeTrackModel>> { ["field"] = tracks };
-            var upgrades = new UpgradeSystem(bus, wallet, byType);
+            var upgrades = new UpgradeSystem(bus, wallet, byType, () => 1);
             var resolver = new ValueResolver();
             resolver.SetEffectSource(upgrades);
             return (resolver, upgrades, wallet);

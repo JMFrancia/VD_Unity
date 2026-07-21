@@ -25,6 +25,7 @@ namespace VoidDay.Systems
             _bus.Subscribe<JobCollected>(OnJobCollected);
             _bus.Subscribe<OrderFulfilled>(OnOrderFulfilled);
             _bus.Subscribe<StationBuilt>(OnStationBuilt);
+            _bus.Subscribe<DebugLevelUpRequested>(OnDebugLevelUp);
             _bus.Subscribe<GameReset>(OnGameReset);
         }
 
@@ -34,6 +35,7 @@ namespace VoidDay.Systems
             _bus.Unsubscribe<JobCollected>(OnJobCollected);
             _bus.Unsubscribe<OrderFulfilled>(OnOrderFulfilled);
             _bus.Unsubscribe<StationBuilt>(OnStationBuilt);
+            _bus.Unsubscribe<DebugLevelUpRequested>(OnDebugLevelUp);
             _bus.Unsubscribe<GameReset>(OnGameReset);
         }
 
@@ -42,6 +44,11 @@ namespace VoidDay.Systems
         void OnOrderFulfilled(OrderFulfilled e) => _progression.AwardXp(e.Xp, "order");
 
         void OnStationBuilt(StationBuilt _) => _progression.AwardXp(_xpConfig.PerStationBuilt, "build");
+
+        /// §12.7 "level up (grant exactly enough XP)". Core owns what "enough" is; at the level cap the debt
+        /// is 0 and the award is a no-op, so the cap needs no special case here.
+        void OnDebugLevelUp(DebugLevelUpRequested _) =>
+            _progression.AwardXp(_progression.XpToNextLevel, "debug");
 
         void OnGameReset(GameReset _) => _progression.Reset();
     }

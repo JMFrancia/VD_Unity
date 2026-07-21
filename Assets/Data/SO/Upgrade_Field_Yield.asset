@@ -13,6 +13,8 @@ MonoBehaviour:
   m_Name: Upgrade_Field_Yield
   m_EditorClassIdentifier: Assembly-CSharp::VoidDay.Data.UpgradeSO
   id: field.yield
+  displayName: Output Yield
+  unlockLevel: 3
   tiers:
   - cost: 100
     effects:

@@ -219,8 +219,8 @@ namespace VoidDay.Core.Events
         public StationDemolished(string stationId) { StationId = stationId; }
     }
 
-    /// §15 progression event. Emitted by M8 when a level-up grants a station-type/cap/upgrade unlock; the
-    /// build menu LISTENS for it now (to re-evaluate lock state) but nothing fires it until M8.
+    /// §15 progression event. Emitted when a level-up grants a station-type/cap/upgrade unlock; the build
+    /// menu listens to re-evaluate lock state. Kind is a LevelEntryKind name; Id names the subject.
     public readonly struct UnlockGranted
     {
         public readonly string Kind;
@@ -303,6 +303,23 @@ namespace VoidDay.Core.Events
         public readonly string Source;
         public XpGained(int amount, string source) { Amount = amount; Source = source; }
     }
+
+    /// §15 level:up. Fires ONCE PER LEVEL crossed — a single fat XP grant that spans three thresholds
+    /// publishes three of these, so nothing has to reconstruct the steps from a jump. Unlocks are what the
+    /// level opened up (station types, upgrade tracks, raised caps/queue/slots); Rewards are what it paid out.
+    /// Entries are structured facts — the popup owns the wording.
+    public readonly struct LevelUp
+    {
+        public readonly int Level;
+        public readonly IReadOnlyList<LevelEntry> Unlocks;
+        public readonly IReadOnlyList<LevelEntry> Rewards;
+        public LevelUp(int level, IReadOnlyList<LevelEntry> unlocks, IReadOnlyList<LevelEntry> rewards)
+        { Level = level; Unlocks = unlocks; Rewards = rewards; }
+    }
+
+    /// Debug intent (§12.7 "level up"), same routing rationale as the other cheats: it grants exactly the XP
+    /// still owed to the next threshold and lets the normal xp:gained → level:up path do the rest.
+    public readonly struct DebugLevelUpRequested { }
 
     // Debug intent, same routing rationale as DebugAddResourceRequested: add → money:changed.
     public readonly struct DebugAddMoneyRequested

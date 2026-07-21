@@ -13,6 +13,8 @@ MonoBehaviour:
   m_Name: Upgrade_Silo_Cap
   m_EditorClassIdentifier: Assembly-CSharp::VoidDay.Data.UpgradeSO
   id: silo.cap
+  displayName: Silo Expansion
+  unlockLevel: 1
   tiers:
   - cost: 120
     effects:
@@ -21,13 +23,13 @@ MonoBehaviour:
       value:
         op: 0
         amount: 25
-      resource:
+      resource: 
       range: 0
       trigger: 0
       triggerChance: 0
       condition:
         type: 0
-        arg:
+        arg: 
         amount: 0
   - cost: 300
     effects:
@@ -36,13 +38,13 @@ MonoBehaviour:
       value:
         op: 0
         amount: 25
-      resource:
+      resource: 
       range: 0
       trigger: 0
       triggerChance: 0
       condition:
         type: 0
-        arg:
+        arg: 
         amount: 0
   - cost: 700
     effects:
@@ -51,11 +53,11 @@ MonoBehaviour:
       value:
         op: 0
         amount: 25
-      resource:
+      resource: 
       range: 0
       trigger: 0
       triggerChance: 0
       condition:
         type: 0
-        arg:
+        arg: 
         amount: 0

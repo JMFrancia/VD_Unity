@@ -55,9 +55,11 @@ namespace VoidDay.Core.Rules
         public int BuildCost(string stationType) =>
             (int)_resolver.Resolve(Type(stationType).BuildCostBase, ResolveKind.BuildCost, new ResolveContext(null));
 
-        /// Resolved (seam) per-type cap — the build menu reads this for the owned/cap badge.
+        /// Resolved (seam) per-type cap — the build menu reads this for the owned/cap badge. The cap belongs
+        /// to the TYPE (no instance exists yet), so the type is what the context carries.
         public int Cap(string stationType) =>
-            (int)_resolver.Resolve(Type(stationType).CapBase, ResolveKind.StationCap, new ResolveContext(null));
+            (int)_resolver.Resolve(Type(stationType).CapBase, ResolveKind.StationCap,
+                new ResolveContext(null, stationType: stationType));
 
         /// Count of currently-placed stations of a type (across pre-placed + runtime). Drives the cap badge.
         public int CountOf(string stationType)

@@ -35,6 +35,9 @@ namespace VoidDay.Systems
             Require(config.xpConfig.perStationBuilt >= 0, config.xpConfig,
                 nameof(config.xpConfig.perStationBuilt), "must be >= 0");
 
+            Require(config.levels != null, config, nameof(config.levels), "must be assigned — the XP curve (§9)");
+            ValidateLevels(config.levels);
+
             Require(config.refundPercent >= 0f && config.refundPercent <= 1f, config,
                 nameof(config.refundPercent), "must be within [0, 1]");
             Require(config.startingStorageCapacity > 0, config, nameof(config.startingStorageCapacity),
@@ -62,6 +65,45 @@ namespace VoidDay.Systems
             Require(o.tierWeightPerLevel >= 0f, o, nameof(o.tierWeightPerLevel), "must be >= 0");
             Require(o.cashMultiplier > 0f, o, nameof(o.cashMultiplier), "must be > 0");
             Require(o.xpMultiplier > 0f, o, nameof(o.xpMultiplier), "must be > 0");
+        }
+
+        /// §9: an explicit, strictly rising threshold table. Level 1 is the starting level — it is never
+        /// crossed, so a grant authored on it would silently never be applied; that is a loud error, not a
+        /// quiet nothing.
+        static void ValidateLevels(LevelSO l)
+        {
+            Require(l.levels != null && l.levels.Count > 1, l, nameof(l.levels),
+                "must hold at least two levels — a one-level curve can never level up");
+            Require(l.levels[0].xpThreshold == 0, l, $"{nameof(l.levels)}[0].xpThreshold",
+                "must be 0 — entry 0 is level 1, the level every run starts at");
+            Require(l.levels[0].grants.Count == 0, l, $"{nameof(l.levels)}[0].grants",
+                "must be empty — level 1 is never crossed, so its grants would never be applied. "
+                + "Starting caps / queue depth / slot counts belong on the station and order config assets");
+
+            for (int i = 1; i < l.levels.Count; i++)
+            {
+                var def = l.levels[i];
+                Require(def.xpThreshold > l.levels[i - 1].xpThreshold, l, $"{nameof(l.levels)}[{i}].xpThreshold",
+                    $"must be greater than level {i}'s ({l.levels[i - 1].xpThreshold})");
+
+                int moneyGrants = 0;
+                foreach (var g in def.grants)
+                {
+                    Require(g.kind != LevelEntryKind.StationType && g.kind != LevelEntryKind.Upgrade,
+                        l, $"{nameof(l.levels)}[{i}].grants",
+                        $"may not grant {g.kind} — that gate lives on the StationSO.unlockLevel / "
+                        + "UpgradeSO.unlockLevel of the thing being gated, not on the level");
+                    Require(g.amount > 0, l, $"{nameof(l.levels)}[{i}].grants",
+                        $"{g.kind} amount must be > 0");
+                    Require(g.kind != LevelEntryKind.StationCap || g.targetStation != null,
+                        l, $"{nameof(l.levels)}[{i}].grants",
+                        "a StationCap grant must name its targetStation — a cap belongs to one type, and the "
+                        + "popup line reads '+N <type> cap'");
+                    if (g.kind == LevelEntryKind.Money) moneyGrants++;
+                }
+                Require(moneyGrants <= 1, l, $"{nameof(l.levels)}[{i}].grants",
+                    "may hold at most one Money grant — popup.levelUp shows a single reward");
+            }
         }
 
         static void ValidateResource(ResourceSO r)
@@ -114,6 +156,10 @@ namespace VoidDay.Systems
         static void ValidateUpgrade(UpgradeSO u)
         {
             Require(!string.IsNullOrWhiteSpace(u.id), u, nameof(u.id), "must not be empty");
+            Require(!string.IsNullOrWhiteSpace(u.displayName), u, nameof(u.displayName),
+                "must not be empty — the level-up popup names the track when it unlocks");
+            Require(u.unlockLevel >= Progression.StartingLevel, u, nameof(u.unlockLevel),
+                $"must be >= {Progression.StartingLevel} (the starting level)");
             Require(u.tiers != null && u.tiers.Length > 0, u, nameof(u.tiers), "must have at least one tier");
             for (int i = 0; i < u.tiers.Length; i++)
             {

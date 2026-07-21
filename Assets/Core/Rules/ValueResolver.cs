@@ -19,7 +19,7 @@ namespace VoidDay.Core.Rules
         OrderSlots,
         XpGain,
 
-        // M4 sites. M6 gives BuildCost teeth (the build.cost effect); M8 gives StationCap teeth (level raises caps).
+        // M4 sites. M6 gives BuildCost teeth (the build.cost effect); StationCap is level-granted (M8).
         BuildCost,
         StationCap,
 
@@ -27,16 +27,20 @@ namespace VoidDay.Core.Rules
         StorageCap
     }
 
-    /// Context a resolver needs to decide whether an effect applies (which station, which resource).
+    /// Context a resolver needs to decide whether a contribution applies (which station instance, which
+    /// resource, which station TYPE). StationType is the discriminator level grants are keyed by — a raised
+    /// cap belongs to a *type*, not to an instance, and the cap read has no instance at all.
     public readonly struct ResolveContext
     {
         public readonly string StationId;
         public readonly string ResourceId;
+        public readonly string StationType;
 
-        public ResolveContext(string stationId, string resourceId = null)
+        public ResolveContext(string stationId, string resourceId = null, string stationType = null)
         {
             StationId = stationId;
             ResourceId = resourceId;
+            StationType = stationType;
         }
     }
 
@@ -47,12 +51,18 @@ namespace VoidDay.Core.Rules
     public sealed class ValueResolver
     {
         private IEffectSource _effects;
+        private LevelGrants _grants;
         private readonly List<Effect> _scratch = new();
 
         /// Wired at boot after the effect source (UpgradeSystem) is constructed. Two-phase because the resolver
         /// is created first (JobSystem/Progression/BuildSystem need it) and the source needs the wallet/bus.
         /// Null source = passthrough, which is also what the headless economy tests use.
         public void SetEffectSource(IEffectSource effects) => _effects = effects;
+
+        /// The second contributor (M8): what levelling has granted. Kept separate from the effect source
+        /// because a level grant is a **flat move of the base**, not an Effect — it lands before the effect
+        /// stack so a percentage upgrade still applies on top of it. Null = passthrough (headless tests).
+        public void SetGrantSource(LevelGrants grants) => _grants = grants;
 
         public float Resolve(float baseValue, ResolveKind kind, in ResolveContext ctx)
         {
@@ -68,14 +78,27 @@ namespace VoidDay.Core.Rules
                 }
                 case ResolveKind.OutputQuantity: return Applied(baseValue, EffectType.StationYield, EffectType.GlobalYield, ctx);
                 case ResolveKind.InputCost: return Applied(baseValue, EffectType.StationCost, EffectType.GlobalCost, ctx);
-                case ResolveKind.QueueDepth: return Applied(baseValue, EffectType.StationQueueDepth, ctx);
                 case ResolveKind.XpGain: return Applied(baseValue, EffectType.XpGain, ctx);
                 case ResolveKind.StorageCap: return Applied(baseValue, EffectType.StorageCap, ctx);
 
-                // No emitter for these until M6/M8 — passthrough keeps the read site honest meanwhile.
+                // Level-granted (§9) stats. The grant moves the base, then the effect stack applies to the
+                // moved base — a level-deepened queue and a queue-depth upgrade add up rather than compete.
+                case ResolveKind.QueueDepth:
+                    return Applied(baseValue + Granted(LevelEntryKind.QueueDepth, ctx.StationType),
+                        EffectType.StationQueueDepth, ctx);
+
+                // Cap and slot count take level grants only — their effect emitters are M6's universal
+                // upgrades, so the effect half of these two sites stays passthrough until then.
+                case ResolveKind.StationCap: return baseValue + Granted(LevelEntryKind.StationCap, ctx.StationType);
+                case ResolveKind.OrderSlots: return baseValue + Granted(LevelEntryKind.OrderSlots, null);
+
+                // No emitter for these until M6 — passthrough keeps the read site honest meanwhile.
                 default: return baseValue;
             }
         }
+
+        private int Granted(LevelEntryKind kind, string targetId) =>
+            _grants == null ? 0 : _grants.Bonus(kind, targetId);
 
         private float Applied(float baseValue, EffectType type, in ResolveContext ctx)
         {

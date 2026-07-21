@@ -9,11 +9,17 @@ namespace VoidDay.Core.Model
     public sealed class UpgradeTrackModel
     {
         public readonly string Id;
+        public readonly string DisplayName;
+        /// Player level at which the track becomes purchasable (§9 "upgrades become purchasable"). This is the
+        /// track's ONE home for its gate — a level asset never restates it.
+        public readonly int UnlockLevel;
         public readonly UpgradeTierModel[] Tiers;
 
-        public UpgradeTrackModel(string id, UpgradeTierModel[] tiers)
+        public UpgradeTrackModel(string id, string displayName, int unlockLevel, UpgradeTierModel[] tiers)
         {
             Id = id;
+            DisplayName = displayName;
+            UnlockLevel = unlockLevel;
             Tiers = tiers;
         }
 

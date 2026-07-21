@@ -26,14 +26,14 @@ namespace VoidDay.Tests
             };
 
         static UpgradeTrackModel CapTrack(float perTier = 25f) =>
-            new UpgradeTrackModel("silo.cap", new[]
+            new UpgradeTrackModel("silo.cap", "silo.cap", 1, new[]
             {
                 new UpgradeTierModel(120, new[] { E(EffectType.StorageCap, EffectOp.Flat, perTier) }),
                 new UpgradeTierModel(300, new[] { E(EffectType.StorageCap, EffectOp.Flat, perTier) })
             });
 
         static UpgradeTrackModel GlobalSpeedTrack() =>
-            new UpgradeTrackModel("workshop.speed", new[]
+            new UpgradeTrackModel("workshop.speed", "workshop.speed", 1, new[]
             {
                 new UpgradeTierModel(100, new[] { E(EffectType.GlobalSpeed, EffectOp.Pct, 25f) })
             });
@@ -48,7 +48,7 @@ namespace VoidDay.Tests
             var byType = new Dictionary<string, IReadOnlyList<UpgradeTrackModel>>();
             foreach (var (type, track) in tracks) byType[type] = new[] { track };
 
-            var upgrades = new UpgradeSystem(bus, wallet, byType);
+            var upgrades = new UpgradeSystem(bus, wallet, byType, () => 1);
             var resolver = new ValueResolver();
             resolver.SetEffectSource(upgrades);
 
@@ -294,7 +294,7 @@ namespace VoidDay.Tests
         [Test]
         public void OwnStationEffect_StillDoesNotLeak()
         {
-            var stationTrack = new UpgradeTrackModel("field.speed", new[]
+            var stationTrack = new UpgradeTrackModel("field.speed", "field.speed", 1, new[]
             {
                 new UpgradeTierModel(50, new[] { E(EffectType.StationSpeed, EffectOp.Pct, 25f) })
             });
@@ -316,11 +316,11 @@ namespace VoidDay.Tests
             var wallet = new Wallet(bus);
             var byType = new Dictionary<string, IReadOnlyList<UpgradeTrackModel>>
             {
-                ["field"] = new[] { new UpgradeTrackModel("field.speed", new[]
+                ["field"] = new[] { new UpgradeTrackModel("field.speed", "field.speed", 1, new[]
                     { new UpgradeTierModel(50, new[] { E(EffectType.StationSpeed, EffectOp.Pct, 25f) }) }) },
                 ["workshop"] = new[] { GlobalSpeedTrack() }
             };
-            var upgrades = new UpgradeSystem(bus, wallet, byType);
+            var upgrades = new UpgradeSystem(bus, wallet, byType, () => 1);
             var resolver = new ValueResolver();
             resolver.SetEffectSource(upgrades);
 

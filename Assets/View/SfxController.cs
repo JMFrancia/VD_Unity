@@ -61,6 +61,7 @@ namespace VoidDay.View
             _bus.Subscribe<UpgradePurchased>(OnUpgradePurchased);
             _bus.Subscribe<MoneyChanged>(OnMoneyChanged);
             _bus.Subscribe<XpGained>(OnXpGained);
+            _bus.Subscribe<LevelUp>(OnLevelUp);
 
             // UI
             _bus.Subscribe<ExclusiveUiOpened>(OnUiOpened);
@@ -93,6 +94,7 @@ namespace VoidDay.View
             _bus.Unsubscribe<UpgradePurchased>(OnUpgradePurchased);
             _bus.Unsubscribe<MoneyChanged>(OnMoneyChanged);
             _bus.Unsubscribe<XpGained>(OnXpGained);
+            _bus.Unsubscribe<LevelUp>(OnLevelUp);
 
             _bus.Unsubscribe<ExclusiveUiOpened>(OnUiOpened);
             _bus.Unsubscribe<ExclusiveUiClosed>(OnUiClosed);
@@ -121,6 +123,7 @@ namespace VoidDay.View
 
         void OnUpgradePurchased(UpgradePurchased _) => Play(SfxCue.UpgradePurchased);
         void OnXpGained(XpGained _) => Play(SfxCue.XpGained);
+        void OnLevelUp(LevelUp _) => Play(SfxCue.LevelUp);
 
         /// Only the debit half is a cue. Income already has a voice — the order chime, which fires on the
         /// same frame — and doubling it would just muddy the payout.

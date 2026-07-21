@@ -1,0 +1,163 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7311f4ffc04c342cb99f45f34ee772e8, type: 3}
+  m_Name: Levels
+  m_EditorClassIdentifier: Assembly-CSharp::VoidDay.Data.LevelSO
+  levels:
+  - xpThreshold: 0
+    grants: []
+  - xpThreshold: 20
+    grants:
+    - kind: 3
+      targetStation: {fileID: 0}
+      amount: 1
+    - kind: 5
+      targetStation: {fileID: 0}
+      amount: 100
+  - xpThreshold: 50
+    grants:
+    - kind: 5
+      targetStation: {fileID: 0}
+      amount: 150
+  - xpThreshold: 100
+    grants:
+    - kind: 4
+      targetStation: {fileID: 0}
+      amount: 1
+    - kind: 5
+      targetStation: {fileID: 0}
+      amount: 200
+  - xpThreshold: 175
+    grants:
+    - kind: 2
+      targetStation: {fileID: 11400000, guid: bc7f0f5d1c60742e896b48c183725eaa, type: 2}
+      amount: 1
+    - kind: 5
+      targetStation: {fileID: 0}
+      amount: 250
+  - xpThreshold: 275
+    grants:
+    - kind: 3
+      targetStation: {fileID: 0}
+      amount: 1
+    - kind: 5
+      targetStation: {fileID: 0}
+      amount: 300
+  - xpThreshold: 400
+    grants:
+    - kind: 5
+      targetStation: {fileID: 0}
+      amount: 400
+  - xpThreshold: 560
+    grants:
+    - kind: 4
+      targetStation: {fileID: 0}
+      amount: 1
+    - kind: 5
+      targetStation: {fileID: 0}
+      amount: 450
+  - xpThreshold: 760
+    grants:
+    - kind: 2
+      targetStation: {fileID: 11400000, guid: e1f2a3b4c5d60718293a4b5c6d7e8f14, type: 2}
+      amount: 1
+    - kind: 5
+      targetStation: {fileID: 0}
+      amount: 500
+  - xpThreshold: 1000
+    grants:
+    - kind: 3
+      targetStation: {fileID: 0}
+      amount: 1
+    - kind: 2
+      targetStation: {fileID: 11400000, guid: bc7f0f5d1c60742e896b48c183725eaa, type: 2}
+      amount: 1
+    - kind: 5
+      targetStation: {fileID: 0}
+      amount: 600
+  - xpThreshold: 1300
+    grants:
+    - kind: 5
+      targetStation: {fileID: 0}
+      amount: 700
+  - xpThreshold: 1650
+    grants:
+    - kind: 2
+      targetStation: {fileID: 11400000, guid: f1a2b3c4d5e60718293a4b5c6d7e8f15, type: 2}
+      amount: 1
+    - kind: 5
+      targetStation: {fileID: 0}
+      amount: 800
+  - xpThreshold: 2050
+    grants:
+    - kind: 4
+      targetStation: {fileID: 0}
+      amount: 1
+    - kind: 5
+      targetStation: {fileID: 0}
+      amount: 900
+  - xpThreshold: 2500
+    grants:
+    - kind: 2
+      targetStation: {fileID: 11400000, guid: a2b3c4d5e6f70718293a4b5c6d7e8f16, type: 2}
+      amount: 1
+    - kind: 5
+      targetStation: {fileID: 0}
+      amount: 1000
+  - xpThreshold: 3000
+    grants:
+    - kind: 3
+      targetStation: {fileID: 0}
+      amount: 1
+    - kind: 5
+      targetStation: {fileID: 0}
+      amount: 1100
+  - xpThreshold: 3600
+    grants:
+    - kind: 2
+      targetStation: {fileID: 11400000, guid: b2c3d4e5f6a70718293a4b5c6d7e8f17, type: 2}
+      amount: 1
+    - kind: 5
+      targetStation: {fileID: 0}
+      amount: 1200
+  - xpThreshold: 4300
+    grants:
+    - kind: 4
+      targetStation: {fileID: 0}
+      amount: 1
+    - kind: 5
+      targetStation: {fileID: 0}
+      amount: 1300
+  - xpThreshold: 5100
+    grants:
+    - kind: 2
+      targetStation: {fileID: 11400000, guid: bc7f0f5d1c60742e896b48c183725eaa, type: 2}
+      amount: 1
+    - kind: 5
+      targetStation: {fileID: 0}
+      amount: 1400
+  - xpThreshold: 6000
+    grants:
+    - kind: 3
+      targetStation: {fileID: 0}
+      amount: 1
+    - kind: 5
+      targetStation: {fileID: 0}
+      amount: 1500
+  - xpThreshold: 7000
+    grants:
+    - kind: 4
+      targetStation: {fileID: 0}
+      amount: 1
+    - kind: 5
+      targetStation: {fileID: 0}
+      amount: 2000

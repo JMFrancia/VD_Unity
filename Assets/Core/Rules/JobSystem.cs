@@ -65,7 +65,8 @@ namespace VoidDay.Core.Rules
         public int QueueDepth(string stationId)
         {
             var s = GetStation(stationId);
-            return (int)_resolver.Resolve(s.QueueDepthBase, ResolveKind.QueueDepth, new ResolveContext(stationId));
+            return (int)_resolver.Resolve(s.QueueDepthBase, ResolveKind.QueueDepth,
+                new ResolveContext(stationId, stationType: s.StationType));
         }
 
         /// The duration a job WILL take at this station, resolved through the seam (§3) — i.e. base recipe time

@@ -17,6 +17,13 @@ namespace VoidDay.Data
         [Tooltip("Track id, unique per station type — e.g. 'field.speed'. Used by input:upgradePurchaseRequested.")]
         public string id;
 
+        [Tooltip("Player-facing track name — e.g. 'Job Speed'. Named in the level-up popup when it unlocks.")]
+        public string displayName;
+
+        [Tooltip("Player level at which this track becomes purchasable (§9). 1 = buyable from the start. "
+            + "This is the track's only home for its gate — a level asset never restates it.")]
+        public int unlockLevel = 1;
+
         public UpgradeTier[] tiers = Array.Empty<UpgradeTier>();
 
         [Serializable]

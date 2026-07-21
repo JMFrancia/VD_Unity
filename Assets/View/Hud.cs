@@ -30,10 +30,12 @@ namespace VoidDay.View
         [SerializeField] Button cheatButtonTemplate;
         [SerializeField] Button debugAddMoneyButton;
         [SerializeField] Button debugDemolishButton; // M4: demolish the last-built station (player gesture deferred)
+        [SerializeField] Button debugLevelUpButton;  // §12.7: grant exactly enough XP to cross the next threshold
         [SerializeField] Button debugResetButton;
 
-        [Tooltip("XP has no HUD until M8 — this debug line is how it is verified meanwhile.")]
+        [Tooltip("Exact XP numbers behind hud.levelXp's bar. {0} level, {1} XP into it, {2} the level's span.")]
         [SerializeField] Text debugXpReadout;
+        [SerializeField] string xpReadoutFormat = "L{0} · {1}/{2} xp";
 
         [Header("Cheat amounts")]
         [SerializeField] int cheatResourceAmount = 5;
@@ -58,6 +60,7 @@ namespace VoidDay.View
             debugAddMoneyButton.onClick.AddListener(() => _bus.Publish(new DebugAddMoneyRequested(cheatMoneyAmount)));
             debugAddMoneyButton.GetComponentInChildren<Text>().text = $"+${cheatMoneyAmount}";
             debugDemolishButton.onClick.AddListener(() => _bus.Publish(new DebugDemolishLastRequested()));
+            debugLevelUpButton.onClick.AddListener(() => _bus.Publish(new DebugLevelUpRequested()));
             debugResetButton.onClick.AddListener(() => _bus.Publish(new DebugResetRequested()));
             BuildCheatButtons();
 
@@ -73,9 +76,16 @@ namespace VoidDay.View
                 if (e.Source != "totals") SetTotals(false);
             });
 
-            // XP is invisible infrastructure until M8 (level/XP milestone) — hide every XP surface for now.
-            debugXpReadout.gameObject.SetActive(false);
+            _bus.Subscribe<XpGained>(_ => RefreshXpReadout());
+            _bus.Subscribe<LevelUp>(_ => RefreshXpReadout());
+            _bus.Subscribe<GameReset>(_ => RefreshXpReadout());
+            RefreshXpReadout();
         }
+
+        /// The bar shows progress; this shows the numbers behind it — the pair is what makes a threshold
+        /// tuning pass checkable without instrumenting anything.
+        void RefreshXpReadout() => debugXpReadout.text = string.Format(xpReadoutFormat,
+            _progression.PlayerLevel, _progression.XpIntoLevel, _progression.XpSpanOfLevel);
 
         void ToggleDebugMenu() => SetDebugMenu(!debugMenu.activeSelf);
 

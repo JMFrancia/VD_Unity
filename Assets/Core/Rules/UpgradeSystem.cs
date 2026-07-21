@@ -19,6 +19,7 @@ namespace VoidDay.Core.Rules
         private readonly EventBus _bus;
         private readonly Wallet _wallet;
         private readonly IReadOnlyDictionary<string, IReadOnlyList<UpgradeTrackModel>> _tracksByType;
+        private readonly Func<int> _playerLevel;
 
         // Per station instance: its type, and how many tiers of each track it has bought.
         private readonly Dictionary<string, string> _typeOf = new();
@@ -27,11 +28,12 @@ namespace VoidDay.Core.Rules
         private static readonly IReadOnlyList<UpgradeTrackModel> NoTracks = Array.Empty<UpgradeTrackModel>();
 
         public UpgradeSystem(EventBus bus, Wallet wallet,
-            IReadOnlyDictionary<string, IReadOnlyList<UpgradeTrackModel>> tracksByType)
+            IReadOnlyDictionary<string, IReadOnlyList<UpgradeTrackModel>> tracksByType, Func<int> playerLevel)
         {
             _bus = bus;
             _wallet = wallet;
             _tracksByType = tracksByType;
+            _playerLevel = playerLevel;
         }
 
         // ---- Lifecycle (Systems layer registers instances as they are placed/demolished) ----
@@ -68,6 +70,10 @@ namespace VoidDay.Core.Rules
         public bool IsMaxed(string stationId, string trackId, UpgradeTrackModel track) =>
             TierOf(stationId, trackId) >= track.MaxTier;
 
+        /// A track the player has not reached the level for yet (§9). The panel renders it visible-but-locked
+        /// so the gate is something to play toward, not something that appears from nowhere at level-up.
+        public bool IsLocked(UpgradeTrackModel track) => track.UnlockLevel > _playerLevel();
+
         /// The tier that a Buy would purchase next, or null if maxed.
         public UpgradeTierModel NextTier(string stationId, UpgradeTrackModel track)
         {
@@ -80,6 +86,9 @@ namespace VoidDay.Core.Rules
         public void Purchase(string stationId, string trackId)
         {
             var track = FindTrack(stationId, trackId);
+            if (IsLocked(track))
+                throw new InvalidOperationException(
+                    $"Upgrade '{trackId}' unlocks at level {track.UnlockLevel}, player is level {_playerLevel()}");
             var next = NextTier(stationId, track);
             if (next == null)
                 throw new InvalidOperationException($"Upgrade '{trackId}' on '{stationId}' is already maxed");
