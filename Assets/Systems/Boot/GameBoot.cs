@@ -143,7 +143,7 @@ namespace VoidDay.Systems
             cameraController.Init(Vector3.zero, config.gridCols * config.cellSize, config.gridRows * config.cellSize, bus, roots);
             producer.Init(bus, jobs, pool, wallet, startingCounts);
             inputRouter.Init(bus, worldCamera);
-            worldState.Init(bus, jobs, catalog, roots);
+            worldState.Init(bus, jobs, catalog, resourceDisplays, roots);
             stationPanel.Init(bus, jobs, catalog, pool, wallet, upgrades, resourceDisplays, roots, worldCamera);
             orderBoardPanel.Init(bus, orderBoard, pool, jobs, resourceDisplays);
             orderBoardSystem.Init(bus, orderBoard, wallet);

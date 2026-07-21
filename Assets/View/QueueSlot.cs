@@ -12,6 +12,7 @@ namespace VoidDay.View
         [SerializeField] Material filledMaterial;
         [SerializeField] Material emptyMaterial;
         [SerializeField] GameObject chip;
+        [SerializeField] SpriteRenderer chipIcon; // the produced good's crop icon, shown on a filled slot
         [SerializeField] Collider tapCollider;
         [SerializeField] GameObject miniFillRoot; // track + fill; active only on the running head (slot 0)
         [SerializeField] Transform miniFill;
@@ -33,6 +34,12 @@ namespace VoidDay.View
             background.sharedMaterial = filled ? filledMaterial : emptyMaterial;
             if (chip.activeSelf != filled) chip.SetActive(filled);
             if (tapCollider.enabled != filled) tapCollider.enabled = filled;
+        }
+
+        /// The crop icon for the good this slot's job produces (WorldState resolves it from the recipe output).
+        public void SetIcon(Sprite icon)
+        {
+            if (chipIcon.sprite != icon) chipIcon.sprite = icon;
         }
 
         public void SetRunningProgress(bool show, float fraction)

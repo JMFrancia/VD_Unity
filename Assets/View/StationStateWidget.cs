@@ -18,6 +18,7 @@ namespace VoidDay.View
         [SerializeField] GameObject radialRoot;
         [SerializeField] MeshRenderer radialRenderer; // VoidDay/RadialProgress material; _Fill = job progress
         [SerializeField] GameObject readyRoot;
+        [SerializeField] SpriteRenderer readyIcon; // the finished good's crop icon, hops while output waits
         [SerializeField] Transform queueRow;
         [SerializeField] float hopAmplitude = 0.12f;
         [SerializeField] float hopSpeed = 6f;
@@ -43,6 +44,12 @@ namespace VoidDay.View
         public void SetReady(bool ready)
         {
             if (readyRoot.activeSelf != ready) readyRoot.SetActive(ready);
+        }
+
+        /// The crop icon for the finished good (WorldState resolves it from the completed job's recipe output).
+        public void SetReadyIcon(Sprite icon)
+        {
+            if (readyIcon.sprite != icon) readyIcon.sprite = icon;
         }
 
         public void SetRadialProgress(float fraction)

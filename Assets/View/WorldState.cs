@@ -3,6 +3,7 @@ using UnityEngine;
 using VoidDay.Core.Events;
 using VoidDay.Core.Model;
 using VoidDay.Core.Rules;
+using VoidDay.Data;
 
 namespace VoidDay.View
 {
@@ -27,14 +28,17 @@ namespace VoidDay.View
 
         JobSystem _jobs;
         RecipeCatalog _catalog;
+        IReadOnlyDictionary<string, ResourceSO> _resources; // id → display data; the crop icon on slots + ready indicator
         IReadOnlyDictionary<string, Transform> _stationRoots;
         readonly List<Rig> _rigs = new();
         string _openStationId; // whose panel is open — its queue shows and its radial hides (BUG-03 design)
 
-        public void Init(EventBus bus, JobSystem jobs, RecipeCatalog catalog, IReadOnlyDictionary<string, Transform> stationRoots)
+        public void Init(EventBus bus, JobSystem jobs, RecipeCatalog catalog,
+            IReadOnlyDictionary<string, ResourceSO> resources, IReadOnlyDictionary<string, Transform> stationRoots)
         {
             _jobs = jobs;
             _catalog = catalog;
+            _resources = resources;
             _stationRoots = stationRoots; // shared live map — StationRegistry adds/removes runtime stations here
             bus.Subscribe<StationPanelOpened>(e => _openStationId = e.StationId);
             bus.Subscribe<StationPanelClosed>(_ => _openStationId = null);
@@ -72,6 +76,15 @@ namespace VoidDay.View
         bool HasRecipes(string stationId) =>
             _catalog.ForStationType(_jobs.StationTypeOf(stationId)).Count > 0;
 
+        /// The crop icon a job produces: recipe's first output → its ResourceSO icon. Used on queue slots and
+        /// the ready indicator so both read as "this good", not a colored placeholder.
+        Sprite OutputIcon(string recipeId)
+        {
+            var recipe = _catalog.Get(recipeId);
+            if (recipe.Outputs.Count == 0) return null;
+            return _resources.TryGetValue(recipe.Outputs[0].ResourceId, out var so) ? so.icon : null;
+        }
+
         void BuildSlots(Rig rig)
         {
             int depth = _jobs.QueueDepth(rig.StationId);
@@ -107,7 +120,14 @@ namespace VoidDay.View
                 bool showRadial = running && !panelOpen;
                 rig.Widget.SetRadialVisible(showRadial);
                 if (showRadial) rig.Widget.SetRadialProgress(fraction);
-                rig.Widget.SetReady(has && complete);
+
+                bool ready = has && complete;
+                rig.Widget.SetReady(ready);
+                if (ready)
+                {
+                    var queue = _jobs.GetQueue(rig.StationId);
+                    if (queue.Count > 0) rig.Widget.SetReadyIcon(OutputIcon(queue[0].RecipeId));
+                }
                 UpdateSlots(rig, now, panelOpen);
             }
         }
@@ -138,6 +158,7 @@ namespace VoidDay.View
                 var slot = rig.Slots[i];
                 bool filled = i < queue.Count;
                 slot.SetFilled(filled);
+                if (filled) slot.SetIcon(OutputIcon(queue[i].RecipeId));
 
                 bool runningHead = filled && i == 0 && queue[i].State == JobState.Running;
                 if (runningHead && _jobs.TryGetHeadProgress(rig.StationId, now, out float f, out bool complete))

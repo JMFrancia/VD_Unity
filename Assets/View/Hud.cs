@@ -67,7 +67,11 @@ namespace VoidDay.View
             _bus.Subscribe<MoneyChanged>(e => moneyText.text = $"$ {e.Total}");
             _bus.Subscribe<ResourceChanged>(_ => { if (totalsPopup.activeSelf) RefreshTotals(); });
             _bus.Subscribe<GameReset>(_ => { if (totalsPopup.activeSelf) RefreshTotals(); });
-            _bus.Subscribe<ExclusiveUiOpened>(e => { if (e.Source != "debug") debugMenu.SetActive(false); }); // one menu at a time
+            _bus.Subscribe<ExclusiveUiOpened>(e => // one menu at a time — totals + debug both retract for any other surface
+            {
+                if (e.Source != "debug") debugMenu.SetActive(false);
+                if (e.Source != "totals") totalsPopup.SetActive(false);
+            });
 
             // XP is invisible infrastructure until M8 (level/XP milestone) — hide every XP surface for now.
             debugXpReadout.gameObject.SetActive(false);
@@ -96,7 +100,11 @@ namespace VoidDay.View
         {
             bool show = !totalsPopup.activeSelf;
             totalsPopup.SetActive(show);
-            if (show) RefreshTotals();
+            if (show)
+            {
+                _bus.Publish(new ExclusiveUiOpened("totals")); // retract the order board / build menu / other panels
+                RefreshTotals();
+            }
         }
 
         void RefreshTotals()
