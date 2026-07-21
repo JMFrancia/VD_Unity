@@ -111,8 +111,12 @@ namespace VoidDay.Systems
 
             // id → ResourceSO: the display lookup the UI reads for both name and icon. One SO per resource, so
             // name and icon can't drift apart (a parallel name/sprite pair would). Seeded from starting
-            // resources for stable config order, then widened with every recipe input/output a station uses so
+            // resources for stable config order, then widened with every recipe input/output in the roster so
             // ingredient rows and recipe tiles always resolve an icon.
+            //
+            // Roster, not the placed stations: a type built at runtime must already have its goods known, or
+            // its first output renders as a raw id with no icon and never shows in the silo. Same reason the
+            // recipe catalog above reads the roster.
             var resourceDisplays = new Dictionary<string, ResourceSO>();
             var startingCounts = new Dictionary<string, int>();
             var resourceList = new List<ResourceSO>(); // stable config order (totals + cheats)
@@ -122,30 +126,48 @@ namespace VoidDay.Systems
                 startingCounts[sr.resource.id] = sr.amount;
                 resourceList.Add(sr.resource);
             }
-            foreach (var station in stations)
-                foreach (var recipe in station.Station.recipes)
+            foreach (var so in config.stationRoster)
+                foreach (var recipe in so.recipes)
                 {
-                    foreach (var input in recipe.inputs) resourceDisplays[input.resource.id] = input.resource;
-                    foreach (var output in recipe.outputs) resourceDisplays[output.resource.id] = output.resource;
+                    foreach (var input in recipe.inputs) Widen(input.resource);
+                    foreach (var output in recipe.outputs) Widen(output.resource);
                 }
+
+            void Widen(ResourceSO resource)
+            {
+                if (resourceDisplays.ContainsKey(resource.id)) return;
+                resourceDisplays[resource.id] = resource;
+                resourceList.Add(resource); // starting resources keep the head of the list; goods follow
+            }
 
             // One shared silo capacity across every good (§7), set before anything is added so the very first
             // collection is already gated.
             pool.SetBaseCapacity(config.startingStorageCapacity);
 
-            // Every resource any placed station can produce — the order pool's candidate set (§6.1). Built
-            // from recipe outputs, so a station type placed in M4 widens the pool with no change here.
+            // Pricing lookup for every resource the game can ever order — roster-wide, because an order for a
+            // good is priced the moment its station type exists, and OrderGeneration throws on an id it can't
+            // resolve. Which of these are *offered* is a separate, live question (Producible below).
             var resourceModels = new Dictionary<string, ResourceModel>();
-            var producible = new HashSet<string>();
-            foreach (var station in stations)
-                foreach (var recipe in station.Station.recipes)
+            foreach (var so in config.stationRoster)
+                foreach (var recipe in so.recipes)
                     foreach (var output in recipe.outputs)
-                    {
                         resourceModels[output.resource.id] = ModelProjector.Project(output.resource);
-                        producible.Add(output.resource.id);
-                    }
             foreach (var sr in config.startingResources)
                 resourceModels[sr.resource.id] = ModelProjector.Project(sr.resource);
+
+            // The order pool's candidate set (§6.1) — what a *currently placed* station can make, evaluated
+            // per generation rather than snapshotted at boot. OrderBoard takes a callback precisely so the
+            // pool widens when a Henhouse goes up and narrows when it comes down; a boot-time set would offer
+            // cheesecake before a Bakery is buildable and never learn about eggs after one is built.
+            IReadOnlyCollection<string> Producible()
+            {
+                var ids = new HashSet<string>();
+                foreach (var kv in grid.All)
+                    foreach (var recipe in catalog.ForStationType(kv.Value.StationType))
+                        foreach (var output in recipe.Outputs)
+                            ids.Add(output.ResourceId);
+                return ids;
+            }
 
             var orderConfig = ModelProjector.Project(config.orderConfig);
             var xpConfig = ModelProjector.Project(config.xpConfig);
@@ -153,7 +175,7 @@ namespace VoidDay.Systems
             var generation = new OrderGeneration(resourceModels, orderConfig, pricing,
                 orderSeed == 0 ? new System.Random() : new System.Random(orderSeed));
             var orderBoard = new OrderBoard(bus, pool, wallet, generation, orderConfig, resolver,
-                () => producible, () => progression.PlayerLevel);
+                Producible, () => progression.PlayerLevel);
 
             // Grid is centered on the world origin; the camera only needs its world-space extents for pan bounds.
             cameraController.Init(Vector3.zero, config.gridCols * config.cellSize, config.gridRows * config.cellSize, bus, roots);

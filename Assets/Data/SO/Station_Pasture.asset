@@ -22,5 +22,6 @@ MonoBehaviour:
   buildThumbnail: {fileID: 21300000, guid: 49aedae205db1470a9ba58b396ac4b55, type: 3}
   prefab: {fileID: 7873265884401345190, guid: 4a17fa5c0fba94c50b919f282525e6a0, type: 3}
   queueDepth: 3
-  recipes: []
+  recipes:
+  - {fileID: 11400000, guid: 98f302278747d4bc585d04763b296585, type: 2}
   upgrades: []

@@ -1,0 +1,20 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fadf63b5cf16c4bec83b2833e36dcdfb, type: 3}
+  m_Name: Resource_Brioche
+  m_EditorClassIdentifier: Assembly-CSharp::VoidDay.Data.ResourceSO
+  id: brioche
+  displayName: Brioche
+  icon: {fileID: 21300000, guid: 9759b8aa6d49f4775b50adeb03b3dfc9, type: 3}
+  baseValue: 14
+  sellable: 1
+  tier: 3

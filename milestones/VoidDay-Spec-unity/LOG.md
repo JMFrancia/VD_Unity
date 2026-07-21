@@ -422,8 +422,12 @@ Running record across milestones. Read this first when picking up cold.
 - **Every station type keeps `cap` and `queueDepth` on its own SO as the base**; a level only ever *adds*.
   Nothing validates that a level's cap grants don't out-run what the grid can hold.
 - **Henhouse / Pasture / Creamery / Bakery are now buildable** (levels 3/4/5/7) but **have no recipes
-  authored** — their `StationSO.recipes` are empty, so a built one opens a panel that says "NoRecipes".
-  That is pre-existing, not new, but M8 is the first milestone where a player can actually reach it.
+  authored** — their `StationSO.recipes` are empty. That is pre-existing, not new, but M8 is the first
+  milestone where a player can actually reach it.
+  **[Corrected 2026-07-21]** This said a built one "opens a panel that says NoRecipes". It did not —
+  `StationPanel.OnPanelRequested` self-selects on *having* recipes, so the tap fell through every panel and
+  did nothing at all (`noRecipesRow` was unreachable). Fixed by authoring the goods, not by changing the
+  gate; see the M8 addendum below.
 - **Animation was not machine-verified.** The editor does not tick frames while unfocused (see *Gotchas*), so
   the bar chase and badge pop were never observed in motion. The layout was verified via a camera capture; the
   logic was driven through the real bus. User played it.
@@ -455,3 +459,33 @@ Running record across milestones. Read this first when picking up cold.
   panel; it looks wrong when inspected from a frozen editor (old rows still present) but resolves normally in
   a running frame.
 - **Spec §7 is STILL stale** (M7's debt — it describes per-resource storage caps). §9 is accurate as built.
+
+---
+
+## M8 addendum (2026-07-21) — Processed goods authored
+
+Bug report: "no station popup for any generator except Field." Confirmed, and not a code defect — the four
+level-locked producer types had empty `StationSO.recipes`, and `StationPanel` self-selects on having recipes.
+
+**Data added (spec §5.2, verbatim):** 8 `ResourceSO` (Egg, Milk, Cream, Cheese, Bread, Cornbread, Brioche,
+Cheesecake) + 8 `RecipeSO` wired into Henhouse (1) / Pasture (1) / Creamery (2) / Bakery (4). All 8 icons
+already existed in `Assets/Art/UI/Icons/`. `baseValue` ≈ 1.6× input value so processing is always net-positive;
+`tier` = production depth, **not** spec §5.1's raw/processed label (egg and milk are converts like everything
+except wheat and corn — user call). Durations 15–60s ladder with depth; the spec leaves them blank. All
+placeholders, all inspector-tunable.
+
+**Three latent `GameBoot` bugs the data exposed** — collections built from `FindStations()` (scene-placed
+only) where the recipe catalog already, correctly, used `config.stationRoster`:
+- `resourceDisplays` → a runtime-built Henhouse's egg rendered as the raw id `"egg"` with no icon. Now roster-wide.
+- `resourceList` (Silo contents + HUD totals) → goods were invisible while still eating shared silo capacity.
+  Now seeded from `startingResources` (stable head order) then widened with roster outputs.
+- `resourceModels` → `OrderGeneration.Candidates` **throws** on an unresolvable id. Now roster-wide.
+
+**★ `producible` is the one that must NOT be roster-wide.** `OrderBoard` takes it as a `Func<>` on purpose:
+the pool is what a *currently placed* station can make. Snapshotting it at boot meant a Henhouse built at
+runtime never widened the pool; making it roster-wide would offer cheesecake at level 1. It is now a local
+function over `grid.All` × `catalog.ForStationType`, evaluated per generation. Keep it live.
+
+**Verified:** 71/71 EditMode tests; clean boot (all 16 new assets pass `BootValidator`); all four types placed
+and tapped through the real bus → `catalog.ForStationType` = 1/1/2/4 and the popup opened for every one.
+Not yet play-verified by a human — the Game View is stale while the editor is unfocused (see *Gotchas*).
