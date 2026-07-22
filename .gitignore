@@ -42,8 +42,9 @@ sysinfo.txt
 *.aab
 *.unitypackage
 *.app
-# WebGL build output. Unity remembers the last output folder per build profile,
-# so new build targets need adding here — or point them at /Builds/, ignored above.
+# The WebGL build now lives in /Builds/, covered above. Kept as a backstop
+# because Unity still remembers ./ProductionTest/ as the last output path and
+# will rebuild there until the build dialog is repointed.
 /ProductionTest/
 
 # Mono/Unity crash dumps
