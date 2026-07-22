@@ -16,6 +16,7 @@ MonoBehaviour:
   displayName: Workshop
   width: 1
   height: 1
+  buildable: 0
   buildCost: 150
   cap: 1
   unlockLevel: 1

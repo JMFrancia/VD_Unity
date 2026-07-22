@@ -16,6 +16,7 @@ MonoBehaviour:
   displayName: Silo
   width: 1
   height: 1
+  buildable: 0
   buildCost: 300
   cap: 1
   unlockLevel: 1

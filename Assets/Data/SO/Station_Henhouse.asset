@@ -16,6 +16,7 @@ MonoBehaviour:
   displayName: Henhouse
   width: 1
   height: 1
+  buildable: 1
   buildCost: 200
   cap: 1
   unlockLevel: 3

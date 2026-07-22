@@ -18,6 +18,11 @@ namespace VoidDay.Data
         public int height = 1;
 
         [Header("Build & gating (§4.3, §9, §12.3)")]
+        [Tooltip("Does the player build this type? Off = the type still exists in the roster (recipes, upgrades, "
+            + "pricing, scene-placed instances all read it) but it never appears in the build menu. Off for the "
+            + "one-off fixtures the farm ships with rather than the player placing.")]
+        public bool buildable = true;
+
         [Tooltip("Money to build one (§4.3). Read through the resolve seam; M6's build.cost effect discounts it.")]
         public int buildCost;
 

@@ -58,6 +58,8 @@ namespace VoidDay.View
 
             foreach (var so in roster)
             {
+                if (!so.buildable) continue;
+
                 var view = Instantiate(entryTemplate, entryList);
                 view.Bind(placement, so.stationType, so.displayName, so.buildThumbnail);
                 _entries.Add(new Entry { StationType = so.stationType, UnlockLevel = so.unlockLevel, View = view });

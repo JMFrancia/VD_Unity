@@ -16,6 +16,7 @@ MonoBehaviour:
   displayName: Bakery
   width: 1
   height: 1
+  buildable: 1
   buildCost: 500
   cap: 1
   unlockLevel: 7
