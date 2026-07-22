@@ -281,3 +281,91 @@ counter climbs one coin at a time instead of jumping.
   `_board` / `_wallet` off `OrderBoardSystem`; subscribe probe handlers that write into
   `UnityEditor.SessionState` (statics do **not** survive between `script-execute` calls — each one compiles a
   fresh assembly, but `SessionState` does); trigger; then read the trace in a later call.
+
+---
+
+## Milestone 02 — XP Stars
+**Status:** ✅ Complete · **Date:** 2026-07-22
+
+**Built:** The second particle stream, and the first time two bursts fly at once.
+
+- `View/EarnBurstController.cs` — the XP path. `Init(EventBus, IReadOnlyDictionary<string,Transform>
+  stationRoots, Camera worldCamera)`. New serialized `starSprite` + `xpTarget` under a `[Header("XP")]`.
+  Subscribes `JobCollected` and `StationBuilt` for their **origins only** (no burst — M03 owns resources),
+  and `XpGained` for the burst, skipping `Source == "debug"`. `IconFor` / `TargetFor` gained an
+  `EarnKind.Xp` arm. New `StationScreenLocal(id)` does
+  `_stationRoots[id].position → _worldCamera.WorldToScreenPoint → ScreenPointToLocalPointInRectangle(fxRect,
+  screen, null)`, throwing on an unknown id.
+- `View/LevelXpHud.cs` — `_pendingXp`; `Sync()` draws `Max(0, XpIntoLevel - _pendingXp)` over
+  `XpSpanOfLevel`. Subscribes `EarnBurstLaunched` / `EarnParticleArrived` filtered on `EarnKind.Xp`, both
+  unsubscribed in the existing `OnDestroy`. The pop is now **parameterised** — `_popScale` / `_popSeconds`
+  are captured at trigger time so a star pop is genuinely gentler by *amplitude*, not by a truncated curve.
+  New serialized `particlePopScale` 1.12 / `particlePopSeconds` 0.16.
+- `Systems/Boot/GameBoot.cs` — the widened `earnBurstController.Init(bus, roots, worldCamera)` call.
+- `Scenes/Farm.unity` — `FxCanvas/EarnBurstController.starSprite` and `.xpTarget` (→
+  `HudCanvas/LevelXpPill/Badge`) wired; `LevelXpPill` picked up the two new pop fields.
+
+**Deviations from the plan:** two, one of them serious.
+
+1. **★ `Assets/Art/UI/Icons/xp.png` DOES NOT EXIST.** The milestone doc, `00-summary.md` and this log's M01
+   section all assert it was cut, imported, previewed and approved on 2026-07-22 with GUID
+   `5dc45ffd6fa84db9871441092145eb39`. It is not on disk, never was committed (`git log --all` on the path is
+   empty), is not in any stash, and the GUID appears nowhere under `Assets/`. It was untracked, so a
+   `git clean` in another session would have taken it silently. **`starSprite` is wired to
+   `Assets/Art/UI/Icons/gem.png` as an explicit placeholder.** Everything else about the XP path is real and
+   verified. Swapping the true star in is a **single inspector-field assignment on
+   `FxCanvas/EarnBurstController.starSprite`** — zero code change. Until then the "purple stars" are gems.
+2. **No SFX clip was auditioned.** Per the run decision, new per-particle cues ship clipless.
+   `SfxCue.EarnParticleXp` already existed from M01 with `clip: {fileID: 0}`; `SfxLibrary.asset` needed no
+   edit and is untouched by this milestone. `SfxCue.XpGained` stays subscribed (M01's keep-both decision).
+
+**Tech debt:**
+- The star sprite (above). This is the one thing that makes the milestone look wrong rather than be wrong.
+- `SfxCue.EarnParticleXp` is still clipless — silent by design, one clip drop away from done.
+- `particlePopScale` 1.12 / `particlePopSeconds` 0.16 are unverified guesses shipped per the run decision.
+  Both are inspector-exposed on `HudCanvas/LevelXpPill`.
+- The scene diff contains one line that is not an authored edit: `HudCanvas/BuildTray/Viewport/EntryGrid`
+  `m_SizeDelta.x` 0 → 48. That rect is driven by its own `HorizontalLayoutGroup` + `ContentSizeFitter`
+  (probed preferred width == 48), i.e. layout output Unity re-bakes on save. Harmless; expect it to keep
+  reappearing whenever the scene is saved.
+
+**Assumptions:**
+- **A real finger tap was still never tested** (pointer injection is unavailable). Order fulfils were driven
+  by publishing `OrderFulfilled` on the bus, so the pointer origin came from wherever the OS mouse sat. If
+  the pointer path is wrong, coins *and* stars are wrong together — M01 carries the same assumption.
+- **The synthetic `StationBuilt` used for test 6 is not how a real build arrives.** The real path goes
+  through `BuildSystem` → `StationRegistry`, which registers the root before this controller's handler runs
+  (`stationRegistry.Init` precedes `earnBurstController.Init` in `GameBoot`). Verified by construction, not
+  by playing a real build to completion.
+
+**Gotchas for later milestones:**
+- **★ Subscription order made the plan's origin rule wrong, and it cost a full debug cycle.** `GameBoot`
+  inits `progressionSystem` (:213) **before** `earnBurstController` (:218). So on `OrderFulfilled`,
+  ProgressionSystem's handler runs first and publishes `XpGained` synchronously — meaning the **XP burst is
+  recorded before the money burst**, and in `LateUpdate` the XP burst dequeues the single `"order"` origin
+  first. The money burst then found an empty queue and threw. The plan's "if the queue is empty, fall back to
+  the pointer" silently assumed money dequeues first. **Fix: every burst enqueues its OWN origin** —
+  `OnXpGained` now enqueues `("order", PointerLocal())` when `e.Source == "order"`, exactly as
+  `OnOrderFulfilled` does for money. **M03: do the same.** Its `JobCollected` resource burst must enqueue its
+  own `"job"` origin; it cannot share the one `OnJobCollected` already enqueued for the XP burst.
+- **`LateUpdate` now drains `_bursts` / `_origins` in a `finally`.** Before that, a throwing burst aborted the
+  loop before `Clear()`, so the whole set re-fired **every frame forever** and buried the one real exception
+  under a storm. Keep the `finally`.
+- **`PendingBurst` gained a `bool PointerFallback`** and `Dequeue(source)` became `OriginFor(burst)`. Money
+  keeps M01's strict throw-on-empty; XP passes `pointerFallback: true` as a safety net (the plan mandates the
+  fallback). **M03's resource bursts should pass `pointerFallback: false`** so the origin contract keeps
+  failing loud for them.
+- **Core levels up at grant time, before any star flies.** So a level-up "mid-flight" actually looks like:
+  the popup fires and the bar resets to 0 *first*, then the still-flying stars drain into the **new** level
+  from 0. Observed exactly (10 stars + 10 coins in the air at once, `_pendingXp=30` against
+  `XpIntoLevel=3` → bar pinned at 0, settling to 3/50 on the last arrival). Understated for about a second,
+  never stuck. Explicitly not worth a rule.
+- **Playmode was NOT frozen this run either** — frames climbed normally, coroutines and DOTween ran.
+  `screenshot-game-view` remains unusable; **state reads via `script-execute` are the verification channel.**
+- **Statics do not survive between `script-execute` calls** (each compiles a fresh assembly), but delegates
+  already subscribed to the bus *do*. The cheapest probe is: subscribe once with handlers that `Debug.Log` a
+  `@`-prefixed marker, then read them back with `console-get-logs`. Guard re-installation with a marker
+  GameObject.
+- **Do not publish a synthetic `StationBuilt` for an id Core never placed** — `WorldState.Reconcile` then
+  throws `No station registered with id …` every frame until playmode is exited. Probe artefact, not a
+  defect, but it will flood the console.

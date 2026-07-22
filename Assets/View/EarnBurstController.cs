@@ -46,8 +46,16 @@ namespace VoidDay.View
         [Tooltip("The money pill on HudCanvas. Read live every tick, not baked at launch.")]
         [SerializeField] RectTransform moneyTarget;
 
+        [Header("XP")]
+        [SerializeField] Sprite starSprite;
+
+        [Tooltip("The level badge on HudCanvas. Read live every tick, not baked at launch.")]
+        [SerializeField] RectTransform xpTarget;
+
         EventBus _bus;
         RectTransform _fxRect;
+        IReadOnlyDictionary<string, Transform> _stationRoots;
+        Camera _worldCamera;
 
         readonly List<PendingBurst> _bursts = new();
 
@@ -55,7 +63,12 @@ namespace VoidDay.View
         /// otherwise overwrite each other and both launch from the wrong place.
         readonly Dictionary<string, Queue<Vector2>> _origins = new();
 
+        /// The Source strings are ProgressionSystem's AwardXp source tags, so an XP burst can find the origin
+        /// its triggering event recorded. "debug" is the cheat and deliberately has no entry here.
         const string SourceOrder = "order";
+        const string SourceJob = "job";
+        const string SourceBuild = "build";
+        const string SourceDebug = "debug";
 
         readonly struct PendingBurst
         {
@@ -63,21 +76,41 @@ namespace VoidDay.View
             public readonly string ResourceId;
             public readonly int Amount;
             public readonly string Source; // which origin queue this burst draws its launch point from
-            public PendingBurst(string kind, string resourceId, int amount, string source)
-            { Kind = kind; ResourceId = resourceId; Amount = amount; Source = source; }
+
+            /// True when this burst may legitimately find its source queue empty. An order's XP rides the
+            /// same event as its money, and the money burst has already taken the one "order" origin — the
+            /// pointer is the correct launch point for both, so falling back to it is the design, not a
+            /// papering-over. A money burst enqueues its own origin in the same handler that records it and
+            /// so is held to the strict contract.
+            public readonly bool PointerFallback;
+
+            public PendingBurst(string kind, string resourceId, int amount, string source,
+                bool pointerFallback = false)
+            {
+                Kind = kind; ResourceId = resourceId; Amount = amount; Source = source;
+                PointerFallback = pointerFallback;
+            }
         }
 
-        public void Init(EventBus bus)
+        public void Init(EventBus bus, IReadOnlyDictionary<string, Transform> stationRoots, Camera worldCamera)
         {
             _bus = bus;
+            _stationRoots = stationRoots;
+            _worldCamera = worldCamera;
             _fxRect = (RectTransform)transform;
             _bus.Subscribe<OrderFulfilled>(OnOrderFulfilled);
+            _bus.Subscribe<JobCollected>(OnJobCollected);
+            _bus.Subscribe<StationBuilt>(OnStationBuilt);
+            _bus.Subscribe<XpGained>(OnXpGained);
         }
 
         void OnDestroy()
         {
             if (_bus == null) return;
             _bus.Unsubscribe<OrderFulfilled>(OnOrderFulfilled);
+            _bus.Unsubscribe<JobCollected>(OnJobCollected);
+            _bus.Unsubscribe<StationBuilt>(OnStationBuilt);
+            _bus.Unsubscribe<XpGained>(OnXpGained);
         }
 
         /// Records only. The payout burst is the one and only money trigger — hanging it off MoneyChanged
@@ -89,6 +122,35 @@ namespace VoidDay.View
             _bursts.Add(new PendingBurst(EarnKind.Money, null, e.Payout, SourceOrder));
         }
 
+        /// Origin only — collecting a job throws no resources yet (M3 owns that). The station is where the
+        /// XP that ProgressionSystem grants for this collect must launch from.
+        void OnJobCollected(JobCollected e) => Enqueue(SourceJob, StationScreenLocal(e.StationId));
+
+        /// Origin only — finishing a build throws nothing of its own. Its XP grant launches from the new
+        /// station.
+        void OnStationBuilt(StationBuilt e) => Enqueue(SourceBuild, StationScreenLocal(e.StationId));
+
+        /// The amount is the event's, never XpConfigSO's: AwardXp runs the grant through ValueResolver
+        /// before publishing, so an XP-boosting upgrade would make the config and the event disagree. A
+        /// resolved 0 never publishes at all, so no event means no burst.
+        void OnXpGained(XpGained e)
+        {
+            if (e.Source == SourceDebug) return; // the level-up cheat pays no stars
+
+            // Every recorded burst enqueues its OWN origin, and an order's XP burst is no exception: an
+            // order is filled by tapping a button, so its stars launch from the finger, exactly like its
+            // coins. Sharing the money burst's single "order" origin instead would be ORDER-DEPENDENT —
+            // ProgressionSystem subscribes to OrderFulfilled before this controller does, so this handler
+            // runs first and would drain the origin the money burst is about to need.
+            //
+            // A job's or a build's XP launches from the station, and OnJobCollected / OnStationBuilt have
+            // already recorded that origin for it — enqueuing again here would break their pairing.
+            if (e.Source == SourceOrder) Enqueue(SourceOrder, PointerLocal());
+
+            _bursts.Add(new PendingBurst(EarnKind.Xp, null, e.Amount, e.Source,
+                pointerFallback: true));
+        }
+
         void Enqueue(string source, Vector2 local)
         {
             if (!_origins.TryGetValue(source, out var queue))
@@ -96,26 +158,52 @@ namespace VoidDay.View
             queue.Enqueue(local);
         }
 
+        /// The frame's buffer is drained whatever happens. A burst that throws still surfaces its exception,
+        /// but it must not survive into the next frame: leaving it queued would re-launch the whole set
+        /// every frame forever, burying the one real error under a storm of duplicates.
         void LateUpdate()
         {
-            for (int i = 0; i < _bursts.Count; i++)
+            try
             {
-                var burst = _bursts[i];
-                var chunks = EarnChunks.Split(burst.Amount, maxParticles);
-                _bus.Publish(new EarnBurstLaunched(burst.Kind, burst.ResourceId, burst.Amount));
-                StartCoroutine(SpawnBurst(burst, chunks, Dequeue(burst.Source)));
+                for (int i = 0; i < _bursts.Count; i++)
+                {
+                    var burst = _bursts[i];
+                    var chunks = EarnChunks.Split(burst.Amount, maxParticles);
+                    _bus.Publish(new EarnBurstLaunched(burst.Kind, burst.ResourceId, burst.Amount));
+                    StartCoroutine(SpawnBurst(burst, chunks, OriginFor(burst)));
+                }
             }
-
-            _bursts.Clear();
-            _origins.Clear(); // an origin with no burst behind it is stale by the next frame
+            finally
+            {
+                _bursts.Clear();
+                _origins.Clear(); // an origin with no burst behind it is stale by the next frame
+            }
         }
 
-        Vector2 Dequeue(string source)
+        /// One dequeue per burst, in FIFO order. Two jobs collected in the same frame (a pet auto-collect)
+        /// therefore pair with their own stations instead of both taking the last one recorded.
+        Vector2 OriginFor(PendingBurst burst)
         {
-            if (!_origins.TryGetValue(source, out var queue) || queue.Count == 0)
+            if (_origins.TryGetValue(burst.Source, out var queue) && queue.Count > 0)
+                return queue.Dequeue();
+
+            if (burst.PointerFallback) return PointerLocal();
+
+            throw new System.InvalidOperationException(
+                $"EarnBurstController: a '{burst.Source}' burst was recorded with no origin enqueued for it");
+        }
+
+        /// The station's world position, projected to this canvas. Overlay canvas, so the camera argument
+        /// is null — only the WorldToScreenPoint step uses the world camera.
+        Vector2 StationScreenLocal(string stationId)
+        {
+            if (!_stationRoots.TryGetValue(stationId, out var root))
                 throw new System.InvalidOperationException(
-                    $"EarnBurstController: a '{source}' burst was recorded with no origin enqueued for it");
-            return queue.Dequeue();
+                    $"EarnBurstController: no station root for id '{stationId}'");
+
+            Vector2 screen = _worldCamera.WorldToScreenPoint(root.position);
+            RectTransformUtility.ScreenPointToLocalPointInRectangle(_fxRect, screen, null, out var local);
+            return local;
         }
 
         IEnumerator SpawnBurst(PendingBurst burst, int[] chunks, Vector2 origin)
@@ -138,6 +226,7 @@ namespace VoidDay.View
         Sprite IconFor(PendingBurst burst) => burst.Kind switch
         {
             EarnKind.Money => coinSprite,
+            EarnKind.Xp => starSprite,
             _ => throw new System.InvalidOperationException(
                 $"EarnBurstController: no icon wired for burst kind '{burst.Kind}'"),
         };
@@ -145,6 +234,7 @@ namespace VoidDay.View
         RectTransform TargetFor(PendingBurst burst) => burst.Kind switch
         {
             EarnKind.Money => moneyTarget,
+            EarnKind.Xp => xpTarget,
             _ => throw new System.InvalidOperationException(
                 $"EarnBurstController: no target wired for burst kind '{burst.Kind}'"),
         };

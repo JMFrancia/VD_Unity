@@ -215,7 +215,7 @@ namespace VoidDay.Systems
             buildMenu.Init(bus, buildSystem, wallet, () => progression.PlayerLevel, config.stationRoster);
             placementController.Init(bus, grid, projection, worldCamera, config.stationRoster);
             hud.Init(bus, pool, progression, resourceList);
-            earnBurstController.Init(bus);
+            earnBurstController.Init(bus, roots, worldCamera);
             levelXpHud.Init(bus, progression);
             levelUpPopup.Init(bus, config.stationRoster);
             skipConfirmPopup.Init(bus, timeSkip, gems);
