@@ -42,6 +42,12 @@ sysinfo.txt
 *.aab
 *.unitypackage
 *.app
+# WebGL build output. Unity remembers the last output folder per build profile,
+# so new build targets need adding here — or point them at /Builds/, ignored above.
+/ProductionTest/
+
+# Mono/Unity crash dumps
+mono_crash.*.json
 
 # Crashlytics
 crashlytics-build.properties
