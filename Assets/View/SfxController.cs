@@ -64,6 +64,7 @@ namespace VoidDay.View
             _bus.Subscribe<MoneyChanged>(OnMoneyChanged);
             _bus.Subscribe<XpGained>(OnXpGained);
             _bus.Subscribe<LevelUp>(OnLevelUp);
+            _bus.Subscribe<EarnParticleArrived>(OnEarnParticleArrived);
 
             // UI
             _bus.Subscribe<ExclusiveUiOpened>(OnUiOpened);
@@ -99,6 +100,7 @@ namespace VoidDay.View
             _bus.Unsubscribe<MoneyChanged>(OnMoneyChanged);
             _bus.Unsubscribe<XpGained>(OnXpGained);
             _bus.Unsubscribe<LevelUp>(OnLevelUp);
+            _bus.Unsubscribe<EarnParticleArrived>(OnEarnParticleArrived);
 
             _bus.Unsubscribe<ExclusiveUiOpened>(OnUiOpened);
             _bus.Unsubscribe<ExclusiveUiClosed>(OnUiClosed);
@@ -137,6 +139,16 @@ namespace VoidDay.View
         /// Only the debit half is a cue. Income already has a voice — the order chime, which fires on the
         /// same frame — and doubling it would just muddy the payout.
         void OnMoneyChanged(MoneyChanged e) { if (e.Delta < 0) Play(SfxCue.MoneySpent); }
+
+        /// One tick per particle landing. The umbrella cue for the same moment (the order chime, the XP tick)
+        /// deliberately keeps firing — the stream layers on top of it rather than replacing it.
+        void OnEarnParticleArrived(EarnParticleArrived e) => Play(e.Kind switch
+        {
+            EarnKind.Money => SfxCue.EarnParticleMoney,
+            EarnKind.Xp => SfxCue.EarnParticleXp,
+            EarnKind.Resource => SfxCue.EarnParticleResource,
+            _ => throw new InvalidOperationException($"SfxController: unknown earn kind '{e.Kind}'"),
+        });
 
         void OnUiOpened(ExclusiveUiOpened _) => Play(SfxCue.UiOpen);
         void OnUiClosed(ExclusiveUiClosed _) => Play(SfxCue.UiClose);

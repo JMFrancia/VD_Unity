@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using DG.Tweening;
 using UnityEngine;
 using UnityEngine.UI;
 using VoidDay.Core.Events;
@@ -16,6 +17,14 @@ namespace VoidDay.View
         [Header("Money pill")]
         [SerializeField] Button moneyButton;
         [SerializeField] Text moneyText;
+
+        [Tooltip("The pill rect that pops as each coin lands. MoneyPill has no icon child — the '$' is part " +
+                 "of the counter text — so the whole pill is what pulses.")]
+        [SerializeField] RectTransform moneyPill;
+
+        [SerializeField] float pulseScale = 1.18f;
+        [SerializeField] float pulseSeconds = 0.18f;
+        [SerializeField] Ease pulseEase = Ease.OutQuad;
 
         [Header("Gem pill (hud.gems)")]
         [SerializeField] Text gemText;
@@ -54,6 +63,9 @@ namespace VoidDay.View
         Progression _progression;
         IReadOnlyList<ResourceSO> _resources; // display data (name + icon), stable config order
 
+        int _trueMoney;    // what the Wallet actually holds
+        int _pendingMoney; // earned but still in the air — the counter withholds this until the coins land
+
         public void Init(EventBus bus, ResourcePool pool, Progression progression,
             IReadOnlyList<ResourceSO> resources)
         {
@@ -77,7 +89,9 @@ namespace VoidDay.View
             totalsPopup.SetActive(false);
             debugMenu.SetActive(false);
 
-            _bus.Subscribe<MoneyChanged>(e => moneyText.text = $"$ {e.Total}");
+            _bus.Subscribe<MoneyChanged>(OnMoneyChanged);
+            _bus.Subscribe<EarnBurstLaunched>(OnEarnBurstLaunched);
+            _bus.Subscribe<EarnParticleArrived>(OnEarnParticleArrived);
             _bus.Subscribe<GemsChanged>(e => gemText.text = string.Format(gemFormat, e.Total));
             _bus.Subscribe<ResourceChanged>(_ => { if (totalsPopup.activeSelf) RefreshTotals(); });
             _bus.Subscribe<GameReset>(_ => { if (totalsPopup.activeSelf) RefreshTotals(); });
@@ -91,6 +105,52 @@ namespace VoidDay.View
             _bus.Subscribe<LevelUp>(_ => RefreshXpReadout());
             _bus.Subscribe<GameReset>(_ => RefreshXpReadout());
             RefreshXpReadout();
+        }
+
+        /// The three earn-particle handlers are the only ones here with teardown, because they are the only
+        /// ones that were written as named methods. The other four are pre-existing lambdas and are left
+        /// alone deliberately — see LOG.md.
+        void OnDestroy()
+        {
+            if (_bus == null) return;
+            _bus.Unsubscribe<MoneyChanged>(OnMoneyChanged);
+            _bus.Unsubscribe<EarnBurstLaunched>(OnEarnBurstLaunched);
+            _bus.Unsubscribe<EarnParticleArrived>(OnEarnParticleArrived);
+        }
+
+        void OnMoneyChanged(MoneyChanged e)
+        {
+            _trueMoney = e.Total;
+            RefreshMoney();
+        }
+
+        /// A burst has left: withhold the whole payout, so the counter does NOT jump to the new total.
+        void OnEarnBurstLaunched(EarnBurstLaunched e)
+        {
+            if (e.Kind != EarnKind.Money) return;
+            _pendingMoney += e.Amount;
+            RefreshMoney();
+        }
+
+        /// A coin landed: release its chunk and pop the pill. The counter climbs one coin at a time and lands
+        /// on the exact payout when the last one arrives.
+        void OnEarnParticleArrived(EarnParticleArrived e)
+        {
+            if (e.Kind != EarnKind.Money) return;
+            _pendingMoney -= e.Amount;
+            RefreshMoney();
+            Pulse();
+        }
+
+        void RefreshMoney() => moneyText.text = $"$ {_trueMoney - _pendingMoney}";
+
+        void Pulse()
+        {
+            moneyPill.DOKill();
+            moneyPill.localScale = Vector3.one;
+            moneyPill.DOScale(pulseScale, pulseSeconds * 0.5f)
+                .SetEase(pulseEase)
+                .SetLoops(2, LoopType.Yoyo);
         }
 
         /// The bar shows progress; this shows the numbers behind it — the pair is what makes a threshold

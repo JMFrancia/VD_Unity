@@ -284,6 +284,41 @@ namespace VoidDay.Core.Events
         public GemsChanged(int delta, int total) { Delta = delta; Total = total; }
     }
 
+    /// What a collection burst is carrying. Plain strings so nothing from UnityEngine crosses the Core
+    /// boundary, and so a burst kind can be named in one place instead of spelled out at every comparison.
+    public static class EarnKind
+    {
+        public const string Money = "money";
+        public const string Xp = "xp";
+        public const string Resource = "resource";
+    }
+
+    /// A batch of earn particles has just left the point of action, heading for that thing's HUD home. A
+    /// fact, not an instruction: each destination decides for itself that this means "hold Amount back from
+    /// the counter until the particles land". Amount is the WHOLE burst.
+    ///
+    /// Deliberately never emitted for MoneyChanged / ResourceChanged — bursts hang off the earn events
+    /// (OrderFulfilled, JobCollected, XpGained) so a level-up grant structurally throws nothing.
+    public readonly struct EarnBurstLaunched
+    {
+        public readonly string Kind;       // EarnKind.Money | EarnKind.Xp | EarnKind.Resource
+        public readonly string ResourceId; // null unless Kind == EarnKind.Resource
+        public readonly int Amount;
+        public EarnBurstLaunched(string kind, string resourceId, int amount)
+        { Kind = kind; ResourceId = resourceId; Amount = amount; }
+    }
+
+    /// One earn particle reached its destination. Amount is THIS particle's chunk — carrying it is what lets
+    /// each destination own its own pending count instead of being driven by the burst controller.
+    public readonly struct EarnParticleArrived
+    {
+        public readonly string Kind;
+        public readonly string ResourceId;
+        public readonly int Amount;
+        public EarnParticleArrived(string kind, string resourceId, int amount)
+        { Kind = kind; ResourceId = resourceId; Amount = amount; }
+    }
+
     /// The shared silo is full and a completed job's output could not fit (§7, §4.4). ResourceId is the good
     /// that was turned away — informative for a toast, not a per-resource cap (there is one pool). The
     /// station's blocked state rides the existing StationBlocked with reason "storage-full".

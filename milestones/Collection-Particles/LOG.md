@@ -196,3 +196,88 @@ object's document)
 unmade.
 
 ---
+
+## Milestone 01 — Money Particles
+**Status:** ✅ Complete · **Date:** 2026-07-22
+
+**Built:** Filling an order now sprays coins from the pointer position into the money pill, and the money
+counter climbs one coin at a time instead of jumping.
+
+- `Core/Rules/EarnChunks.cs` — `Split(amount, maxParticles)`, pure C#, throws on either argument ≤ 0.
+- `Tests/EarnChunksTests.cs` — 10 EditMode tests. **Live suite baseline is now 116** (was **106** before this
+  milestone; the 71/83 figures in the other logs were stale). M02/M03 compare against 116.
+- `Core/Events/GameEvents.cs` — `EarnBurstLaunched` and `EarnParticleArrived`, both carrying
+  `(string Kind, string ResourceId, int Amount)`, plus a `EarnKind` constants class (`Money`/`Xp`/`Resource`).
+- `View/EarnParticle.cs` — one flying icon. Scatter (`DOAnchorPos` to a fixed point) then flight
+  (`DOVirtual.Float` lerping to `TargetLocal()` **re-read every tick**, so a still-moving destination is
+  tracked). `onArrive` fires exactly once, from `OnComplete` **or** from `OnDestroy` if it never completed.
+  `FlightSettings` is declared in this file (not in the controller file) — same namespace, no practical
+  difference.
+- `View/EarnBurstController.cs` — on the new `FxCanvas`. Subscribes `OrderFulfilled`, **records only**, and
+  flushes in `LateUpdate`. Origins are a `Dictionary<string, Queue<Vector2>>` keyed by source string.
+- `View/Hud.cs` — `_trueMoney` / `_pendingMoney`, `RefreshMoney()`, `Pulse()`, three **named** handlers and a
+  new `OnDestroy` that unsubscribes exactly those three. The other four lambda subscriptions were left alone
+  deliberately.
+- `Data/SfxLibrarySO.cs` — `EarnParticleMoney` / `EarnParticleXp` / `EarnParticleResource` **appended** to
+  `SfxCue`; `SfxLibrary.asset` re-synced to 27 rows. `View/SfxController.cs` plays one cue per arrival.
+- `Systems/Boot/GameBoot.cs` — serialized `earnBurstController`, in `RequireWired()`, `Init(bus)` right after
+  `hud.Init(...)`.
+- `Scenes/Farm.unity` — new root `FxCanvas` (Overlay, `sortingOrder 100`, CanvasScaler 1080×1920 match 0.5
+  matching `HudCanvas`, **no `GraphicRaycaster`**). Scene diff is **pure insertion** — 0 lines removed.
+- `Prefabs/UI/EarnParticle.prefab` — 72×72 rect, anchors/pivot centred, `Image` with `raycastTarget` off and
+  `preserveAspect` on.
+
+**Deviations from the plan:** two, both cosmetic.
+1. **The umbrella SFX cue is NOT silenced.** The plan's default was to mute `SfxCue.OrderFulfilled`; the user
+   resolved this up front as **keep both** — the order chime still fires and the per-particle stream layers on
+   top. This binds M02 (`XpGained`) and M03 (`JobCollected`) too — do not re-litigate it.
+2. **The three new cues ship CLIPLESS**, by the user's decision, rather than auditioning a clip from
+   `Assets/Casual Game Sounds U6/`. `SfxController.Play` already returns early on a null clip, so a clipless
+   cue is silent, not an error, and boot does not throw.
+
+**Tech debt:**
+- **`EarnParticleMoney`, `EarnParticleXp` and `EarnParticleResource` have no clip assigned.** The rows exist
+  on `Assets/Data/SO/SfxLibrary.asset` and the code plays them; they are simply silent until someone
+  auditions the `DM-CGS-NN.wav` library by ear. **Nothing else is needed — drop a clip on the row.** Note
+  that `Entry.minInterval` must stay ≤ `staggerSeconds` (0.06) or arrivals get silently throttled.
+- **Every feel number is an unverified guess** shipped per the run decision: `staggerSeconds` 0.06,
+  `flightSeconds` 0.6 ± 0.08 jitter, `scatterRadius` 90, `scatterSeconds` 0.18, eases `OutQuad`/`InQuad`,
+  `pulseScale` 1.18, `pulseSeconds` 0.18. **All are inspector-exposed** on `FxCanvas/EarnBurstController` and
+  on `Hud`. Retune by playing; no code change needed.
+- A burst whose spawn coroutine is interrupted mid-stagger (controller disabled while spawning) would strand
+  the un-spawned chunks in `pending`. It cannot happen today — the controller lives for the whole session —
+  and the *flight* side is fully covered by credit-on-destroy.
+
+**Assumptions:**
+- **`maxParticles` = 10 is a hard ceiling, not a per-payout count.** A payout of 108 throws 10 coins of
+  11/11/11/11/11/11/11/11/10/10. If a burst should *feel* proportional to size, this is the field to change.
+- **Scatter can push a coin off-screen** when the launch point is near a screen edge (`scatterRadius` 90 in
+  1080-wide reference space). Observed in verification. Harmless — the coin flies back in — but if it looks
+  wrong, lower `scatterRadius`.
+- **A real finger tap was never tested.** Pointer injection is unavailable, so every fulfil was driven by
+  publishing `OrderFulfillRequested` on the bus; the origin therefore came from wherever the OS mouse
+  happened to be. The `Pointer.current.position.ReadValue()` → `ScreenPointToLocalPointInRectangle(fxRect,
+  screen, **null**, …)` path is verified by inspection and by the fact that particles spawned at plausible
+  in-canvas coordinates.
+
+**Gotchas for later milestones:**
+- **`EarnKind` constants live in `Core/Events/GameEvents.cs`.** Use `EarnKind.Xp` / `EarnKind.Resource`, do
+  not re-spell the strings.
+- **The origin↔burst pairing rule:** `PendingBurst` carries a `Source` string, and `LateUpdate` dequeues
+  **exactly one** origin from that source's queue per burst — and **throws** if the queue is empty. So every
+  recorded burst must have enqueued exactly one origin under its source key **in the same frame**. M02's
+  `XpGained` burst therefore needs its **own** enqueue (it cannot borrow the `"order"` origin that the money
+  burst already consumed), and M03's `JobCollected` needs one enqueue per burst it records.
+- **`IconFor` / `TargetFor` are `switch` expressions that throw on an unhandled kind.** M02 and M03 each add
+  one arm plus the serialized sprite/target field beside `coinSprite` / `moneyTarget`.
+- **`Hud` now has an `OnDestroy`.** If a later milestone converts more of its lambdas to named handlers, join
+  that method rather than adding a second one.
+- **`_origins.Clear()` runs every `LateUpdate`**, so an origin recorded with no burst behind it is dropped
+  after one frame. That is intentional.
+- **Playmode was NOT frozen during this milestone** — `Time.frameCount` climbed normally and coroutines and
+  tweens ran. But `screenshot-game-view` still fails outright ("Game View render texture is not available"),
+  so **state reads via `script-execute` remain the only verification channel.**
+- **Verification recipe that worked**, reusable in M02/M03: reflect `_bus` and `_pool` off `Hud`, and
+  `_board` / `_wallet` off `OrderBoardSystem`; subscribe probe handlers that write into
+  `UnityEditor.SessionState` (statics do **not** survive between `script-execute` calls — each one compiles a
+  fresh assembly, but `SessionState` does); trigger; then read the trace in a later call.
