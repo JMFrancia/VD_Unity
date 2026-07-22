@@ -275,6 +275,15 @@ namespace VoidDay.Core.Events
         public MoneyChanged(int delta, int total) { Delta = delta; Total = total; }
     }
 
+    /// The gem balance moved. Peer of MoneyChanged — the gem pill binds to it from the first frame, and
+    /// GemPurse.EmitCurrent pushes the starting value so the HUD needs no special first-frame path.
+    public readonly struct GemsChanged
+    {
+        public readonly int Delta;
+        public readonly int Total;
+        public GemsChanged(int delta, int total) { Delta = delta; Total = total; }
+    }
+
     /// The shared silo is full and a completed job's output could not fit (§7, §4.4). ResourceId is the good
     /// that was turned away — informative for a toast, not a per-resource cap (there is one pool). The
     /// station's blocked state rides the existing StationBlocked with reason "storage-full".
@@ -356,6 +365,13 @@ namespace VoidDay.Core.Events
     {
         public readonly int Amount;
         public DebugAddMoneyRequested(int amount) { Amount = amount; }
+    }
+
+    // Debug intent, same routing rationale as DebugAddMoneyRequested: add → gems:changed.
+    public readonly struct DebugAddGemsRequested
+    {
+        public readonly int Amount;
+        public DebugAddGemsRequested(int amount) { Amount = amount; }
     }
 
     // ---- Upgrades (M5) ----

@@ -32,6 +32,7 @@ namespace VoidDay.Tests
     {
         EventBus _bus;
         Wallet _wallet;
+        GemPurse _gems;
         ValueResolver _resolver;
         LevelGrants _grants;
         readonly List<LevelUp> _levelUps = new();
@@ -42,6 +43,7 @@ namespace VoidDay.Tests
         {
             _bus = new EventBus();
             _wallet = new Wallet(_bus);
+            _gems = new GemPurse(_bus, 0);
             _resolver = new ValueResolver();
             _grants = new LevelGrants();
             _resolver.SetGrantSource(_grants);
@@ -52,7 +54,7 @@ namespace VoidDay.Tests
         }
 
         Progression Make(LevelCurve curve, params LevelUnlockModel[] gated) =>
-            new Progression(_bus, _resolver, curve, _grants, _wallet, gated);
+            new Progression(_bus, _resolver, curve, _grants, _wallet, _gems, gated);
 
         // ---- Threshold crossing ----
 
@@ -192,6 +194,33 @@ namespace VoidDay.Tests
             p.AwardXp(25, "test");
 
             Assert.AreEqual(200, _wallet.Money);
+        }
+
+        [Test]
+        public void AGemGrantIsPaidOutAndReportedAsAReward()
+        {
+            var p = Make(Levels.Curve(
+                (0, null),
+                (10, new[] { Levels.Grant(LevelEntryKind.Gems, 2) })));
+            p.AwardXp(10, "test");
+
+            Assert.AreEqual(2, _gems.Gems);
+            Assert.AreEqual(1, _levelUps[0].Rewards.Count);
+            Assert.AreEqual(LevelEntryKind.Gems, _levelUps[0].Rewards[0].Kind);
+            Assert.AreEqual(2, _levelUps[0].Rewards[0].Amount);
+            Assert.IsEmpty(_levelUps[0].Unlocks, "a payout is a reward, not an unlock");
+        }
+
+        [Test]
+        public void GemsArePaidOnceNotAccumulatedAsAStandingBonus()
+        {
+            var p = Make(Levels.Curve(
+                (0, null),
+                (10, new[] { Levels.Grant(LevelEntryKind.Gems, 2) }),
+                (25, new[] { Levels.Grant(LevelEntryKind.Gems, 3) })));
+            p.AwardXp(25, "test");
+
+            Assert.AreEqual(5, _gems.Gems);
         }
 
         // ---- Derived gates ----

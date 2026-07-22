@@ -31,6 +31,9 @@ MonoBehaviour:
     amount: 1
   - resource: {fileID: 11400000, guid: 9775f71a7d4a64770a7780c20e092cc2, type: 2}
     amount: 1
+  startingGems: 5
+  secondsPerGem: 30
+  minGemCost: 1
   orderConfig: {fileID: 11400000, guid: ea61d684b02044e5989306dc5b475951, type: 2}
   xpConfig: {fileID: 11400000, guid: 3f4b12fefd07948859de0683af810809, type: 2}
   levels: {fileID: 11400000, guid: 026b3222e1dbe4a808e0906542f73894, type: 2}

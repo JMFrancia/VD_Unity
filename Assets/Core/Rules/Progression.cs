@@ -18,6 +18,7 @@ namespace VoidDay.Core.Rules
         private readonly LevelCurve _curve;
         private readonly LevelGrants _grants;
         private readonly Wallet _wallet;
+        private readonly GemPurse _gems;
         private readonly IReadOnlyList<LevelUnlockModel> _gated;
 
         /// The level every run starts at — the structural floor, not a tunable. A station type with
@@ -28,13 +29,14 @@ namespace VoidDay.Core.Rules
         public int XpTotal { get; private set; }
 
         public Progression(EventBus bus, ValueResolver resolver, LevelCurve curve, LevelGrants grants,
-            Wallet wallet, IReadOnlyList<LevelUnlockModel> gated)
+            Wallet wallet, GemPurse gems, IReadOnlyList<LevelUnlockModel> gated)
         {
             _bus = bus;
             _resolver = resolver;
             _curve = curve;
             _grants = grants;
             _wallet = wallet;
+            _gems = gems;
             _gated = gated;
         }
 
@@ -99,6 +101,12 @@ namespace VoidDay.Core.Rules
                 if (grant.Kind == LevelEntryKind.Money)
                 {
                     _wallet.Add(grant.Amount); // a one-shot payout, not a standing bonus
+                    rewards.Add(entry);
+                    continue;
+                }
+                if (grant.Kind == LevelEntryKind.Gems)
+                {
+                    _gems.Add(grant.Amount); // one-shot too — gems are never a standing bonus
                     rewards.Add(entry);
                     continue;
                 }

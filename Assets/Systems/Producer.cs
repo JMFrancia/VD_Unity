@@ -18,21 +18,26 @@ namespace VoidDay.Systems
         JobSystem _jobs;
         ResourcePool _pool;
         Wallet _wallet;
+        GemPurse _gems;
+        int _startingGems; // Reset needs it: unlike money, a run starts with gems in hand
         IReadOnlyDictionary<string, int> _startingCounts;
 
-        public void Init(EventBus bus, JobSystem jobs, ResourcePool pool, Wallet wallet,
-            IReadOnlyDictionary<string, int> startingCounts)
+        public void Init(EventBus bus, JobSystem jobs, ResourcePool pool, Wallet wallet, GemPurse gems,
+            int startingGems, IReadOnlyDictionary<string, int> startingCounts)
         {
             _bus = bus;
             _jobs = jobs;
             _pool = pool;
             _wallet = wallet;
+            _gems = gems;
+            _startingGems = startingGems;
             _startingCounts = startingCounts;
 
             _bus.Subscribe<StationTapped>(OnStationTapped);
             _bus.Subscribe<JobQueueRequested>(OnJobQueueRequested);
             _bus.Subscribe<QueueSlotTapped>(OnQueueSlotTapped);
             _bus.Subscribe<DebugAddResourceRequested>(OnDebugAddResource);
+            _bus.Subscribe<DebugAddGemsRequested>(OnDebugAddGems);
             _bus.Subscribe<DebugResetRequested>(OnDebugReset);
         }
 
@@ -43,6 +48,7 @@ namespace VoidDay.Systems
             _bus.Unsubscribe<JobQueueRequested>(OnJobQueueRequested);
             _bus.Unsubscribe<QueueSlotTapped>(OnQueueSlotTapped);
             _bus.Unsubscribe<DebugAddResourceRequested>(OnDebugAddResource);
+            _bus.Unsubscribe<DebugAddGemsRequested>(OnDebugAddGems);
             _bus.Unsubscribe<DebugResetRequested>(OnDebugReset);
         }
 
@@ -90,11 +96,14 @@ namespace VoidDay.Systems
         void OnDebugAddResource(DebugAddResourceRequested e) =>
             _pool.Add(e.ResourceId, e.Amount);
 
+        void OnDebugAddGems(DebugAddGemsRequested e) => _gems.Add(e.Amount);
+
         void OnDebugReset(DebugResetRequested _)
         {
             _jobs.ResetAll();                 // clears queues + emits game:reset
             _pool.Reset(_startingCounts);     // back to 1 wheat, 1 corn (emits resource:changed)
             _wallet.Reset();
+            _gems.Reset(_startingGems);       // NOT also in Progression.Reset — that would double-reset
         }
     }
 }

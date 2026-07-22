@@ -27,6 +27,12 @@ namespace VoidDay.Systems
                 Require(sr.amount >= 0, sr.resource, "starting amount", "must be >= 0");
             }
 
+            Require(config.startingGems >= 0, config, nameof(config.startingGems), "must be >= 0");
+            Require(config.secondsPerGem > 0f, config, nameof(config.secondsPerGem),
+                "must be > 0 — it is the divisor of a timer skip's gem price");
+            Require(config.minGemCost >= 1, config, nameof(config.minGemCost),
+                "must be >= 1 — a free skip is not a sink");
+
             Require(config.orderConfig != null, config, nameof(config.orderConfig), "must be assigned");
             ValidateOrderConfig(config.orderConfig);
             Require(config.xpConfig != null, config, nameof(config.xpConfig), "must be assigned");
@@ -86,7 +92,8 @@ namespace VoidDay.Systems
                 Require(def.xpThreshold > l.levels[i - 1].xpThreshold, l, $"{nameof(l.levels)}[{i}].xpThreshold",
                     $"must be greater than level {i}'s ({l.levels[i - 1].xpThreshold})");
 
-                int moneyGrants = 0;
+                int rewardGrants = 0; // Money + Gems together — both are one-shot rewards, and popup.levelUp
+                                      // renders rewards[0] only, so two of either kind would hide one.
                 foreach (var g in def.grants)
                 {
                     Require(g.kind != LevelEntryKind.StationType && g.kind != LevelEntryKind.Upgrade,
@@ -99,10 +106,10 @@ namespace VoidDay.Systems
                         l, $"{nameof(l.levels)}[{i}].grants",
                         "a StationCap grant must name its targetStation — a cap belongs to one type, and the "
                         + "popup line reads '+N <type> cap'");
-                    if (g.kind == LevelEntryKind.Money) moneyGrants++;
+                    if (g.kind == LevelEntryKind.Money || g.kind == LevelEntryKind.Gems) rewardGrants++;
                 }
-                Require(moneyGrants <= 1, l, $"{nameof(l.levels)}[{i}].grants",
-                    "may hold at most one Money grant — popup.levelUp shows a single reward");
+                Require(rewardGrants <= 1, l, $"{nameof(l.levels)}[{i}].grants",
+                    "may hold at most one reward grant (Money or Gems) — popup.levelUp shows a single reward");
             }
         }
 

@@ -35,7 +35,7 @@ namespace VoidDay.Tests
             _pool = new ResourcePool(_bus, resolver);
             _wallet = new Wallet(_bus);
             _progression = new Progression(_bus, resolver, Levels.Plain(), new LevelGrants(), _wallet,
-                System.Array.Empty<LevelUnlockModel>());
+                new GemPurse(_bus, 0), System.Array.Empty<LevelUnlockModel>());
 
             var pricing = new OrderPricing(resources, config, resolver);
             var generation = new OrderGeneration(resources, config, pricing, new System.Random(99));

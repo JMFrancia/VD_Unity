@@ -18,6 +18,11 @@ namespace VoidDay.Data
         public Color lockedBg = C(0xE7, 0xE0, 0xD1);   // disabled button bg
         public Color lockedText = C(0xB4, 0xAE, 0x9F); // disabled button text
 
+        [Header("Gems")]
+        [Tooltip("Gem cyan — the currency's identity colour wherever code has to apply it at runtime. "
+            + "Deliberately NOT the void violet, which is reserved for pets/hearts.")]
+        public Color gemAccent = C(0x22, 0xD3, 0xEE);
+
         static Color C(int r, int g, int b, float a = 1f) => new Color(r / 255f, g / 255f, b / 255f, a);
     }
 }

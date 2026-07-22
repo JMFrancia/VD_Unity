@@ -17,6 +17,9 @@ namespace VoidDay.View
         [SerializeField] Button moneyButton;
         [SerializeField] Text moneyText;
 
+        [Header("Gem pill (hud.gems)")]
+        [SerializeField] Text gemText;
+
         [Header("Totals popup (§12.4, 27:2)")]
         [SerializeField] GameObject totalsPopup;
         [SerializeField] Transform totalsList;
@@ -29,6 +32,7 @@ namespace VoidDay.View
         [SerializeField] Transform cheatButtonList;
         [SerializeField] Button cheatButtonTemplate;
         [SerializeField] Button debugAddMoneyButton;
+        [SerializeField] Button debugAddGemsButton;
         [SerializeField] Button debugDemolishButton; // M4: demolish the last-built station (player gesture deferred)
         [SerializeField] Button debugLevelUpButton;  // §12.7: grant exactly enough XP to cross the next threshold
         [SerializeField] Button debugResetButton;
@@ -40,6 +44,10 @@ namespace VoidDay.View
         [Header("Cheat amounts")]
         [SerializeField] int cheatResourceAmount = 5;
         [SerializeField] int cheatMoneyAmount = 100;
+        [SerializeField] int cheatGemAmount = 3;
+
+        [Tooltip("Gem pill copy. {0} is the balance; the gem glyph is authored art beside this text.")]
+        [SerializeField] string gemFormat = "{0}";
 
         EventBus _bus;
         ResourcePool _pool;
@@ -59,6 +67,8 @@ namespace VoidDay.View
             debugToggleButton.onClick.AddListener(ToggleDebugMenu);
             debugAddMoneyButton.onClick.AddListener(() => _bus.Publish(new DebugAddMoneyRequested(cheatMoneyAmount)));
             debugAddMoneyButton.GetComponentInChildren<Text>().text = $"+${cheatMoneyAmount}";
+            debugAddGemsButton.onClick.AddListener(() => _bus.Publish(new DebugAddGemsRequested(cheatGemAmount)));
+            debugAddGemsButton.GetComponentInChildren<Text>().text = $"+{cheatGemAmount} gems";
             debugDemolishButton.onClick.AddListener(() => _bus.Publish(new DebugDemolishLastRequested()));
             debugLevelUpButton.onClick.AddListener(() => _bus.Publish(new DebugLevelUpRequested()));
             debugResetButton.onClick.AddListener(() => _bus.Publish(new DebugResetRequested()));
@@ -68,6 +78,7 @@ namespace VoidDay.View
             debugMenu.SetActive(false);
 
             _bus.Subscribe<MoneyChanged>(e => moneyText.text = $"$ {e.Total}");
+            _bus.Subscribe<GemsChanged>(e => gemText.text = string.Format(gemFormat, e.Total));
             _bus.Subscribe<ResourceChanged>(_ => { if (totalsPopup.activeSelf) RefreshTotals(); });
             _bus.Subscribe<GameReset>(_ => { if (totalsPopup.activeSelf) RefreshTotals(); });
             _bus.Subscribe<ExclusiveUiOpened>(e => // one menu at a time — totals + debug both retract for any other surface

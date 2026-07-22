@@ -32,6 +32,7 @@ namespace VoidDay.View
         [SerializeField] Image rewardIcon;
         [SerializeField] Text rewardText;
         [SerializeField] Sprite moneyIcon;
+        [SerializeField] Sprite gemIcon;
 
         [Header("Icons")]
         [Tooltip("Shown for an unlocked upgrade track.")]
@@ -47,6 +48,7 @@ namespace VoidDay.View
         [SerializeField] string queueOneFormat = "+{0} queue depth at {1}";
         [SerializeField] string slotFormat = "+{0} order slots";
         [SerializeField] string moneyFormat = "${0}";
+        [SerializeField] string gemFormat = "{0} gems";
 
         EventBus _bus;
         IReadOnlyList<StationSO> _roster;
@@ -122,8 +124,8 @@ namespace VoidDay.View
             if (rewards.Count == 0) return;
 
             var reward = rewards[0]; // boot validation caps a level at one reward
-            rewardIcon.sprite = moneyIcon;
-            rewardText.text = string.Format(moneyFormat, reward.Amount);
+            rewardIcon.sprite = reward.Kind == LevelEntryKind.Gems ? gemIcon : moneyIcon;
+            rewardText.text = Describe(reward);
         }
 
         string Describe(LevelEntry e) => e.Kind switch
@@ -136,6 +138,7 @@ namespace VoidDay.View
                 : string.Format(queueOneFormat, e.Amount, e.Label),
             LevelEntryKind.OrderSlots => string.Format(slotFormat, e.Amount),
             LevelEntryKind.Money => string.Format(moneyFormat, e.Amount),
+            LevelEntryKind.Gems => string.Format(gemFormat, e.Amount),
             _ => e.Label
         };
 

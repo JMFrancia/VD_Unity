@@ -15,7 +15,8 @@ namespace VoidDay.Core.Model
         StationCap,    // standing bonus, folded into the value seam
         QueueDepth,    // standing bonus, folded into the value seam
         OrderSlots,    // standing bonus, folded into the value seam
-        Money          // one-shot reward, paid the moment the level lands
+        Money,         // one-shot reward, paid the moment the level lands
+        Gems           // one-shot reward, paid the moment the level lands — never a standing bonus
     }
 
     /// One thing a level hands out (§9, §14). TargetId names the station type for the per-type kinds; an

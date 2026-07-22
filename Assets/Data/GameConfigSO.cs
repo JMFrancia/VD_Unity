@@ -29,6 +29,16 @@ namespace VoidDay.Data
         [Header("Start block (§5.3)")]
         public List<StartingResource> startingResources = new();
 
+        [Header("Gems")]
+        [Tooltip("Gems the player holds at the start of a run, and returns to on a debug reset.")]
+        public int startingGems = 5;
+
+        [Tooltip("Seconds of remaining wait that one gem buys — the divisor of a timer skip's price.")]
+        public float secondsPerGem = 30f;
+
+        [Tooltip("Floor on a skip's price. A timer that is nearly done still costs this many gems.")]
+        public int minGemCost = 1;
+
         [Header("Economy config (§6, §9)")]
         public OrderConfigSO orderConfig;
         public XpConfigSO xpConfig;

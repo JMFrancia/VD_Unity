@@ -57,6 +57,7 @@ namespace VoidDay.Systems
             var resolver = new ValueResolver(); // one seam instance — M5 gives it teeth for every rule at once
             var pool = new ResourcePool(bus, resolver);
             var wallet = new Wallet(bus);
+            var gems = new GemPurse(bus, config.startingGems);
             var catalog = new RecipeCatalog();
             var jobs = new JobSystem(bus, pool, catalog, resolver);
             var grid = new StationGrid(config.gridCols, config.gridRows);
@@ -81,7 +82,7 @@ namespace VoidDay.Systems
             var levelCurve = ModelProjector.ProjectLevels(config.levels);
             var levelGrants = new LevelGrants();
             resolver.SetGrantSource(levelGrants);
-            var progression = new Progression(bus, resolver, levelCurve, levelGrants, wallet,
+            var progression = new Progression(bus, resolver, levelCurve, levelGrants, wallet, gems,
                 ModelProjector.ProjectLevelGates(config.stationRoster));
 
             var buildSystem = new BuildSystem(bus, grid, jobs, wallet, resolver, stationTypes,
@@ -189,7 +190,7 @@ namespace VoidDay.Systems
 
             // Grid is centered on the world origin; the camera only needs its world-space extents for pan bounds.
             cameraController.Init(Vector3.zero, config.gridCols * config.cellSize, config.gridRows * config.cellSize, bus, roots);
-            producer.Init(bus, jobs, pool, wallet, startingCounts);
+            producer.Init(bus, jobs, pool, wallet, gems, config.startingGems, startingCounts);
             inputRouter.Init(bus, worldCamera);
             worldState.Init(bus, jobs, catalog, upgrades, resourceDisplays, roots, worldCamera);
             stationPanel.Init(bus, jobs, catalog, pool, wallet, upgrades, resourceDisplays, roots, worldCamera);
@@ -211,6 +212,7 @@ namespace VoidDay.Systems
             foreach (var kv in startingCounts)
                 if (kv.Value != 0) pool.Add(kv.Key, kv.Value); // emits resource:changed (views already listening)
             wallet.EmitCurrent();
+            gems.EmitCurrent();
 
             bus.Publish(new DataLoaded());
             bus.Publish(new GameStarted());

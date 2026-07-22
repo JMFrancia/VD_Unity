@@ -18,3 +18,4 @@ MonoBehaviour:
   accentText: {r: 1, g: 1, b: 1, a: 1}
   lockedBg: {r: 0.90588236, g: 0.8784314, b: 0.81960785, a: 1}
   lockedText: {r: 0.7058824, g: 0.68235296, b: 0.62352943, a: 1}
+  gemAccent: {r: 0.13333334, g: 0.827451, b: 0.93333334, a: 1}
