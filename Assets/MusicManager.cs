@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using EditorAttributes;
+using VoidDay.Core.Events;
 
 public class MusicManager : MonoBehaviour
 {
@@ -14,12 +15,28 @@ public class MusicManager : MonoBehaviour
 
     int _songIndex;
     int _currentSongID;
+    EventBus _bus;
 
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
         Initialize();
     }
+
+    /// Injected by GameBoot. Each level-up crossfades to the next track.
+    public void Init(EventBus bus)
+    {
+        _bus = bus;
+        _bus.Subscribe<LevelUp>(OnLevelUp);
+    }
+
+    void OnDestroy()
+    {
+        if (_bus == null) return;
+        _bus.Unsubscribe<LevelUp>(OnLevelUp);
+    }
+
+    void OnLevelUp(LevelUp _) => PlayNextSong();
 
     void Initialize()
     {

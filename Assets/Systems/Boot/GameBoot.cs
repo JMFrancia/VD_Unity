@@ -41,6 +41,7 @@ namespace VoidDay.Systems
         [SerializeField] SfxController sfxController;
         [SerializeField] ToastController toastController;
         [SerializeField] StationFlattenMask stationFlattenMask;
+        [SerializeField] MusicManager musicManager;
 
         [Tooltip("Fixed seed makes a session's orders reproducible; 0 = seed from the clock.")]
         [SerializeField] int orderSeed = 12345;
@@ -198,6 +199,7 @@ namespace VoidDay.Systems
             sfxController.Init(bus);
             toastController.Init(bus);
             stationFlattenMask.Init(bus, roots);
+            musicManager.Init(bus);
 
             foreach (var kv in startingCounts)
                 if (kv.Value != 0) pool.Add(kv.Key, kv.Value); // emits resource:changed (views already listening)
@@ -230,6 +232,7 @@ namespace VoidDay.Systems
             Require(siloPanel, nameof(siloPanel));
             Require(sfxController, nameof(sfxController));
             Require(stationFlattenMask, nameof(stationFlattenMask));
+            Require(musicManager, nameof(musicManager));
         }
 
         static void Require(Object reference, string field)

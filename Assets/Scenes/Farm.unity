@@ -8136,6 +8136,7 @@ MonoBehaviour:
   sfxController: {fileID: 1598480622}
   toastController: {fileID: 1437424169}
   stationFlattenMask: {fileID: 2044472978}
+  musicManager: {fileID: 1598480619}
   orderSeed: 12345
 --- !u!4 &1296405760
 Transform:
