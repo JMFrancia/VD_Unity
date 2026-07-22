@@ -42,6 +42,11 @@ using `fileKey` above and the node id below.
 | `toast.generic` | Sheet — Toasts | `36:2` |
 | `overlay.placementGhost` / `overlay.moveGhost` | Sheet — Overlays | `35:7` |
 | `world.progressBar` / `readyIcon` / `storageFull` / `relationshipHeart` | Sheet — In-world UI | `34:2` |
+| **`hud.gems`** (M1) | Screen — Gameplay HUD (gems) | `69:2` |
+| **`popup.skipConfirm`** (M2) | Screen — popup.skipConfirm | `71:2` |
+| **`panel.orderBoard` — refilling slot w/ skip** (M2) | Screen — panel.orderBoard (skip) | `69:73` |
+| **`world.timerSkip`** (M3) | Sheet — world.timerSkip | `69:126` |
+| **gem element states + open choices** | Sheet — gem elements | `71:88` |
 
 ### Design decision: `panel.station` uses the ALT (Full HayDay)
 
@@ -76,6 +81,32 @@ Consequences:
    expansion materials — deliberately not copied; that is its own economy subsystem, deferred).
 4. Two pools (Hay Day's Silo + Barn) were considered and **deferred** — the Barn slot is already the
    Workshop (R3 #12), and with only wheat + corn there is nothing to split. Revisit when products exist.
+
+### Design decision: the gems currency surfaces (2026-07-22, user-approved)
+
+Mocked before implementation per the standing "Figma before Unity scene surgery" rule. The
+milestone plan in `milestones/Gems-Currency/` hand-authored these directly; that was gated and
+replaced with these frames.
+
+1. **Gems are cyan `#22D3EE`, not the void violet `#8B5CF6`.** Violet is the StyleGuide's single
+   reserved void accent and is already spent on eggs, pets and hearts — a violet gem beside the
+   violet `hud.eggButton` reads as egg-related. Cyan is the sanctioned cool end of the same accent.
+   The rejected violet variant is kept in `Sheet — gem elements` § A.
+2. **The gem glyph is a 4-point polygon, never a text `◆`.** One shape across the pill, the cost
+   chip, the skip button and the in-world radial, so the real icon later drops into one slot.
+3. **`popup.skipConfirm`'s primary button is gem-cyan, not the `popup.genericText` destructive red.**
+   Spending a currency is not a destructive act.
+4. **`popup.skipConfirm` is mocked over a live Order Board.** The board stays rendered behind the
+   dim — this is the visual statement of M2's tier-2 decision that the popup does **not** publish
+   `ExclusiveUiOpened`, making it the project's first non-exclusive surface.
+5. **Copy is "Skip the wait?" + a cost chip**, not the milestone doc's literal `"Skip for ◆2?"`.
+   The cost carries more weight as a chip than inline in the title.
+
+**⚠️ The HUD reflow this forced.** M1 specifies the gem pill at anchor/pivot `(1,1)`,
+`anchoredPosition (-24, -144)` and says "Reflow nothing else." That is not achievable:
+**`hud.eggButton` already occupies y=176–298 on the right edge**, which is exactly that slot. The
+approved resolution moves the egg button **down 116px**, so the right edge stacks
+**money → gems → egg**. Implementations must do the same rather than overlap them.
 
 ---
 
