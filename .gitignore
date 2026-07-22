@@ -63,6 +63,14 @@ Thumbs.db
 # Asset Bot generation output (regenerable pipeline candidates)
 /runs/
 
+# Python bytecode from the tools/ scripts
+__pycache__/
+*.pyc
+
+# Transcript redaction rules: the patterns contain the strings they redact,
+# so committing them would defeat the redaction. Public record: REDACTIONS.md
+/tools/transcript/redactions.json
+
 # Asset Bot tooling — proprietary, not required to build or run the game.
 # Kept on disk locally; never tracked.
 /.claude/skills/pipeline/
