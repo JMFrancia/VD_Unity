@@ -5,8 +5,8 @@
 | Phase | State | Commit | Notes |
 |---|---|---|---|
 | 1 — Shared TimerWidget | ✅ DONE | `c61340a` | TMP essentials imported (LiberationSans SDF). Label is black — white was unreadable on the light ring. `TryGetHeadProgress` gained `secondsRemaining`; both call sites are in `WorldState`. |
-| 2 — Core build timer + construction site | ⬜ TODO | — | |
-| 3 — Completion celebration | ⬜ TODO | — | |
+| 2 — Core build timer + construction site | ✅ DONE | `04044ea` | 8 EditMode tests added (83 pass). `buildSeconds` defaults to 15 on every existing Station SO. |
+| 3 — Completion celebration | ✅ DONE | — | Placeholder `ConfettiBurst.prefab` authored (45-particle one-shot, random festive colors). **Both `StationBuilt` and `StationConstructionStarted` have no clip yet — silent until audio is assigned.** |
 
 ## What It Is
 

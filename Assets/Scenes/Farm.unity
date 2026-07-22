@@ -151,7 +151,7 @@ MonoBehaviour:
   constructionMaterial: {fileID: 2100000, guid: 8d0f81e6dcfb74450ae59a7c0b24d2c2, type: 2}
   timerTemplate: {fileID: 1726711522191711442, guid: 03a749df0a2914820bce5abbe20247fc, type: 3}
   timerHeight: 1.15
-  confettiPrefab: {fileID: 0}
+  confettiPrefab: {fileID: 4399108438539958558, guid: 3917b52fd2da44d799527d1197952fcd, type: 3}
   confettiLifetime: 4
 --- !u!4 &2089665
 Transform:

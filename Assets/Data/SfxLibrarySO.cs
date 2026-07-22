@@ -44,6 +44,7 @@ namespace VoidDay.Data
         // inserting one in the middle would silently reassign every clip below it.
         LevelUp,
         CollectRefused, // tried to collect with a full silo — the "no" beat
+        StationConstructionStarted, // the thunk of a build site going down; StationBuilt is now its completion
     }
 
     /// The one place a clip is assigned to a moment. The controller holds no clip and no volume — everything

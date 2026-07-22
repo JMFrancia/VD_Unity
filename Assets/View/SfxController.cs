@@ -53,6 +53,7 @@ namespace VoidDay.View
 
             // Build & manage
             _bus.Subscribe<StationPickedUp>(OnStationPickedUp);
+            _bus.Subscribe<StationConstructionStarted>(OnConstructionStarted);
             _bus.Subscribe<StationBuilt>(OnStationBuilt);
             _bus.Subscribe<StationMoved>(OnStationMoved);
             _bus.Subscribe<StationDemolished>(OnStationDemolished);
@@ -88,6 +89,7 @@ namespace VoidDay.View
             _bus.Unsubscribe<OrderSlotRefilled>(OnOrderSlotRefilled);
 
             _bus.Unsubscribe<StationPickedUp>(OnStationPickedUp);
+            _bus.Unsubscribe<StationConstructionStarted>(OnConstructionStarted);
             _bus.Unsubscribe<StationBuilt>(OnStationBuilt);
             _bus.Unsubscribe<StationMoved>(OnStationMoved);
             _bus.Unsubscribe<StationDemolished>(OnStationDemolished);
@@ -119,6 +121,10 @@ namespace VoidDay.View
         void OnOrderSlotRefilled(OrderSlotRefilled _) => Play(SfxCue.OrderRefilled);
 
         void OnStationPickedUp(StationPickedUp _) => Play(SfxCue.StationPickedUp);
+        void OnConstructionStarted(StationConstructionStarted _) => Play(SfxCue.StationConstructionStarted);
+
+        /// Fires at COMPLETION now that building takes time — which is exactly when a "done!" sound belongs,
+        /// so this mapping did not have to move.
         void OnStationBuilt(StationBuilt _) => Play(SfxCue.StationBuilt);
         void OnStationMoved(StationMoved _) => Play(SfxCue.StationMoved);
         void OnStationDemolished(StationDemolished _) => Play(SfxCue.StationDemolished);

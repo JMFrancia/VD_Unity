@@ -123,3 +123,13 @@ MonoBehaviour:
     volume: 1
     pitchJitter: 0.05
     minInterval: 0
+  - cue: 22
+    clip: {fileID: 0}
+    volume: 1
+    pitchJitter: 0.05
+    minInterval: 0
+  - cue: 23
+    clip: {fileID: 0}
+    volume: 1
+    pitchJitter: 0.05
+    minInterval: 0
