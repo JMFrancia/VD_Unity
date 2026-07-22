@@ -1,24 +1,12 @@
-# VoidDay Balance Tool — Implementation Plan
+# VoidDay Balance Tool — Spec
 
 > A standalone .NET + browser workbench for tuning the VoidDay economy, simulating a player through it, and
 > letting an agent balance toward a declared goal.
 >
 > **The Unity project does not know this tool exists.** The dependency runs one way only.
-
-## Implementation Status
-<!-- Canonical phase state — implement_phase reads and updates this ledger. -->
-| Phase | State | Commit | Notes |
-|---|---|---|---|
-| 1 — Asset reader (SO → BalanceConfig) | ⬜ TODO | — | |
-| 2 — Asset writer + round trip | ⬜ TODO | — | Round trip closes; tool useful from here |
-| 3 — Simulation engine (headless CLI) | ⬜ TODO | — | The big one |
-| 4 — Server + settings editor UI | ⬜ TODO | — | The browser app appears |
-| 5 — Agent interface (goal, loss, suggest, sweep) | ⬜ TODO | — | |
-| 6 — Multi-seed sweep + report UI | ⬜ TODO | — | |
-| 7 — A/B overlay + docs | ⬜ TODO | — | |
-| 8 — Balancing session workflow + skill | ⬜ TODO | — | The agent-driven loop end to end |
-
----
+>
+> **Milestones:** `milestones/BalanceTool-Spec/` — this doc is the reference; that folder is the schedule.
+> **Decision record:** `docs/decisions/04-balance-tool.md`.
 
 ## Overview
 
@@ -54,7 +42,7 @@ The tool depends on the Unity project in two ways, both read-only from Unity's p
 
 **The cost, stated plainly.** Without a shared `CoreFactory`, the tool's `CoreHarness` mirrors
 `GameBoot.Start()`'s object-graph wiring by hand, and the two can drift. Mitigation is a **staleness canary**
-(Phase 3): a test that hashes `GameBoot.cs` and fails with *"GameBoot.cs changed since CoreHarness was last
+(M3): a test that hashes `GameBoot.cs` and fails with *"GameBoot.cs changed since CoreHarness was last
 reconciled"* when it moves. Silent drift becomes a loud failure, and Unity still knows nothing. Note this
 applies only to the ~40 lines of *wiring* — the rules themselves are compiled directly and cannot drift.
 
@@ -63,12 +51,21 @@ applies only to the ~40 lines of *wiring* — the rules themselves are compiled 
 **In:** everything the shipped Core actually reads — resources, recipes, stations, station/silo upgrade
 tracks, the level curve and its grants, order generation and pricing, XP, storage, build costs and caps.
 
+**In, and in flight: gems** (`plans/gems-currency.md`, unbuilt at time of writing). Gems are a second
+currency whose only sink is finishing a running timer early, which makes them an economy feature, not a
+presentation one — they buy the exact commodity this tool measures. Treated the same way as build timers:
+written into the spec now, built whenever the game gets there. See *Gems and the time economy* below.
+
 **Out:**
-- **Global / universal upgrades (M6).** `Station_Workshop.upgrades` is empty, no asset authors a `Global*`,
-  `OrderPayout`, `OrderSlots` or `BuildCost` effect, and `ValueResolver` falls through to passthrough for
-  `OrderPayout` and `BuildCost`. Nothing to tune, nothing to simulate. The effect-type dropdown offers only
-  the six types with teeth: `StationSpeed`, `StationYield`, `StationCost`, `StationQueueDepth`, `XpGain`,
-  `StorageCap`.
+- **Global / universal upgrades — cut from the game.** The user dropped them deliberately; the game's M6 was
+  not skipped by accident. So `Station_Workshop.upgrades` is `[]`, no asset authors a `Global*`,
+  `OrderPayout`, `OrderSlots` or `BuildCost` effect, and `ValueResolver` passes `OrderPayout` and `BuildCost`
+  through untouched. Nothing to tune, nothing to simulate, and **nothing missing.** The effect-type dropdown
+  offers only the six types with teeth: `StationSpeed`, `StationYield`, `StationCost`, `StationQueueDepth`,
+  `XpGain`, `StorageCap`.
+
+  Consequence for the simulator: `Throughput` pressure's only remedy is a per-station speed tier. That is the
+  design, not a gap — do not report it as a missing remedy.
 - **VoidPets (M9), relationships (M10), world events (M11).** Not implemented in the game.
 - **Offline / multi-session play.** The game has no leave-and-return, so the sim models one continuous
   engaged session. See below.
@@ -141,6 +138,40 @@ than parsing a 16k-line multi-document scene.
 → resource refs; plus `orderConfig`, `xpConfig`, `levels`, `startingResources`. Everything the game reads is
 reachable from the same root `GameBoot` starts from, which is what keeps the config honest.
 
+### Build timers
+
+`StationSO.buildSeconds` (from `plans/build-timers.md`) is part of the economy: a placed station spends that
+long under construction — unusable, but occupying its cell and counting against the cap. It belongs in
+`StationConfig`, and it changes the simulation in two ways beyond being one more number. Both are covered in
+*The Simulation* below: construction delay is simulated, and **a remedy already in flight suppresses
+re-purchase of the same remedy**.
+
+The `GameBoot` parity canary should be hashed once the feature's remaining celebration work commits, since
+that may add another `Init(...)` call.
+
+### Gems
+
+**As built** (gems M01–M02, committed `fe0e83c` / `a4b8ad2` — this section is reconciled against the code,
+not the plan). `GameConfigSO` has a `[Header("Gems")]` block — `startingGems` 5, `secondsPerGem` 30,
+`minGemCost` 1 — and `LevelSO` grants have a `Gems` kind alongside `Money`. Both are read by the same
+traversal from `GameConfig.asset`; no new parsing machinery.
+
+Three reader consequences, each a silent failure if missed:
+
+- **`LevelEntryKind.Gems` is value 6, appended after `Money`** — deliberately, so every serialized `kind:`
+  index in `Levels.asset` stayed valid. Enums are mapped through the real Core types rather than a table, so
+  the reader gets this free. **Never reorder that enum:** it would silently reassign every authored grant in
+  the asset, and the tool would faithfully report the wrong game.
+- **A level pays money *or* gems, never both.** `BootValidator` counts `rewardGrants` (Money + Gems together)
+  and allows at most one, because `LevelUpPopup.BuildReward` renders `rewards[0]` only. A `LevelConfig`
+  carrying both is invalid game data; the writer must refuse it rather than produce an asset the game throws
+  on at boot.
+- **★ The baseline money curve already moved.** Gems M01 could not *add* a gem grant — every level 2–20
+  already carried a Money grant and the widened rule permits one reward — so **level 3's `$150` became
+  `2 gems`.** The curve pays $150 less across a run than any pre-gems analysis assumed. The gems LOG flags
+  this as "a real (small) economy nerf nobody asked for." It is not a bug to fix; it is the first concrete
+  question to point the finished tool at.
+
 ### Enums
 
 Assets store enums as ints (`type: 0`, `kind: 3`, `op: 1`). **Because the tool compiles Core, it maps them
@@ -173,11 +204,13 @@ public sealed class BalanceConfig
     public GlobalConfig Global;           // grid, refundPercent, startingStorageCapacity,
                                           // startingResources, startingStations
     public XpConfig Xp;                   // perJobCollected, perStationBuilt
+    public GemConfig Gems;                // startingGems, secondsPerGem, minGemCost (in-flight)
     public OrderConfig Orders;            // the ten OrderConfigSO fields
     public List<ResourceConfig> Resources;   // id, displayName, baseValue, sellable, tier
     public List<RecipeConfig> Recipes;       // id, stationType, inputs, outputs, duration
     public List<StationConfig> Stations;     // stationType, buildable, buildCost, cap, unlockLevel,
-                                             // queueDepth, w/h, recipeIds, upgradeIds
+                                             // queueDepth, w/h, recipeIds, upgradeIds,
+                                             // buildSeconds (in-flight — see Pending game changes)
     public List<UpgradeConfig> Upgrades;     // id, displayName, unlockLevel, tiers[cost, effects]
     public List<LevelConfig> Levels;         // index 0 == level 1
 }
@@ -202,6 +235,9 @@ public sealed class SimProfile
     public float ReactionLagSeconds;
     public int CashReserve;                // never spend below this
     public RecipePolicy RecipePolicy;      // DemandChain (default) | GreedyValuePerSecond
+    public GemPolicy GemPolicy;            // WorstPressure (default) | Hoard | LongestTimer
+    public int GemReserve;                 // never spend below this — the "saving it for later" player
+    public int MinSkipSeconds;             // don't skip a timer with less remaining (waste floor)
     public int SeedCount;                  // 30
     public int MaxSimulatedHours;          // 40
     public int StallGuardMinutes;          // 45 — no XP for this long ⇒ abort and report
@@ -221,10 +257,22 @@ public sealed class LevelReport
     public double WaitingSeconds;                 // the remainder — watching timers
     public int MoneyAtEntry, MoneyAtExit, MoneyEarned, MoneySpent;
     public int OrdersFulfilled, OrdersSkipped, JobsCollected;
-    public Dictionary<string, double> Pressure;   // category ⇒ seconds lost
+
+    public int GemsAtEntry, GemsAtExit, GemsEarned, GemsSpent;
+    public double SecondsPurchased;               // wall-clock skipped by gems this level
+    public double CompressionShare;               // SecondsPurchased / DurationSeconds
+    public double SecondsPerGemRealised;          // SecondsPurchased / GemsSpent — waste detector
+    public Dictionary<string, double> GemRelief;  // category ⇒ seconds a skip removed
+
+    public Dictionary<string, double> Pressure;   // category ⇒ seconds lost, GROSS (see below)
     public List<PurchaseRecord> Purchases;
 }
 ```
+
+**`Pressure` is gross, `GemRelief` is the offset.** Pressure accrues as though gems did not exist; a skip
+records the seconds it removed in `GemRelief` rather than subtracting them. Net pressure is
+`Pressure − GemRelief` and is derived, never stored. This is the single most important structural decision
+gems force on the tool, and *The Simulation* explains why.
 
 ---
 
@@ -236,9 +284,14 @@ The game has no leave-and-return, so the sim models one uninterrupted engaged pl
 mean **engaged play time**, which is the more useful balancing number anyway.
 
 Stepping: 1s granularity while the player has anything to do; when they don't, **jump the clock to the next
-event** — `min(next job end, next order refill)`. This is exact, not an approximation, because Core stores
+event** — `min(next job end, next construction end, next order refill)`. This is exact, not an approximation, because Core stores
 timers as absolute timestamps (spec §13) and `JobSystem.TryStartHead` only runs on collect/queue/cancel. A
 30-seed run is a few hundred thousand steps; seeds run in parallel via `Parallel.For`.
+
+**Construction end belongs in the jump set** and is easy to omit — the original three-timer list predates
+build timers. Omitting it makes the clock skip past a station coming online, so the sim under-reports every
+config where construction is on the critical path. A gem skip is not a clock event: it is a player action
+taken at a decision point, and it *shortens* an existing timer rather than adding one.
 
 ### The pressure ledger
 
@@ -270,8 +323,79 @@ you cannot, the fix is more output per job (Yield).
 | `OrderRefill` | every slot is empty and refilling while the player holds sellable goods | `refillSeconds` too slow or `slotCount` too low |
 | `Unlock` | every remedy the ledger wants is gated behind a higher `unlockLevel` | the level curve gates progression too hard |
 
+**Gems change this table.** `OrderRefill` and `Throughput` stop being remedy-less — a gem skips a refill or a
+running job outright. They stay listed as above because a gem is not a *structural* remedy and the
+distinction is load-bearing; see the next section.
+
 `Unlock` is the direct read-out for *"what unlocks should happen at which level"* — a level where it dominates
 is one where the player is ready for something the curve won't give them yet.
+
+### Remedies in flight
+
+Because a newly built station spends `buildSeconds` under construction — capped and occupying its cell, but
+producing nothing — **a remedy does not take effect when it is bought.** Pressure keeps accruing throughout
+construction, which is correct: the player really is still stuck.
+
+What is *not* correct is buying the remedy again. Track each purchase as **pending** from the moment it is
+made until it completes, and exclude a pending remedy from the next remedy pick. Without this the agent sees
+Capacity pressure still climbing during construction and buys a second field, then a third, spending the
+level's entire income on stations that were already on the way — and the simulation reports a money crisis
+the real game doesn't have.
+
+This is a behaviour build timers introduced; a pre-timer simulation would not have needed it. It applies to
+every remedy with a completion delay, which today is station construction only.
+
+### Gems and the time economy
+
+Gems buy the exact commodity the ledger measures, so they integrate with it rather than needing a parallel
+mechanism. `secondsPerGem` means **a gem is a fixed quantity of seconds** — directly comparable to a pressure
+number, which is what makes this tractable at all.
+
+**Two classes of remedy.** Every pre-gem remedy is *structural*: permanent, money-bought, sometimes delayed by
+`buildSeconds`, and it lowers future pressure. A gem skip is *consumable*: one-shot, instant, non-renewable,
+and it changes nothing about why the player was stuck. The agent's decision widens from "which remedy" to
+"structural or consumable, then which," and the two are not interchangeable — a config where the player must
+skip constantly to keep moving is badly balanced even if it never stalls.
+
+| | Structural | Consumable |
+|---|---|---|
+| Currency | Money | Gems |
+| Effect | Lowers future pressure permanently | Removes seconds from one live timer |
+| Delay | May be under construction | Immediate |
+| Supply | Renewable — money is earned continuously | Fixed drip: starting purse + level grants only |
+
+**★ Pressure is recorded gross.** A skip does **not** reduce the pressure number for the category it relieved.
+Pressure accrues as though gems did not exist, and the seconds a skip removed are recorded separately in
+`GemRelief`. This is the most important rule in this section, and it is not the obvious implementation.
+
+The reason: gems partially rescue a badly-paced config. If skips silently reduced pressure, a game with
+absurdly long timers would report healthy pressure numbers *because the simulated player bought their way
+out* — and the loss function would approve it. The tool's central diagnostic would be corrupted by the very
+feature it exists to tune. Gross pressure keeps the underlying balance visible; `GemRelief` shows what the
+gem economy is papering over; net is derived when you want it.
+
+**A gem's worth is 1–30 seconds, not 30.** Cost is `max(minGemCost, ceil(remaining / secondsPerGem))`, so
+skipping a timer with 3 seconds left costs a full gem and buys 3 seconds — thirty times worse than skipping
+one at 30. `SecondsPerGemRealised` reports where a profile actually landed in that range. A player near the
+floor is wasting the drip; that is a finding about the *floor*, not about the player.
+
+**Skipping accelerates a remedy in flight.** Construction is skippable, which makes it plausibly the highest-
+value gem use in the game: it converts pressure that is *guaranteed to keep accruing for a known duration*
+into immediate relief. The pending-remedy rule must be read precisely — a pending remedy is excluded from
+**re-purchase**, but *accelerating* it stays available. Conflating the two removes the best gem play in the
+game from the simulation.
+
+**Gems compete with cash at level-up.** A level pays money or gems, never both, so the gem drip is funded out
+of the money curve. Expect `Income` pressure to rise on gem-granting levels; that trade is a real design
+question the tool now answers rather than a modelling artifact.
+
+**Spending policy is player behaviour, not balance.** `GemPolicy`, `GemReserve` and `MinSkipSeconds` live in
+`SimProfile` for the same reason `Optimality` does, and carry the same protection: **read-only to `patch`.**
+Without it an agent lowers the loss by making the simulated player spend gems perfectly — a fresh instance of
+the failure mode QA-18 exists to catch, on a new set of paths.
+
+**The zero-gem control.** With `startingGems: 0` and no gem grants, every result must be *identical* to a
+pre-gem run. That is the regression guard proving the gem code changed the model only where it should.
 
 ### Recipe choice — demand-driven backward chaining
 
@@ -298,8 +422,12 @@ drives four mechanisms at once:
 | Reaction lag | immediate | `ReactionLagSeconds / max(optimality, 0.1)` |
 | Action threshold | acts on any pressure | waits until pressure exceeds `(1 − optimality) × 60s` |
 | Idle waste | none | wastes `(1 − optimality) × 15%` of elapsed time |
+| Gem efficiency | never skips below `MinSkipSeconds` | floor decays toward `minGemCost` — spends gems on nearly-done timers |
 
 Run at 1.0 for the best case, ~0.65 for a plausible average. Same engine, one number, no second code path.
+
+The gem row is the mechanism that makes a sloppy player *waste* the drip rather than merely spend it later,
+which is the realistic failure and the one worth tuning `minGemCost` against.
 
 ### Determinism
 
@@ -343,10 +471,16 @@ Four metric families:
 | `pressure.share` (**`min` and `max`**) | how much of a bottleneck to apply — not just a cap |
 | `pressure.rank` | **which** bottleneck should dominate, and where |
 | `level.moneyAtEntry` / `level.moneyAtExit` | purchases stay real decisions |
+| `gems.compressionShare` (**`min` and `max`**) | how much of the game gems are allowed to buy |
+| `gems.heldAtExit` | whether the drip is hoarded (too stingy to spend) or starved |
 
 `pressure.rank` and `pressure.share`-with-`min` are what let you juggle several bottlenecks and target a
 *texture of play* — "this stretch should feel like capacity pressure, not storage pressure" — rather than
 just a speed. Each target yields a normalized violation × weight; the sum is the loss.
+
+`gems.compressionShare` is two-sided for a reason. Too high and the timers are fake — the player is buying
+the game rather than playing it. Too low and gems are decoration, a currency the player accumulates and never
+meaningfully spends. Both are balance failures and neither is visible from level durations alone.
 
 `balance eval --config X --goal G --json` → `{"loss": 4.71, "breakdown": [...]}`. **This is the single
 highest-leverage affordance**: without one number to minimize, an agent flails across ~200 dimensions.
@@ -373,6 +507,12 @@ Given the dominant pressure at a level, return the parameters causally implicate
 This collapses a 200-knob search into a shortlist of 3–6, and it exists only because the pressure ledger
 already knows *why* the player is stuck.
 
+Gems add a second axis. Where a category shows large `GemRelief`, the shortlist includes the gem knobs —
+`gems.secondsPerGem`, `gems.startingGems`, `gems.minGemCost`, and the level rows granting gems — alongside
+the structural ones. `suggest` must present these as **distinct choices, not alternatives**: raising the gem
+drip hides the bottleneck, fixing the structural knob removes it. An agent handed both without that framing
+will reliably pick the cheaper-looking gem knob and call the problem solved.
+
 ### Guardrails
 
 - `bounds.json` — per-parameter min/max/step. `patch` refuses out-of-bounds values, so an agent can't set a
@@ -380,7 +520,9 @@ already knows *why* the player is stuck.
 - **`SimProfile` paths are read-only to `patch`.** Without this, an agent lowers the loss by raising
   `Optimality` — making the *simulated player* smarter rather than the *game* better. It would report success
   having changed nothing about the game. `bounds.json` covers `BalanceConfig` paths only, and `patch` rejects
-  a `profile/*` path outright. Varying the profile is a deliberate robustness check, run *after* a config is
+  a `profile/*` path outright. **This now covers `profile/gemPolicy`, `profile/gemReserve` and
+  `profile/minSkipSeconds` too** — the rule is the whole `profile/*` namespace, so new behaviour fields are
+  protected by default rather than each needing to be remembered. Varying the profile is a deliberate robustness check, run *after* a config is
   settled, never during optimization.
 - `--apply` required for any Unity write; dry-run prints the change summary.
 - `runs.jsonl` — every eval appends `{configHash, patch, loss, breakdown}`. The agent sees its own
@@ -445,7 +587,7 @@ The agent then presents **highlights in the terminal** for discussion, with `rep
 
 The browser polls the active session directory and re-renders: the loss curve growing, the pressure heatmap
 shifting, per-level times moving. The agent iterates in the terminal, the user watches and interjects. Small
-to build once Phase 6's charts exist, and it is what makes the app part of the workflow rather than a
+to build once M6's charts exist, and it is what makes the app part of the workflow rather than a
 separate destination.
 
 ### Autonomy boundary
@@ -467,148 +609,15 @@ rule an agent either gives up early or grinds forever.
 
 ---
 
-## Implementation Phases
-
-Each phase ends with the implementer pausing, playing the notification sound, presenting exactly what to
-verify, and waiting for confirmation before committing.
-
-### Phase 1 — Asset reader
-
-**Deliverables**
-- `tools/VoidDay.Balance/` csproj (net9.0) globbing `../../Assets/Core/**/*.cs`; YamlDotNet + Newtonsoft.
-- `Unity/GuidIndex.cs`, `Unity/AssetReader.cs` (with the 5-line YAML preprocessor), `Unity/SceneScanner.cs`.
-- `Schema/BalanceConfig.cs` and friends; enum int↔name mapping via the real Core enums.
-- CLI: `balance read --project ../.. --out versions/baseline.json`.
-
-**Verify:** open `baseline.json` beside the inspector. `Recipe_Field_WheatGrow.duration`, `Station_Field.cap`
-/ `buildCost` / `unlockLevel`, `Upgrade_Silo_Cap` tier costs and effect amounts, all 20 level thresholds, the
-ten `OrderConfig` fields — all match. `startingStations` reads 1 Field, 1 Silo, 1 Order Board. Enums are
-strings.
-
-### Phase 2 — Asset writer + round trip
-
-**Deliverables**
-- `Unity/AssetWriter.cs` — surgical line patching; block insertion for new recipes / level rows / upgrade
-  tiers; `.meta` generation for new assets.
-- Change summary (`asset.field: old → new`), dry-run default, `--apply` to write.
-- `balance write --config X --project ../.. [--apply]`.
-- Round-trip test: `read → write --apply → read` produces byte-identical JSON, and the second write reports
-  zero changes.
-
-**Verify:** halve `Recipe_Field_WheatGrow.duration` in the JSON, run `write` without `--apply` and read the
-one-line summary, run with `--apply`, confirm the inspector updates and `git diff` shows exactly one changed
-line. Press Play and watch a wheat job finish in half the time. `git checkout` to revert.
-
-**The round trip is closed here — the tool is genuinely useful even if nothing else ships.**
-
-### Phase 3 — Simulation engine (headless)
-
-**Deliverables**
-- `Sim/CoreHarness.cs` — wires the Core object graph from a `BalanceConfig`, mirroring `GameBoot.Start()`.
-  **`Producible()` must stay a live closure** over `grid.All` × `catalog.ForStationType`, never a boot-time
-  snapshot (M8's log flags this: a snapshot never learns about a runtime-built Henhouse).
-- `Sim/GameBootParityTests.cs` — the staleness canary hashing `GameBoot.cs`.
-- `Sim/SimClock.cs` (1s stepping + exact event jumps), `Sim/PressureLedger.cs` (eight categories),
-  `Sim/RecipeChain.cs` (backward chaining + cycle guard), `Sim/PlayerAgent.cs` (remedies + optimality dial),
-  `Sim/MetricsCollector.cs` (subscribes to the real `EventBus`), `Sim/SimRunner.cs`.
-- CLI: `balance sim --config baseline --profile typical --seed 1`, printing a per-level table.
-
-**Verify:** run against `baseline`. Numbers should be *plausible and explainable* — level 1→2 short, later
-levels longer, and the reported bottleneck per level matching what you'd predict from the config. Run the
-same seed twice for byte-identical output. Run `--optimality 1.0` vs `0.4` and confirm times lengthen
-monotonically.
-
-### Phase 4 — Server + settings editor UI
-
-**Deliverables**
-- Minimal API: `GET/PUT /api/config`, `GET/POST/DELETE /api/versions`, `POST /api/sim`, `POST /api/write`.
-- `wwwroot/` — Preact + htm vendored as ESM, no build step. Tabs: **Global / Resources / Recipes / Stations /
-  Upgrades / Levels / Orders**. Add-row for recipes, level rows and upgrade tiers; resources and station
-  types edit-only.
-- Effect editor restricted to the six types with teeth.
-- Client-side validation mirroring `BootValidator`: thresholds strictly ascending, level 1 has no grants, no
-  duplicate ids, references resolve, `triggerChance` 0–100.
-
-**Verify:** `dotnet run`, open the browser, load `baseline`, edit a duration and a build cost, save as a new
-version, confirm both files on disk and that `baseline.json` is untouched. Push the new version to Unity
-from the UI and confirm the asset changed.
-
-### Phase 5 — Agent interface
-
-**Deliverables**
-- `Agent/Goal.cs` + `GoalEvaluator.cs` — the five metric families including `pressure.rank` and
-  `pressure.share` with `min`/`max`; normalized weighted loss with per-target breakdown.
-- `Agent/Suggest.cs` — the pressure→knob map. `Agent/Sweep.cs` — 1-D sensitivity.
-- `Agent/Patch.cs` + `bounds.json`, **rejecting any `profile/*` path** so the agent cannot lower the loss by
-  improving the simulated player instead of the game.
-- `Agent/Journal.cs` → `runs.jsonl`.
-- CLI verbs `eval`, `patch`, `suggest`, `sweep`, `report`, all with `--json`.
-- `tools/VoidDay.Balance/AGENTS.md`.
-
-**Verify:** write a goal file. Run `eval` and read the loss breakdown. Run `suggest` and confirm the returned
-knobs are the ones you'd have picked by hand for the dominant pressure. Run a `sweep` over
-`stations/field/buildCost` and confirm loss varies sensibly across the range. Then **hand the goal to an
-agent and let it run the loop** — the real test is whether it lowers the loss without absurd values.
-
-### Phase 6 — Multi-seed sweep + report UI
-
-**Deliverables**
-- `Sim/SimSweep.cs` — N seeds in parallel, median / p10 / p90 per metric.
-- Chart.js 4.x vendored into `wwwroot/vendor/`. Five views:
-  1. **Time per level** — median bar + p10–p90 whisker. The headline.
-  2. **Time composition** — acting vs waiting per level.
-  3. **Money** — entry and exit per level, with band.
-  4. **Pressure heatmap** — level × category by seconds lost. *The bottleneck view.*
-  5. **Purchase timeline** — level at which each remedy is first bought.
-- Click any seed to open its individual run.
-
-**Verify:** 30-seed sweep on `baseline`. The p10–p90 band is non-degenerate (seeds genuinely diverge), the
-heatmap highlights a category you can explain from the config, and opening one seed reproduces its Phase 3
-CLI output exactly.
-
-### Phase 7 — A/B overlay + docs
-
-**Deliverables**
-- Baseline/candidate pickers; charts 1 and 3 overlay both; a per-level delta table with direction marked.
-  Both sides run the same seed set, so a difference is a real config effect and not seed noise.
-- `tools/VoidDay.Balance/README.md` — the ledger semantics, the optimality dial, the asset round trip.
-- **Amend `docs/VoidDay-Spec-unity.md` §9**, which currently reads *"the pitch's separate balance tool… is
-  superseded — the Unity inspector is the tuning UI… no separate tool, no write endpoint."* Replace with:
-  the inspector remains the authoring surface and runtime source of truth; an external balance tool reads and
-  writes those assets offline. Docs-only — no code dependency is created, and the agnosticism rule holds.
-
-**Verify:** duplicate `baseline` as `cheap-fields`, halve every station `buildCost`, A/B on the same 30 seeds.
-Earlier levels complete sooner and `Capacity` pressure falls.
-
-### Phase 8 — Balancing session workflow + skill
-
-**Deliverables**
-- `Agent/Session.cs` — session directories, `session start` / `session status` / `session report`.
-- `journal.jsonl` gains a required `rationale` string per iteration; `report.md` is generated from it —
-  goal, starting values, every iteration with its rationale, final loss breakdown, and the exact diff
-  exported to Unity.
-- `.claude/skills/balance_game/SKILL.md` — the four-step workflow: goal interview → patch loop → report →
-  gated export. Encodes the autonomy boundary and the infeasibility stopping rule.
-- Live session view in the browser: polls the active session directory, re-renders the loss curve, pressure
-  heatmap and per-level times as iterations land.
-- Terminal highlights at completion, with `report.md` as the durable record.
-
-**Verify:** run `/balance_game` end to end. Give it a goal in conversation, confirm `goal.json` matches what
-you agreed, watch the browser update as it iterates, confirm it stops and asks before writing to Unity,
-read `report.md` and check every claim against `journal.jsonl`. Then run the same commands by hand and
-confirm you get the same numbers the agent reported.
-
----
-
 ## Systems Affected
 
 **No file under `Assets/` is modified by this feature.** That is the agnosticism rule, and it is checkable:
-after Phase 6, `git status` on `Assets/` should be clean except for assets the tool deliberately wrote.
+at any point, `git status` on `Assets/` should be clean except for assets the tool deliberately wrote.
 
 | Path | Change |
 |---|---|
 | `tools/VoidDay.Balance/**` | **New** — the entire tool |
-| `.claude/skills/balance_game/**` | **New** — the workflow skill (Phase 8) |
+| `.claude/skills/balance_game/**` | **New** — the workflow skill (M8) |
 | `docs/VoidDay-Spec-unity.md` §9 | Amended (docs only; §9 currently forbids this tool) |
 | `.gitignore` | Add `tools/VoidDay.Balance/{bin,obj}/`; keep `versions/` and `sessions/` tracked |
 
@@ -625,6 +634,9 @@ Tunables introduced by the tool (all in `SimProfile`; none in game code):
 | `ReactionLagSeconds` | 2.0 |
 | `CashReserve` | 0 |
 | `RecipePolicy` | `DemandChain` |
+| `GemPolicy` | `WorstPressure` |
+| `GemReserve` | 0 |
+| `MinSkipSeconds` | 30 (= `secondsPerGem`; below this a gem buys less than it's worth) |
 | `SeedCount` | 30 |
 | `MaxSimulatedHours` | 40 |
 | `StallGuardMinutes` | 45 |
@@ -638,7 +650,7 @@ No new tunables enter the game. Every economy number the tool edits already live
 CLAUDE.md suspends testing **except** the pure-C# economy core — which is what this feature touches, so the
 exception applies.
 
-| Test | Phase | Guards |
+| Test | Milestone | Guards |
 |---|---|---|
 | `ReaderMatchesKnownAssets` | 1 | Parsed values match hand-checked asset content |
 | `EnumMappingIsSymmetric` | 1 | int↔name round-trips for every Core enum |
@@ -652,6 +664,10 @@ exception applies.
 | `OptimalityMonotonicity` | 3 | Lower dial ⇒ never-faster levels |
 | `GoalLossIsMonotonic` | 5 | Moving a metric toward its target never raises loss |
 | `PatchRejectsOutOfBounds` | 5 | An agent can't write a negative duration |
+| `ZeroGemsMatchesPreGemBaseline` | 3 | `startingGems: 0` + no grants ⇒ results identical to a pre-gem run |
+| `PressureIsGrossOfGemRelief` | 3 | A skip records `GemRelief` and never reduces `Pressure` |
+| `SkipCostMatchesCoreRule` | 3 | Sim pricing calls the real `TimeSkip.CostFor`, not a copy of the formula |
+| `PatchRejectsGemPolicyPaths` | 5 | The `profile/*` rule covers the new behaviour fields |
 
 Everything else is verified by using the tool.
 
@@ -681,19 +697,30 @@ Everything else is verified by using the tool.
    audit of SO fields vs `BalanceConfig` is the honest backstop.
 7. **Open — should `versions/*.json` be git-tracked?** Planned yes, so balance history is reviewable. Move to
    ignored with an explicit "promote to baseline" if they churn noisily.
+8. **★ Gems can hide bad balance from the loss function.** The sharpest new failure mode: a config with badly
+   long timers is partially rescued by the simulated player skipping, so pacing targets pass while the game
+   underneath is unbalanced. Mitigated structurally — pressure is recorded gross and `GemRelief` is reported
+   separately — and by goals pinning `gems.compressionShare` alongside durations. The mitigation only works if
+   nobody "simplifies" the ledger later by netting relief off at accrual time.
+9. **Gem tuning is circular by nature.** `plans/gems-currency.md` states its numbers (5 / 30s / floor 1) are
+   guesses to retune once the feature is playable — and this tool is the instrument for retuning them. So the
+   tool must model gems before it can tune them, which means the gem model is written against unbuilt code and
+   should be re-verified against the shipped `TimeSkip` rather than trusted. `SkipCostMatchesCoreRule` exists
+   to make that concrete: call the real rule, never a copy of the formula.
 
 ---
 
-## Manual QA Test Cases
+## Acceptance Tests
 
-Run after Phase 7. Each states what to do, what to expect, and what it proves.
+The acceptance bar for the finished tool. Each milestone doc cites the cases it must satisfy;
+the full set is run at the end of Milestone 07. Each case states what to do, what to expect, and what it proves.
 
 ### QA-1 — Read fidelity
 **Do:** `balance read`. Open `baseline.json` beside the inspector.
 **Expect:** `Recipe_Field_WheatGrow.duration`, `Station_Field.cap`/`buildCost`/`unlockLevel`,
 `Upgrade_Silo_Cap` tier costs and effect amounts, all 20 level thresholds, and `OrderConfig`'s ten fields all
 match. `startingStations` reads 1 Field / 1 Silo / 1 Order Board. Enums are strings.
-**Tests:** the reader sees every field the game reads (Phase 1).
+**Tests:** the reader sees every field the game reads (M1).
 
 ### QA-2 — Round trip is lossless and minimal
 **Do:** `read`, `write --apply` with no edits, `read` again. Diff the two JSONs and run `git diff`.
@@ -794,9 +821,70 @@ inputs and run.
 `Income` dominant. The second errors loudly naming the cycle. Neither hangs.
 **Tests:** the stall guard and the cycle guard — a balance tool must survive bad balance.
 
+### QA-18 — The agent cannot cheat by improving the player
+**Do:** Instruct the agent to lower the loss by any means. Watch what it patches. Also try
+`balance patch --path profile/optimality --value 1.0` by hand.
+**Expect:** the hand patch is rejected naming the read-only rule; the agent's journal contains no
+`profile/*` path; loss only falls through `BalanceConfig` changes.
+**Tests:** the sharpest reward-hacking failure mode — an agent reporting success having changed nothing
+about the game.
+
+### QA-19 — The report is true, not narrated
+**Do:** Run a long session (25+ iterations, enough to compact context). Generate `report.md`. Pick five
+specific claims and trace each to a `journal.jsonl` line.
+**Expect:** every claim — values, losses, rationales, ordering — matches the journal exactly. No iteration
+is invented, merged or omitted.
+**Tests:** that the report is generated from durable data rather than reconstructed from a compacted
+context, which is the entire reason sessions exist.
+
+### QA-20 — The workflow runs end to end
+**Do:** `/balance_game`. Agree a goal in conversation. Let it iterate while watching the browser. Answer a
+question it asks. When it proposes export, **decline once**, then approve.
+**Expect:** `goal.json` matches what you agreed; the browser updates live as iterations land; declining
+leaves `Assets/` untouched (`git diff` empty); approving shows the full change summary before writing; the
+terminal highlights match `report.md`.
+**Tests:** all four of your workflow steps, the autonomy boundary, and that "no" is honoured.
+
+### QA-21 — Infeasibility is argued, not asserted
+**Do:** Write a deliberately impossible goal (every level under 30 seconds *and* money at level 10 above
+50,000). Run the workflow.
+**Expect:** the agent stops in reasonable time, declares the goal unreachable, and presents sweep data across
+the implicated knobs as evidence — rather than grinding indefinitely or giving up after two iterations.
+**Tests:** the stopping rule, which is what keeps "or until confident goals are not achievable" honest.
+
 ---
 
-## Implementation Complete — QA Checklist
+### QA-22 — Gems are inert when switched off
+**Do:** Run `baseline` with `gems.startingGems: 0` and every `Gems` level grant removed. Compare against a
+run made before the gem model existed (or against a build with the gem code stubbed out).
+**Expect:** every number identical — level times, pressure, money, purchase timeline.
+**Tests:** the regression control. Proves the gem model changed the simulation only where gems are actually
+in play, and is the reference every other gem case is measured against.
 
-**IMPORTANT: When implementation is finished, the implementer MUST display the Manual QA Test Cases section
-above to the user as a checklist for verification. Do not skip this step.**
+### QA-23 — Pressure stays gross, relief is reported separately
+**Do:** Force a `Throughput` bottleneck (long recipe durations), run once with 0 gems and once with 50.
+**Expect:** `Throughput` pressure is **the same in both runs**. The 50-gem run differs only in `GemRelief`,
+`SecondsPurchased` and level duration.
+**Tests:** the load-bearing rule of the gem model. If pressure drops in the gem run, relief is being netted
+off at accrual time and the tool's central diagnostic is compromised.
+
+### QA-24 — The waste gradient is visible
+**Do:** Same config and seed at optimality 1.0 and 0.3, with gems available.
+**Expect:** at 1.0 `SecondsPerGemRealised` sits near `secondsPerGem`; at 0.3 it falls sharply toward
+`minGemCost` as the sloppy player skips nearly-finished timers. Total gems spent may be similar — the
+*seconds bought per gem* is what separates them.
+**Tests:** the optimality dial's gem row, and that `minGemCost` has a measurable cost to a real player.
+
+### QA-25 — Gems accelerate a remedy without re-buying it
+**Do:** Force `Capacity` pressure with a long `buildSeconds`, give the player gems, run.
+**Expect:** the purchase timeline shows **one** station bought, then a construction skip — not two stations.
+Pressure stops accruing at the skip, not at the purchase.
+**Tests:** the pending-remedy rule read correctly — excluded from re-purchase, still available to accelerate.
+The most valuable gem play in the game, and the easiest to accidentally exclude.
+
+### QA-26 — The agent cannot cheat via gem policy
+**Do:** `balance patch --path profile/gemPolicy --value LongestTimer`, and again with
+`--path profile/minSkipSeconds --value 1`.
+**Expect:** both rejected naming the read-only rule, exactly as `profile/optimality` is.
+**Tests:** that the guardrail is a namespace rule rather than a list of remembered field names — QA-18's
+failure mode on new paths.
