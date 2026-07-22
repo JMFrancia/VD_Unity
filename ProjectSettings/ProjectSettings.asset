@@ -12,8 +12,8 @@ PlayerSettings:
   targetDevice: 2
   useOnDemandResources: 0
   accelerometerFrequency: 60
-  companyName: DefaultCompany
-  productName: VD_Unity
+  companyName: Talvi
+  productName: VoidDay
   defaultCursor: {fileID: 0}
   cursorHotspot: {x: 0, y: 0}
   m_SplashScreenBackgroundColor: {r: 0.13725491, g: 0.12156863, b: 0.1254902, a: 1}
@@ -44,8 +44,8 @@ PlayerSettings:
   m_HolographicTrackingLossScreen: {fileID: 0}
   defaultScreenWidth: 1024
   defaultScreenHeight: 768
-  defaultScreenWidthWeb: 960
-  defaultScreenHeightWeb: 600
+  defaultScreenWidthWeb: 540
+  defaultScreenHeightWeb: 960
   m_StereoRenderingPath: 0
   m_ActiveColorSpace: 1
   unsupportedMSAAFallback: 0
@@ -812,9 +812,9 @@ PlayerSettings:
   webGLWasmArithmeticExceptions: 0
   webGLLinkerTarget: 1
   webGLThreadsSupport: 0
-  webGLDecompressionFallback: 0
-  webGLInitialMemorySize: 32
-  webGLMaximumMemorySize: 2048
+  webGLDecompressionFallback: 1
+  webGLInitialMemorySize: 256
+  webGLMaximumMemorySize: 512
   webGLMemoryGrowthMode: 2
   webGLMemoryLinearGrowthStep: 16
   webGLMemoryGeometricGrowthStep: 0.2
@@ -826,25 +826,25 @@ PlayerSettings:
   webWasm2023: 0
   webEnableSubmoduleStrippingCompatibility: 0
   scriptingDefineSymbols:
-    Android: UNITY_MCP_READY
-    EmbeddedLinux: UNITY_MCP_READY
-    GameCoreScarlett: UNITY_MCP_READY
-    GameCoreXboxOne: UNITY_MCP_READY
-    Kepler: UNITY_MCP_READY
-    LinuxHeadlessSimulation: UNITY_MCP_READY
-    Nintendo Switch: UNITY_MCP_READY
-    Nintendo Switch 2: UNITY_MCP_READY
-    PS4: UNITY_MCP_READY
-    PS5: UNITY_MCP_READY
-    QNX: UNITY_MCP_READY
+    Android: UNITY_MCP_READY;DOTWEEN
+    EmbeddedLinux: UNITY_MCP_READY;DOTWEEN
+    GameCoreScarlett: UNITY_MCP_READY;DOTWEEN
+    GameCoreXboxOne: UNITY_MCP_READY;DOTWEEN
+    Kepler: UNITY_MCP_READY;DOTWEEN
+    LinuxHeadlessSimulation: UNITY_MCP_READY;DOTWEEN
+    Nintendo Switch: UNITY_MCP_READY;DOTWEEN
+    Nintendo Switch 2: UNITY_MCP_READY;DOTWEEN
+    PS4: UNITY_MCP_READY;DOTWEEN
+    PS5: UNITY_MCP_READY;DOTWEEN
+    QNX: UNITY_MCP_READY;DOTWEEN
     Server: UNITY_MCP_READY
-    Standalone: UNITY_MCP_READY
-    VisionOS: UNITY_MCP_READY
-    WebGL: UNITY_MCP_READY
-    Windows Store Apps: UNITY_MCP_READY
-    XboxOne: UNITY_MCP_READY
-    iPhone: UNITY_MCP_READY
-    tvOS: UNITY_MCP_READY
+    Standalone: UNITY_MCP_READY;DOTWEEN
+    VisionOS: UNITY_MCP_READY;DOTWEEN
+    WebGL: UNITY_MCP_READY;DOTWEEN
+    Windows Store Apps: UNITY_MCP_READY;DOTWEEN
+    XboxOne: UNITY_MCP_READY;DOTWEEN
+    iPhone: UNITY_MCP_READY;DOTWEEN
+    tvOS: UNITY_MCP_READY;DOTWEEN
   additionalCompilerArguments: {}
   platformArchitecture: {}
   scriptingBackend:
