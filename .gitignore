@@ -62,3 +62,21 @@ Thumbs.db
 
 # Asset Bot generation output (regenerable pipeline candidates)
 /runs/
+
+# Asset Bot tooling — proprietary, not required to build or run the game.
+# Kept on disk locally; never tracked.
+/.claude/skills/pipeline/
+/.claude/skills/generate-image/
+/.claude/skills/generate-pixel-art/
+/.claude/skills/generate-3d/
+/.claude/skills/generate-from-template/
+/.claude/skills/generate-audio/
+/.claude/skills/generate-multiview/
+/.claude/skills/generate-scene/
+/.claude/skills/manage-assets/
+/.claude/skills/ui-kit/
+/.claude/skills/marketing-art/
+/.claude/skills/rig-animate/
+/.claude/skills/sync-assets/
+/.claude/hooks/asset-preview-gate.sh
+/references/CLI-REFERENCE.md
