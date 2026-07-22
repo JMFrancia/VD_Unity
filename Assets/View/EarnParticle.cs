@@ -72,6 +72,11 @@ namespace VoidDay.View
         /// Camera.main compiles and silently produces wrong coordinates.
         Vector2 TargetLocal()
         {
+            // A destination can legitimately be torn down mid-flight: a reset drops the transient resource
+            // pills while their icons are still in the air. Freeze in place rather than throw — the particle
+            // still credits its chunk on destroy, which is what keeps the counters exact.
+            if (_target == null) return _rect.anchoredPosition;
+
             Vector2 screen = RectTransformUtility.WorldToScreenPoint(null, _target.position);
             RectTransformUtility.ScreenPointToLocalPointInRectangle(_parent, screen, null, out var local);
             return local;

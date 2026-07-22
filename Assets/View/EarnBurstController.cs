@@ -5,6 +5,7 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using VoidDay.Core.Events;
 using VoidDay.Core.Rules;
+using VoidDay.Data;
 
 namespace VoidDay.View
 {
@@ -52,10 +53,18 @@ namespace VoidDay.View
         [Tooltip("The level badge on HudCanvas. Read live every tick, not baked at launch.")]
         [SerializeField] RectTransform xpTarget;
 
+        [Header("Resources")]
+        [Tooltip("The transient pill rail on HudCanvas. Used ONLY for its read-only RectFor query — this is " +
+                 "an inspector-wired MonoBehaviour reference, not an Init-injected service.")]
+        [SerializeField] ResourcePillRail resourcePillRail;
+
         EventBus _bus;
         RectTransform _fxRect;
         IReadOnlyDictionary<string, Transform> _stationRoots;
         Camera _worldCamera;
+
+        /// Resource icons, by id. The controller has no other use for the catalog.
+        readonly Dictionary<string, ResourceSO> _resourcesById = new();
 
         readonly List<PendingBurst> _bursts = new();
 
@@ -92,11 +101,13 @@ namespace VoidDay.View
             }
         }
 
-        public void Init(EventBus bus, IReadOnlyDictionary<string, Transform> stationRoots, Camera worldCamera)
+        public void Init(EventBus bus, IReadOnlyDictionary<string, Transform> stationRoots, Camera worldCamera,
+            IReadOnlyList<ResourceSO> resources)
         {
             _bus = bus;
             _stationRoots = stationRoots;
             _worldCamera = worldCamera;
+            foreach (var r in resources) _resourcesById[r.id] = r;
             _fxRect = (RectTransform)transform;
             _bus.Subscribe<OrderFulfilled>(OnOrderFulfilled);
             _bus.Subscribe<JobCollected>(OnJobCollected);
@@ -122,9 +133,23 @@ namespace VoidDay.View
             _bursts.Add(new PendingBurst(EarnKind.Money, null, e.Payout, SourceOrder));
         }
 
-        /// Origin only — collecting a job throws no resources yet (M3 owns that). The station is where the
-        /// XP that ProgressionSystem grants for this collect must launch from.
-        void OnJobCollected(JobCollected e) => Enqueue(SourceJob, StationScreenLocal(e.StationId));
+        /// The job's yield, one burst per output, plus the origin for the XP that ProgressionSystem is about
+        /// to grant for the same collect.
+        ///
+        /// Every burst enqueues its OWN origin — a resource burst may not share the one recorded for the XP
+        /// burst. Both launch from the same station, but OriginFor dequeues exactly one entry per burst, so
+        /// sharing would leave a later burst staring at an empty queue.
+        void OnJobCollected(JobCollected e)
+        {
+            var origin = StationScreenLocal(e.StationId);
+            Enqueue(SourceJob, origin); // for the XP burst OnXpGained is about to record
+
+            foreach (var output in e.Outputs)
+            {
+                Enqueue(SourceJob, origin);
+                _bursts.Add(new PendingBurst(EarnKind.Resource, output.ResourceId, output.Amount, SourceJob));
+            }
+        }
 
         /// Origin only — finishing a build throws nothing of its own. Its XP grant launches from the new
         /// station.
@@ -227,6 +252,7 @@ namespace VoidDay.View
         {
             EarnKind.Money => coinSprite,
             EarnKind.Xp => starSprite,
+            EarnKind.Resource => ResourceFor(burst.ResourceId).icon,
             _ => throw new System.InvalidOperationException(
                 $"EarnBurstController: no icon wired for burst kind '{burst.Kind}'"),
         };
@@ -235,9 +261,18 @@ namespace VoidDay.View
         {
             EarnKind.Money => moneyTarget,
             EarnKind.Xp => xpTarget,
+            EarnKind.Resource => resourcePillRail.RectFor(burst.ResourceId),
             _ => throw new System.InvalidOperationException(
                 $"EarnBurstController: no target wired for burst kind '{burst.Kind}'"),
         };
+
+        ResourceSO ResourceFor(string resourceId)
+        {
+            if (!_resourcesById.TryGetValue(resourceId, out var resource))
+                throw new System.InvalidOperationException(
+                    $"EarnBurstController: no ResourceSO for id '{resourceId}'");
+            return resource;
+        }
 
         /// InputRouter ignores presses that start over UI, so it cannot supply this origin — an order is
         /// filled by tapping a button. Read the pointer directly. Overlay canvas, so the camera is null.

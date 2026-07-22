@@ -39,6 +39,7 @@ namespace VoidDay.Systems
         [SerializeField] PlacementController placementController;
         [SerializeField] Hud hud;
         [SerializeField] EarnBurstController earnBurstController;
+        [SerializeField] ResourcePillRail resourcePillRail;
         [SerializeField] LevelXpHud levelXpHud;
         [SerializeField] LevelUpPopup levelUpPopup;
         [SerializeField] SkipConfirmPopup skipConfirmPopup;
@@ -215,7 +216,8 @@ namespace VoidDay.Systems
             buildMenu.Init(bus, buildSystem, wallet, () => progression.PlayerLevel, config.stationRoster);
             placementController.Init(bus, grid, projection, worldCamera, config.stationRoster);
             hud.Init(bus, pool, progression, resourceList);
-            earnBurstController.Init(bus, roots, worldCamera);
+            resourcePillRail.Init(bus, pool, resourceList);
+            earnBurstController.Init(bus, roots, worldCamera, resourceList);
             levelXpHud.Init(bus, progression);
             levelUpPopup.Init(bus, config.stationRoster);
             skipConfirmPopup.Init(bus, timeSkip, gems);
@@ -254,6 +256,7 @@ namespace VoidDay.Systems
             Require(placementController, nameof(placementController));
             Require(hud, nameof(hud));
             Require(earnBurstController, nameof(earnBurstController));
+            Require(resourcePillRail, nameof(resourcePillRail));
             Require(levelXpHud, nameof(levelXpHud));
             Require(levelUpPopup, nameof(levelUpPopup));
             Require(skipConfirmPopup, nameof(skipConfirmPopup));

@@ -369,3 +369,89 @@ counter climbs one coin at a time instead of jumping.
 - **Do not publish a synthetic `StationBuilt` for an id Core never placed** — `WorldState.Reconcile` then
   throws `No station registered with id …` every frame until playmode is exited. Probe artefact, not a
   defect, but it will flood the console.
+
+---
+
+## Milestone 03 — Resource Pill Rail
+**Status:** ✅ Complete · **Date:** 2026-07-22
+
+**Built:** The headline case. Collecting a job now throws that resource's icon from the station into a pill
+that slides out **from behind** the money pill, ticks its count up one arrival at a time, pulses its icon on
+each, then slides back behind the money pill and disappears.
+
+- `View/ResourcePill.cs` — `Bind(Sprite, int)` / `SetCount(int)` / `Pulse()`. The pop lands on the **icon
+  child** (this destination, unlike the money pill, actually has one). Serialized `countFormat`,
+  `pulseScale` 1.18, `pulseSeconds` 0.18, `pulseEase`.
+- `View/ResourcePillRail.cs` — on `HudCanvas`, **sibling index 0** (UGUI draws later siblings on top, so
+  index 0 is *behind* `MoneyPill`). `Init(bus, pool, resources)`; four named subscriptions
+  (`EarnBurstLaunched` / `EarnParticleArrived` / `ResourceChanged` / `GameReset`), all torn down in
+  `OnDestroy`. Draws `pool.Get(id) - pending[id]` — the same subtract-pending pattern as `Hud` and
+  `LevelXpHud`. `public RectTransform RectFor(string)` is the controller's read-only aiming query and
+  **throws** when no pill is out. No `VerticalLayoutGroup` — the rail owns its own slot arithmetic.
+  Serialized: `slotX` −24, `firstSlotOffset` −264, `slotPitch` 120, `slideSeconds` 0.28, `slideEase`
+  `OutBack`, `hiddenScale` 0.85, `dwellSeconds` 1.4.
+- `Prefabs/UI/ResourcePill.prefab` — duplicated from the authored `HudCanvas/GemPill` so the chrome matches
+  by construction (240×96, `rounded_24` Sliced, same type styling): `Icon` (was `Glyph`, 40×40 at x 52,
+  `preserveAspect`) + `Amount` (MiddleLeft) + a `CanvasGroup`. `raycastTarget` off on all three.
+- `View/EarnBurstController.cs` — the resource path. `Init` widened to take `IReadOnlyList<ResourceSO>`;
+  `OnJobCollected` now records **one burst per `e.Outputs` entry**, each enqueuing its **own** `"job"` origin
+  beside the one the XP burst uses. `IconFor` / `TargetFor` gained `EarnKind.Resource` arms. The rail is an
+  inspector-wired `[SerializeField]`, deliberately **not** passed through `Init`.
+- `Systems/Boot/GameBoot.cs` — serialized `resourcePillRail`, added to `RequireWired()`, `Init(bus, pool,
+  resourceList)` immediately before the widened `earnBurstController.Init(bus, roots, worldCamera,
+  resourceList)`.
+- `docs/assets/03-vfx.md` — the `vfx.collectPop` row now points at this feature instead of inviting a
+  separate VFX for the same beat.
+
+**Deviations from the plan:** three, all additive.
+
+1. **`Revive()`.** The plan covers reusing a pill that is *out*; it says nothing about one that is already
+   sliding away. Without this, a second collect of the same resource during the retract stacks a duplicate
+   pill behind the one leaving. `Revive` kills the retract tweens (which cancels the destroy in the fade's
+   `OnComplete`) and pulls the pill back to its slot. **Later work inherits "one pill per resource, always."**
+2. **A `_target == null` guard in `EarnParticle.TargetLocal()`** (an M01 file, outside this milestone's
+   listed surface). `GameReset` drops pills while their icons are still in the air; without the guard the
+   flight tween throws `MissingReferenceException` every tick. The particle now freezes in place and still
+   credits its chunk on destroy, so counters stay exact. This is a legitimate state, not an impossible one.
+3. **No SFX clip was auditioned** — `SfxCue.EarnParticleResource` already existed clipless from M01 and
+   `SfxLibrary.asset` is untouched by this milestone. `SfxCue.JobCollected` stays subscribed per M01's
+   keep-both decision, so a collect fires the umbrella cue *and* (once a clip lands) one cue per arrival.
+
+**Tech debt:**
+- **The subtract-pending third-occurrence refactor was deliberately SKIPPED.** It now appears on `Hud`
+  (int, money), `LevelXpHud` (int over a float bar) and `ResourcePillRail` (int per id, in a slot object).
+  They are similar but not identical, and refactoring three shipped views was not worth the risk under the
+  run's time budget. Revisit only if a fourth destination lands.
+- **`SfxCue.EarnParticleResource` is still clipless** — silent by design, one clip drop from done.
+- **Every feel number here is an unverified guess**, shipped per the run decision: `slideSeconds` 0.28,
+  `slideEase` `OutBack`, `hiddenScale` 0.85, `dwellSeconds` 1.4, `pulseScale` 1.18, `pulseSeconds` 0.18.
+  All are inspector-exposed on `HudCanvas/ResourcePillRail` and on the `ResourcePill` prefab.
+- **The multi-output case was exercised with a synthetic two-output `JobCollected`, not a real recipe.** No
+  authored recipe has more than one output; rather than editing and reverting `Recipe_Field_WheatGrow`, the
+  event was published directly after adding to the pool — the exact sequence `Producer` performs. Two pills
+  stacked and both reconciled.
+
+**Assumptions:**
+- **A real finger tap was never tested** (pointer injection is unavailable) — same as M01/M02. Every collect
+  was driven by publishing `JobCollected` on the bus after adding to the pool.
+- **The reset-mid-flight path is verified by construction only.** `DebugResetRequested` was published, ran
+  clean, and dropped everything — but the burst had already landed by the time the round-trip completed, so
+  the `_target == null` guard itself never fired under test.
+- **`Revive()` was not exercised in play.** If it is wrong, the symptom is a duplicate pill for one resource.
+
+**Gotchas for later milestones:**
+- **`HudCanvas` child order is now `ResourcePillRail`(0), `MoneyPill`(1), `GemPill`(2), `DebugButton`(3),
+  `TotalsPopup`(4), `DebugMenu`(5), `BuildMenuButton`(6), `BuildTray`(7), `LevelXpPill`(8), `ToastStack`(9),
+  `SkipConfirmPopup`(10).** Anything that must render *behind* the money pill goes at index 0 and pushes the
+  rail down; anything that must render on top goes at the end.
+- **The right-edge column is now money (−24) → gems (−144) → resource pills (−264, −384, …).** When
+  `hud.eggButton` lands, `firstSlotOffset` is a **field edit on `HudCanvas/ResourcePillRail`**, not a code
+  change.
+- **The rail rect is a full-stretch, non-drawing `RectTransform`** with no `Image` and no raycaster, so pill
+  `anchoredPosition`s read exactly like `MoneyPill`'s. Do not give it a layout group.
+- **`RectFor` throws when no pill is out.** It works only because the rail's `EarnBurstLaunched` handler
+  creates the pill during the same `Publish` call that precedes `StartCoroutine(SpawnBurst)` in the
+  controller's `LateUpdate`. If anything ever defers pill creation by a frame, that contract breaks loudly.
+- **Verification recipe that worked here:** set `Time.timeScale = 0.1f` in the trigger call, then read state
+  in the next `script-execute`. One MCP round-trip (~2 s wall clock) then lands reliably mid-flight instead
+  of long after everything has settled. Playmode was **not** frozen this run either.
