@@ -25,4 +25,5 @@ MonoBehaviour:
   queueDepth: 3
   recipes:
   - {fileID: 11400000, guid: 1a36825e488b4491a80b89062d234d18, type: 2}
-  upgrades: []
+  upgrades:
+  - {fileID: 11400000, guid: bf42165dccd8c45f18641452cbe701a4, type: 2}

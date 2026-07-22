@@ -31,7 +31,7 @@ namespace VoidDay.Systems
 
             _bus.Subscribe<StationTapped>(OnStationTapped);
             _bus.Subscribe<JobQueueRequested>(OnJobQueueRequested);
-            _bus.Subscribe<JobCancelRequested>(OnJobCancelRequested);
+            _bus.Subscribe<QueueSlotTapped>(OnQueueSlotTapped);
             _bus.Subscribe<DebugAddResourceRequested>(OnDebugAddResource);
             _bus.Subscribe<DebugResetRequested>(OnDebugReset);
         }
@@ -41,7 +41,7 @@ namespace VoidDay.Systems
             if (_bus == null) return;
             _bus.Unsubscribe<StationTapped>(OnStationTapped);
             _bus.Unsubscribe<JobQueueRequested>(OnJobQueueRequested);
-            _bus.Unsubscribe<JobCancelRequested>(OnJobCancelRequested);
+            _bus.Unsubscribe<QueueSlotTapped>(OnQueueSlotTapped);
             _bus.Unsubscribe<DebugAddResourceRequested>(OnDebugAddResource);
             _bus.Unsubscribe<DebugResetRequested>(OnDebugReset);
         }
@@ -63,8 +63,29 @@ namespace VoidDay.Systems
         void OnJobQueueRequested(JobQueueRequested e) =>
             _jobs.QueueJob(e.StationId, e.RecipeId, Time.timeAsDouble);
 
-        void OnJobCancelRequested(JobCancelRequested e) =>
-            _jobs.CancelJob(e.StationId, e.JobIndex, Time.timeAsDouble);
+        /// The second tap-resolution branch (§4.5), by the same predicate as the station tap: a tap on the
+        /// READY head collects it, any other slot cancels its job. Only the head can ever be collectable, so
+        /// the slot-0 test and IsCollectionPossible agree by construction — but both are asserted rather than
+        /// assumed, because "collect" and "destroy the output for no refund" are one index apart.
+        void OnQueueSlotTapped(QueueSlotTapped e)
+        {
+            if (e.SlotIndex == 0 && _jobs.IsCollectionPossible(e.StationId))
+            {
+                _jobs.Collect(e.StationId, Time.timeAsDouble, byPet: false);
+                return;
+            }
+
+            // A finished head with nowhere to put its output is REFUSED, never cancelled. The player asked to
+            // collect; binning the output for no refund (§4.4) is the opposite of what they meant, and the two
+            // are one predicate apart. Announce the refusal and let the toast/flash/sound answer it.
+            if (e.SlotIndex == 0 && _jobs.IsStorageBlocked(e.StationId))
+            {
+                _bus.Publish(new CollectRefused(e.StationId, "storage-full"));
+                return;
+            }
+
+            _jobs.CancelJob(e.StationId, e.SlotIndex, Time.timeAsDouble);
+        }
 
         void OnDebugAddResource(DebugAddResourceRequested e) =>
             _pool.Add(e.ResourceId, e.Amount);

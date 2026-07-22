@@ -26,4 +26,5 @@ MonoBehaviour:
   recipes:
   - {fileID: 11400000, guid: fcda585c0098d467090905316e996bda, type: 2}
   - {fileID: 11400000, guid: 82f5aa55b27a94619bee1f9ecd9b56ef, type: 2}
-  upgrades: []
+  upgrades:
+  - {fileID: 11400000, guid: adaf99a91994142498cd8c8d2bc2c18f, type: 2}

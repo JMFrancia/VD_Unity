@@ -27,11 +27,26 @@ namespace VoidDay.Core.Events
         public JobQueueRequested(string stationId, string recipeId) { StationId = stationId; RecipeId = recipeId; }
     }
 
-    public readonly struct JobCancelRequested
+    /// A tap that landed on an in-world queue slot. Deliberately NOT "cancel requested": a tap on the ready
+    /// head collects, on anything else it cancels, and that branch is a rule — it belongs to Producer's
+    /// tap-resolution (§4.5), the single authority, not to the View that captured the tap. The emitter says
+    /// what happened; the listener decides what it means.
+    public readonly struct QueueSlotTapped
     {
         public readonly string StationId;
-        public readonly int JobIndex;
-        public JobCancelRequested(string stationId, int jobIndex) { StationId = stationId; JobIndex = jobIndex; }
+        public readonly int SlotIndex;
+        public QueueSlotTapped(string stationId, int slotIndex) { StationId = stationId; SlotIndex = slotIndex; }
+    }
+
+    /// A collect the player explicitly asked for that Core refused (§4.4 — the head is done but its output
+    /// has nowhere to go). A FACT, not an instruction: the toast, the slot's reject flash and the sound each
+    /// listen and decide for themselves. Distinct from StationBlocked, which reports the station's standing
+    /// condition — this fires once per refused *attempt*, which is what makes it worth a sound.
+    public readonly struct CollectRefused
+    {
+        public readonly string StationId;
+        public readonly string Reason; // matches StationBlocked's vocabulary — "storage-full"
+        public CollectRefused(string stationId, string reason) { StationId = stationId; Reason = reason; }
     }
 
     /// A tap that landed on empty world — not a station, slot, or UI. Listeners treat it as "dismiss":

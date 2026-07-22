@@ -44,6 +44,7 @@ namespace VoidDay.View
             _bus.Subscribe<JobCancelled>(OnJobCancelled);
             _bus.Subscribe<StationBlocked>(OnStationBlocked);
             _bus.Subscribe<StorageFull>(OnStorageFull);
+            _bus.Subscribe<CollectRefused>(OnCollectRefused);
 
             // Orders
             _bus.Subscribe<OrderFulfilled>(OnOrderFulfilled);
@@ -80,6 +81,7 @@ namespace VoidDay.View
             _bus.Unsubscribe<JobCancelled>(OnJobCancelled);
             _bus.Unsubscribe<StationBlocked>(OnStationBlocked);
             _bus.Unsubscribe<StorageFull>(OnStorageFull);
+            _bus.Unsubscribe<CollectRefused>(OnCollectRefused);
 
             _bus.Unsubscribe<OrderFulfilled>(OnOrderFulfilled);
             _bus.Unsubscribe<OrderSkipped>(OnOrderSkipped);
@@ -110,6 +112,7 @@ namespace VoidDay.View
         void OnJobCancelled(JobCancelled _) => Play(SfxCue.JobCancelled);
         void OnStationBlocked(StationBlocked _) => Play(SfxCue.StationBlocked);
         void OnStorageFull(StorageFull _) => Play(SfxCue.StorageFull);
+        void OnCollectRefused(CollectRefused _) => Play(SfxCue.CollectRefused);
 
         void OnOrderFulfilled(OrderFulfilled _) => Play(SfxCue.OrderFulfilled);
         void OnOrderSkipped(OrderSkipped _) => Play(SfxCue.OrderSkipped);

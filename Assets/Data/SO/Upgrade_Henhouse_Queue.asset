@@ -1,0 +1,48 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 86b3cbfc94c3646ccbaa976c7b3ac3dc, type: 3}
+  m_Name: Upgrade_Henhouse_Queue
+  m_EditorClassIdentifier: Assembly-CSharp::VoidDay.Data.UpgradeSO
+  id: henhouse.queue
+  displayName: Queue Depth
+  unlockLevel: 4
+  tiers:
+  - cost: 320
+    effects:
+    - id: henhouse.queue.1
+      type: 3
+      value:
+        op: 0
+        amount: 1
+      resource: 
+      range: 0
+      trigger: 0
+      triggerChance: 0
+      condition:
+        type: 0
+        arg: 
+        amount: 0
+  - cost: 800
+    effects:
+    - id: henhouse.queue.2
+      type: 3
+      value:
+        op: 0
+        amount: 1
+      resource: 
+      range: 0
+      trigger: 0
+      triggerChance: 0
+      condition:
+        type: 0
+        arg: 
+        amount: 0

@@ -19,6 +19,12 @@ namespace VoidDay.View
         [SerializeField] QueueSlot slotTemplate;
         [SerializeField] float slotSpacing = 0.52f; // centre-to-centre distance between queue slots
 
+        [Header("Queue row framing (camera-relative)")]
+        [Tooltip("World units from the station towards the viewer — how far the row sits 'below' the building.")]
+        [SerializeField] float rowDistance = 1.15f;
+        [Tooltip("World units above the ground, so the row clears the station's base and its shadow.")]
+        [SerializeField] float rowHeight = 0.3f;
+
         sealed class Rig
         {
             public string StationId;
@@ -30,20 +36,32 @@ namespace VoidDay.View
 
         JobSystem _jobs;
         RecipeCatalog _catalog;
+        Camera _camera; // the row is framed against it every frame — see PositionQueueRow
+        UpgradeSystem _upgrades; // only for the slot-row ceiling — what depth this station could still buy
         IReadOnlyDictionary<string, ResourceSO> _resources; // id → display data; the crop icon on slots + ready indicator
         IReadOnlyDictionary<string, Transform> _stationRoots;
         readonly List<Rig> _rigs = new();
         string _openStationId; // whose panel is open — its queue shows and its radial hides (BUG-03 design)
 
-        public void Init(EventBus bus, JobSystem jobs, RecipeCatalog catalog,
-            IReadOnlyDictionary<string, ResourceSO> resources, IReadOnlyDictionary<string, Transform> stationRoots)
+        public void Init(EventBus bus, JobSystem jobs, RecipeCatalog catalog, UpgradeSystem upgrades,
+            IReadOnlyDictionary<string, ResourceSO> resources, IReadOnlyDictionary<string, Transform> stationRoots,
+            Camera camera)
         {
             _jobs = jobs;
             _catalog = catalog;
+            _upgrades = upgrades;
+            _camera = camera;
             _resources = resources;
             _stationRoots = stationRoots; // shared live map — StationRegistry adds/removes runtime stations here
             bus.Subscribe<StationPanelOpened>(e => _openStationId = e.StationId);
             bus.Subscribe<StationPanelClosed>(_ => _openStationId = null);
+            // Only the head can be refused, so only slot 0 answers. Listening here rather than in QueueSlot
+            // keeps the slot a dumb renderer — it owns the animation, not the question of who it belongs to.
+            bus.Subscribe<CollectRefused>(e =>
+            {
+                var rig = RigFor(e.StationId);
+                if (rig != null && rig.Slots.Count > 0) rig.Slots[0].Reject();
+            });
             Reconcile();
         }
 
@@ -88,9 +106,15 @@ namespace VoidDay.View
             return _resources.TryGetValue(recipe.Outputs[0].ResourceId, out var so) ? so.icon : null;
         }
 
+        /// Slots drawn for a station: the depth it has now, plus the depth its unpurchased upgrade tiers would
+        /// buy. The tail renders locked, so the row shows the whole upgrade path rather than growing a square
+        /// out of nowhere on purchase.
+        int SlotCount(string stationId) =>
+            _jobs.QueueDepth(stationId) + _upgrades.RemainingQueueDepth(stationId);
+
         void BuildSlots(Rig rig)
         {
-            int depth = _jobs.QueueDepth(rig.StationId);
+            int depth = SlotCount(rig.StationId);
             float startX = -(depth - 1) * slotSpacing * 0.5f;
             for (int i = 0; i < depth; i++)
             {
@@ -112,7 +136,9 @@ namespace VoidDay.View
                 // Queue depth is resolved (upgrades fold in, §3), so it can change at runtime — rebuild the slot
                 // row when it diverges from what's rendered. Polled like everything else here, so it self-heals
                 // on a purchase or a reset with no event wiring. Producers only (non-producers keep 0 slots).
-                if (HasRecipes(rig.StationId) && _jobs.QueueDepth(rig.StationId) != rig.Slots.Count)
+                // The count only moves when a LEVEL deepens the queue: buying a tier converts a locked slot to
+                // an empty one without changing the total, which is the whole point of drawing to the ceiling.
+                if (HasRecipes(rig.StationId) && SlotCount(rig.StationId) != rig.Slots.Count)
                     RebuildSlots(rig);
 
                 bool panelOpen = rig.StationId == _openStationId;
@@ -175,9 +201,29 @@ namespace VoidDay.View
             BuildSlots(rig);
         }
 
+        /// Hang the row beneath the building *on screen*, not along a world axis.
+        ///
+        /// The row used to be authored at a fixed local offset down world -Z and laid out along world X. The
+        /// camera is yawed (310°), so neither is a screen axis: the offset read as "shifted left" and the row
+        /// itself as a diagonal staircase. Three slots hid it; the upgrade ceiling's five did not.
+        ///
+        /// So the row is framed against the camera every frame instead — offset towards the viewer along the
+        /// ground, and yawed to match, which makes its local X the screen horizontal. Yaw only: the slots
+        /// billboard themselves (pitch included), and pitching the row too would double-apply it. This can't
+        /// be authored in the prefab because it depends on a camera that only exists at runtime.
+        void PositionQueueRow(Rig rig)
+        {
+            var row = rig.Widget.QueueRow;
+            var station = rig.Widget.transform; // the widget sits at the station root
+            Vector3 groundForward = Vector3.ProjectOnPlane(_camera.transform.forward, Vector3.up).normalized;
+            row.position = station.position - groundForward * rowDistance + Vector3.up * rowHeight;
+            row.rotation = Quaternion.Euler(0f, _camera.transform.eulerAngles.y, 0f);
+        }
+
         void UpdateSlots(Rig rig, double now, bool panelOpen)
         {
             if (rig.Slots.Count == 0) return;
+            PositionQueueRow(rig);
             // The queue is a panel-open detail now (BUG-03): the row shows only while this station's panel is
             // open — the closed-panel "what's cooking" readout is the radial instead. Tap-to-cancel still works
             // because the slots are live exactly when the panel is open.
@@ -186,11 +232,19 @@ namespace VoidDay.View
             if (!panelOpen) return;
 
             var queue = _jobs.GetQueue(rig.StationId);
+            int depth = _jobs.QueueDepth(rig.StationId); // slots at or past this are the not-yet-bought tail
+            // Only the head can be collectable (§4.4), and the SAME Core predicate Producer resolves the tap
+            // with decides whether it pulses — so a slot never invites a tap that would cancel instead of
+            // collect. A storage-blocked head stays plain Filled: it is done but has nowhere to go.
+            bool headCollectable = _jobs.IsCollectionPossible(rig.StationId);
             for (int i = 0; i < rig.Slots.Count; i++)
             {
                 var slot = rig.Slots[i];
                 bool filled = i < queue.Count;
-                slot.SetFilled(filled);
+                slot.SetState(i >= depth ? QueueSlot.SlotState.Locked
+                    : filled && i == 0 && headCollectable ? QueueSlot.SlotState.Ready
+                    : filled ? QueueSlot.SlotState.Filled
+                    : QueueSlot.SlotState.Empty);
                 if (filled) slot.SetIcon(OutputIcon(queue[i].RecipeId));
 
                 bool runningHead = filled && i == 0 && queue[i].State == JobState.Running;

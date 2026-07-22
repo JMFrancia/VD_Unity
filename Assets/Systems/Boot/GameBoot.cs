@@ -39,6 +39,7 @@ namespace VoidDay.Systems
         [SerializeField] LevelXpHud levelXpHud;
         [SerializeField] LevelUpPopup levelUpPopup;
         [SerializeField] SfxController sfxController;
+        [SerializeField] ToastController toastController;
         [SerializeField] StationFlattenMask stationFlattenMask;
 
         [Tooltip("Fixed seed makes a session's orders reproducible; 0 = seed from the clock.")]
@@ -182,7 +183,7 @@ namespace VoidDay.Systems
             cameraController.Init(Vector3.zero, config.gridCols * config.cellSize, config.gridRows * config.cellSize, bus, roots);
             producer.Init(bus, jobs, pool, wallet, startingCounts);
             inputRouter.Init(bus, worldCamera);
-            worldState.Init(bus, jobs, catalog, resourceDisplays, roots);
+            worldState.Init(bus, jobs, catalog, upgrades, resourceDisplays, roots, worldCamera);
             stationPanel.Init(bus, jobs, catalog, pool, wallet, upgrades, resourceDisplays, roots, worldCamera);
             orderBoardPanel.Init(bus, orderBoard, pool, jobs, resourceDisplays);
             siloPanel.Init(bus, pool, jobs, upgrades, wallet, resourceList);
@@ -195,6 +196,7 @@ namespace VoidDay.Systems
             levelXpHud.Init(bus, progression);
             levelUpPopup.Init(bus, config.stationRoster);
             sfxController.Init(bus);
+            toastController.Init(bus);
             stationFlattenMask.Init(bus, roots);
 
             foreach (var kv in startingCounts)
@@ -208,6 +210,7 @@ namespace VoidDay.Systems
         void RequireWired()
         {
             Require(worldCamera, nameof(worldCamera));
+            Require(toastController, nameof(toastController));
             Require(cameraController, nameof(cameraController));
             Require(producer, nameof(producer));
             Require(inputRouter, nameof(inputRouter));

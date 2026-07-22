@@ -43,6 +43,7 @@ namespace VoidDay.Data
         // New cues APPEND here — the enum's integer values are what the library asset serializes, so
         // inserting one in the middle would silently reassign every clip below it.
         LevelUp,
+        CollectRefused, // tried to collect with a full silo — the "no" beat
     }
 
     /// The one place a clip is assigned to a moment. The controller holds no clip and no volume — everything

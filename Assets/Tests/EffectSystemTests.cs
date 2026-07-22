@@ -196,6 +196,54 @@ namespace VoidDay.Tests
             new UpgradeTierModel(60, new[] { E(EffectType.StationYield, EffectOp.Flat, 1) })
         });
 
+        // ---- The in-world slot row's ceiling (§8) ----
+        // The row draws QueueDepth + RemainingQueueDepth slots and locks the tail, so these numbers are what
+        // the player literally sees. Wrong here = a promised slot that never arrives, or one that appears
+        // from nowhere on purchase — invisible in code, obvious on screen.
+
+        static UpgradeTrackModel QueueTrack() => new UpgradeTrackModel("field.queue", "field.queue", 1, new[]
+        {
+            new UpgradeTierModel(80, new[] { E(EffectType.StationQueueDepth, EffectOp.Flat, 1) }),
+            new UpgradeTierModel(200, new[] { E(EffectType.StationQueueDepth, EffectOp.Flat, 1) })
+        });
+
+        [Test]
+        public void RemainingQueueDepth_CountsEveryUnpurchasedTier()
+        {
+            var (_, upgrades, _) = Rig(QueueTrack());
+            upgrades.Register("field#0", "field");
+            Assert.AreEqual(2, upgrades.RemainingQueueDepth("field#0"));
+        }
+
+        [Test]
+        public void RemainingQueueDepth_ShrinksAsTiersArePurchased()
+        {
+            var (_, upgrades, wallet) = Rig(QueueTrack());
+            upgrades.Register("field#0", "field");
+            wallet.Add(1000);
+
+            upgrades.Purchase("field#0", "field.queue");
+            Assert.AreEqual(1, upgrades.RemainingQueueDepth("field#0"), "one tier bought, one left to promise");
+
+            upgrades.Purchase("field#0", "field.queue");
+            Assert.AreEqual(0, upgrades.RemainingQueueDepth("field#0"), "maxed — no locked slots remain");
+        }
+
+        [Test]
+        public void RemainingQueueDepth_IgnoresTracksThatDoNotDeepenTheQueue()
+        {
+            var (_, upgrades, _) = Rig(SpeedTrack(), YieldTrack());
+            upgrades.Register("field#0", "field");
+            Assert.AreEqual(0, upgrades.RemainingQueueDepth("field#0"));
+        }
+
+        [Test]
+        public void RemainingQueueDepth_IsZeroForAnUnregisteredStation()
+        {
+            var (_, upgrades, _) = Rig(QueueTrack());
+            Assert.AreEqual(0, upgrades.RemainingQueueDepth("never-built#9"));
+        }
+
         static (ValueResolver, UpgradeSystem, Wallet) Rig(params UpgradeTrackModel[] tracks)
         {
             var bus = new EventBus();

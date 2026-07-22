@@ -81,6 +81,32 @@ namespace VoidDay.Core.Rules
             return tier >= track.MaxTier ? null : track.Tiers[tier];
         }
 
+        /// How much MORE queue depth this station's unpurchased upgrade tiers would grant (§8). The in-world
+        /// slot row draws `QueueDepth + this` slots and renders the tail locked, so the depth an upgrade would
+        /// buy is visible as an empty promise rather than appearing from nowhere on purchase.
+        ///
+        /// Deliberately only the upgrade ceiling — not level grants. A locked slot means "buyable at this
+        /// station", which is what the player can act on; folding in every future level grant would draw a row
+        /// of squares nobody can reach for hours. Flat-only, because a whole slot is the only thing a slot row
+        /// can draw — a Pct/Mult depth tier would have to go through the resolver's pool, and if one is ever
+        /// authored the ceiling shown here would silently under-count it.
+        public int RemainingQueueDepth(string stationId)
+        {
+            if (!_levels.TryGetValue(stationId, out var levels)) return 0;
+            int remaining = 0;
+            foreach (var track in TracksFor(stationId))
+            {
+                int purchased = levels.TryGetValue(track.Id, out var n) ? n : 0;
+                for (int t = purchased; t < track.MaxTier; t++)
+                    foreach (var effect in track.Tiers[t].Effects)
+                        if (effect.type == EffectType.StationQueueDepth
+                            && effect.trigger == TriggerType.None
+                            && effect.value.op == EffectOp.Flat)
+                            remaining += (int)effect.value.amount;
+            }
+            return remaining;
+        }
+
         // ---- Command ----
 
         public void Purchase(string stationId, string trackId)
