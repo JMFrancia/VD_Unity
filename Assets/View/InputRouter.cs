@@ -7,9 +7,10 @@ namespace VoidDay.View
 {
     /// Captures a world tap and publishes the matching input intent — it never acts on the tap (§15).
     /// A tap is a press+release with little movement that isn't a pan (CameraController owns drag) and
-    /// isn't over UI. A hit on a live queue slot (QueueSlot) → input:queueSlotTapped; otherwise a
-    /// hit on a station body (StationView) → input:stationTapped. Queue slots are checked first because they
-    /// sit under the same station root, and a tap on a slot is about that job, not about the station.
+    /// isn't over UI. A hit on a running timer's radial (TimerWidget) → timer:skipTapped; otherwise a hit on
+    /// a live queue slot (QueueSlot) → input:queueSlotTapped; otherwise a hit on a station body (StationView)
+    /// → input:stationTapped. Radials and queue slots are checked first because they sit under the same
+    /// station root, and a tap on either is about that job, not about the station.
     /// Whether that tap collects or cancels is Producer's call, not this class's.
     /// A tap on empty world (nothing interactive) → input:backgroundTapped, which dismisses an open panel.
     public sealed class InputRouter : MonoBehaviour
@@ -79,6 +80,9 @@ namespace VoidDay.View
             Ray ray = _camera.ScreenPointToRay(screenPosition);
             if (Physics.Raycast(ray, out RaycastHit hit, 500f))
             {
+                // A radial sits under the station root, so it would otherwise answer as the station and a long
+                // press on a timer would pick the building up for a move. The radial is a skip target only.
+                if (hit.collider.GetComponentInParent<TimerWidget>() != null) return null;
                 var station = hit.collider.GetComponentInParent<StationView>();
                 if (station != null) return station.Id;
             }
@@ -90,6 +94,15 @@ namespace VoidDay.View
             Ray ray = _camera.ScreenPointToRay(screenPosition);
             if (Physics.Raycast(ray, out RaycastHit hit, 500f))
             {
+                // Checked before both: a running timer's radial floats above the station body and the queue
+                // row, and a tap on it is about buying the wait away (§13), not about the station.
+                var timer = hit.collider.GetComponentInParent<TimerWidget>();
+                if (timer != null)
+                {
+                    _bus.Publish(new TimerSkipTapped(timer.Timer));
+                    return;
+                }
+
                 var slot = hit.collider.GetComponentInParent<QueueSlot>();
                 if (slot != null)
                 {

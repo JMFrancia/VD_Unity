@@ -1,4 +1,5 @@
 using UnityEngine;
+using VoidDay.Core.Model;
 
 namespace VoidDay.View
 {
@@ -55,6 +56,12 @@ namespace VoidDay.View
 
         public void SetTimer(float fraction, float secondsRemaining) =>
             timer.SetProgress(fraction, secondsRemaining);
+
+        /// Pass-throughs to the nested TimerWidget, which is private here on purpose: WorldState drives the
+        /// rig, not the widget's internals. Both exist so a job radial can be priced and tapped (§13).
+        public void SetTimerRef(TimerRef reference) => timer.Timer = reference;
+
+        public void SetTimerCost(int gems) => timer.SetCost(gems);
 
         void Update()
         {

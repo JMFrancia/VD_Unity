@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using VoidDay.Core.Events;
+using VoidDay.Core.Model;
 using VoidDay.Core.Rules;
 using VoidDay.Data;
 using VoidDay.Systems;
@@ -42,16 +43,18 @@ namespace VoidDay.View
 
         EventBus _bus;
         BuildSystem _build;
+        TimeSkip _skip; // prices the site radial's gem cost — the rule lives there, never here (§13)
         GridProjection _projection;
         Transform _parent;
         readonly Dictionary<string, StationSO> _byType = new();
         readonly List<Site> _sites = new();
 
-        public void Init(EventBus bus, BuildSystem build, GridProjection projection, Transform parent,
+        public void Init(EventBus bus, BuildSystem build, TimeSkip skip, GridProjection projection, Transform parent,
             IReadOnlyList<StationSO> roster)
         {
             _bus = bus;
             _build = build;
+            _skip = skip;
             _projection = projection;
             _parent = parent;
             foreach (var so in roster) _byType[so.stationType] = so;
@@ -77,6 +80,7 @@ namespace VoidDay.View
             var body = SpawnPlaceholder(_byType[e.StationType].prefab, position);
             var timer = Instantiate(timerTemplate, body.transform);
             timer.transform.localPosition = new Vector3(0f, timerHeight, 0f);
+            timer.Timer = TimerRef.Construction(e.StationId); // the radial is the only tap surface a site has
             timer.Show(true);
 
             _sites.Add(new Site { StationId = e.StationId, Body = body, Timer = timer });
@@ -99,8 +103,14 @@ namespace VoidDay.View
             if (_sites.Count == 0) return;
             double now = Time.timeAsDouble;
             foreach (var site in _sites)
-                if (_build.TryGetSiteProgress(site.StationId, now, out float fraction, out float secondsRemaining))
-                    site.Timer.SetProgress(fraction, secondsRemaining);
+            {
+                if (!_build.TryGetSiteProgress(site.StationId, now, out float fraction, out float secondsRemaining))
+                    continue;
+                site.Timer.SetProgress(fraction, secondsRemaining);
+                // Priced every frame like the job radial, so the cost falls with the build (§13).
+                var skipTarget = TimerRef.Construction(site.StationId);
+                site.Timer.SetCost(_skip.CanSkip(skipTarget, now) ? _skip.CostFor(skipTarget, now) : 0);
+            }
         }
 
         /// The station's own body, stripped of everything that would make it act like a real station. Same

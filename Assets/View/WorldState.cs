@@ -35,6 +35,7 @@ namespace VoidDay.View
         }
 
         JobSystem _jobs;
+        TimeSkip _skip; // prices the radial's gem cost — the rule lives there, never here (§13)
         RecipeCatalog _catalog;
         Camera _camera; // the row is framed against it every frame — see PositionQueueRow
         UpgradeSystem _upgrades; // only for the slot-row ceiling — what depth this station could still buy
@@ -43,11 +44,12 @@ namespace VoidDay.View
         readonly List<Rig> _rigs = new();
         string _openStationId; // whose panel is open — its queue shows and its radial hides (BUG-03 design)
 
-        public void Init(EventBus bus, JobSystem jobs, RecipeCatalog catalog, UpgradeSystem upgrades,
+        public void Init(EventBus bus, JobSystem jobs, TimeSkip skip, RecipeCatalog catalog, UpgradeSystem upgrades,
             IReadOnlyDictionary<string, ResourceSO> resources, IReadOnlyDictionary<string, Transform> stationRoots,
             Camera camera)
         {
             _jobs = jobs;
+            _skip = skip;
             _catalog = catalog;
             _upgrades = upgrades;
             _camera = camera;
@@ -73,6 +75,7 @@ namespace VoidDay.View
             {
                 if (RigFor(kv.Key) != null) continue;
                 var rig = new Rig { StationId = kv.Key, Widget = Instantiate(widgetTemplate, kv.Value) };
+                rig.Widget.SetTimerRef(TimerRef.Job(kv.Key)); // this rig's radial always names this station's head job
                 rig.Crops = kv.Value.GetComponentInChildren<CropField>(true); // fields author one; everything else null
                 if (HasRecipes(kv.Key)) BuildSlots(rig); // non-producers keep a clean front (no queue slots)
                 rig.Widget.QueueRow.gameObject.SetActive(false);
@@ -149,7 +152,14 @@ namespace VoidDay.View
                 // the queue slots are visible and show the head's progress, so the timer steps aside (BUG-03).
                 bool showTimer = running && !panelOpen;
                 rig.Widget.SetTimerVisible(showTimer);
-                if (showTimer) rig.Widget.SetTimer(fraction, secondsRemaining);
+                if (showTimer)
+                {
+                    rig.Widget.SetTimer(fraction, secondsRemaining);
+                    // Polled with everything else, so the price falls as the timer runs down. Zero means
+                    // "nothing left to buy" and the widget hides its cost row rather than pricing a dead timer.
+                    var skipTarget = TimerRef.Job(rig.StationId);
+                    rig.Widget.SetTimerCost(_skip.CanSkip(skipTarget, now) ? _skip.CostFor(skipTarget, now) : 0);
+                }
 
                 // A completed head is either collectable (ready) or refused for want of silo room (§4.4). The
                 // two are mutually exclusive and read differently in-world: bouncing crop vs still warning.

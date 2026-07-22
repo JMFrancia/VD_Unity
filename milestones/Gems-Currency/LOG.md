@@ -319,3 +319,106 @@ end-to-end on the order-refill timer.
 - **The order-board station's type id is `orderBoard`** (capital B) and its instance id is `OrderBoard`.
   Field recipes are `field.cornGrow` / `field.wheatGrow`, not `grow-corn`. `henhouse` is level-3 gated, so
   `field` is the only type a level-1 test can place.
+
+---
+
+## Milestone 03 — In-World Skip
+**Status:** ✅ Complete · **Date:** 2026-07-22
+
+**Built:** Both in-world timers are now tap-to-skip surfaces. The job radial and the construction radial each
+carry a live gem price beneath the ring and route a tap into M2's popup unchanged. **No Core change** — M2's
+prediction that "M3 is a collider, a cost label and two `InputRouter` guards" held exactly.
+
+- **`View/TimerWidget.cs`** — gains `tapCollider`, `costRoot`, `costLabel`, `costFormat`, a
+  `public TimerRef Timer { get; set; }` and `SetCost(int gems)`. It stays pure presentation: it never asks
+  `TimeSkip` anything, it renders the price its owner hands it.
+- **`View/StationStateWidget.cs`** — `SetTimerRef(TimerRef)` / `SetTimerCost(int)` pass-throughs, because
+  `WorldState.Rig.Widget` is a `StationStateWidget` and the `TimerWidget` inside it is private.
+- **`View/InputRouter.cs`** — the `GetComponentInParent<TimerWidget>()` guard is the **first** branch in
+  **both** raycast paths: `TryTapStation` publishes `TimerSkipTapped(widget.Timer)`; `StationUnder` (the
+  press-time path feeding long-press pickup) returns `null`, so a long press on a radial can't pick the
+  station up for a move.
+- **`View/WorldState.cs`** / **`View/ConstructionSiteView.cs`** — both take a `TimeSkip` via `Init`, set the
+  widget's `TimerRef` once at spawn (`Job(stationId)` / `Construction(stationId)`), and push the cost inside
+  the per-frame poll they already ran.
+- **`Systems/Boot/GameBoot.cs`** — `constructionSiteView.Init` moved down into the `Init` block (see
+  *Deviations*), both calls now pass `timeSkip`.
+- **`View/SkipConfirmPopup.cs`** — the subtitle is now per-`TimerKind` (see *Deviations*).
+- **Prefab (`TimerWidget.prefab`)** — a `BoxCollider` on the root (`center (0,-0.09,0)`, `size
+  0.7×0.78×0.06`) sized to cover the ring **and** the cost row: the whole radial is the tap target, as the
+  mockup specifies, with no separate skip pill. A `Cost` child at `y = -0.4` holds `Glyph` (a Quad rotated
+  45° on `GemGlyph.mat`) and `Amount` (3D TMP, left-aligned, fontSize 2.4). The collider is on the **root**,
+  so `Billboard` keeps it facing the camera for free.
+- **Art** — `Assets/Art/Materials/GemGlyph.mat`, URP/Unlit, `_BaseColor` = gem-cyan `#22D3EE`, double-sided.
+  The in-world counterpart to the HUD's rotated-quad glyph.
+- **`StationStateWidget.prefab` needed no edit.** Its nested `Timer` is a real **prefab instance** of
+  `TimerWidget.prefab`, so the collider and the cost row propagated automatically. The milestone doc listed
+  it as a file to touch; it isn't one.
+- **Tests** — none added. This milestone is entirely View-layer; `CLAUDE.md` scopes tests to the Core
+  economy, and M2 already covers the pricing rule and all three owner hooks. Suite stays at **106**, green.
+
+**Deviations from the plan:**
+- **`GameBoot`: `constructionSiteView.Init` was moved down, not `OrderBoard` hoisted.** The doc offered both
+  and said to pick deliberately. Moving the one `Init` is the smaller diff, it lands where every other `Init`
+  already lives, and it is safe because nothing publishes `StationConstructionStarted` / `StationBuilt`
+  between the old call site and the new one — the subscription is no later in practice than it was.
+- **The popup subtitle is now per-kind**, which M2 explicitly deferred to "decide there, not here."
+  `SkipConfirmPopup` gained a `subtitleText` field plus three strings — `jobSubtitle` ("The job finishes
+  instantly."), `constructionSubtitle` ("The building finishes instantly."), `orderRefillSubtitle` ("Order
+  slot refills instantly.", byte-identical to the copy M2 authored into the scene). Bound once on open, not
+  in `Refresh`: the kind can't change while a popup is open. **A fourth timer kind must add a string here or
+  `SubtitleFor` throws** — deliberately loud.
+- **`SetCost(0)` disables the collider, not just the cost row.** The doc says the widget being
+  `SetActive(false)` makes the collider inert "for free" and no enable/disable logic is needed. That is true
+  for *no timer*, but not for *a timer with nothing left to buy* — the widget is still visible then, and a
+  live collider would swallow a tap into a popup that instantly closes itself. Tying the collider to the
+  price keeps `tapCollider` from being a dead serialized field and makes "priced" and "tappable" the same
+  state by construction.
+- **Nothing else.** The `TimerRef` plumbing, the two pass-throughs, both `InputRouter` guards and the
+  one-prefab-two-callers shape are exactly as specified.
+
+**Tech debt:**
+- **The in-world gem glyph is placeholder #5.** A rotated quad on a flat cyan unlit material — a sibling of
+  the HUD pill's quad, the card pill's quad and the popup chip's quad, plus `gem.png` in the level-up popup.
+  All five collapse to one reference when real gem art lands.
+- **The cost row's layout is hand-tuned world units** (`glyph x -0.13 @ scale 0.13`, `amount x -0.03 @
+  fontSize 2.4`). It reads well for 1–2 digit costs; a 3-digit price will drift right. Nothing in the game
+  currently prices that high.
+- **`TimeSkip` is now injected into two more View components.** Four View types hold it (`OrderBoardPanel`,
+  `SkipConfirmPopup`, `WorldState`, `ConstructionSiteView`). That is fine — they only ever *read* the price —
+  but it is the widest a Core rule has spread into the View layer so far.
+
+**Assumptions:**
+- **A radial always wins the raycast over the station under it.** `Physics.Raycast` returns the nearest hit
+  and the radial floats above the body, so this holds at the current fixed camera angle. It was not proven
+  with a real pointer (see below). If the camera ever tilts far enough that a station body occludes its own
+  radial, the guard silently stops firing — the symptom would be "tapping the timer opens the station panel".
+- **"Skip never steals a tap" is verified by inspection only.** Pointer injection is unavailable in this
+  environment, and publishing `StationTapped` directly would bypass the very branch under test (the milestone
+  doc's How-to-Test step 5 says so explicitly). What *was* verified at runtime: the collider is authored,
+  enabled, and correctly bounded; the site body's own colliders are disabled while the timer's is not; and
+  both guards are the first branch in their path. What was **not** verified: an actual finger on glass.
+- **`secondsPerGem` 30 / `minGemCost` 1 are still the M1 guesses.** They now price three surfaces. A 5s corn
+  job costs 1 gem — i.e. the floor makes short jobs a *bad* deal, which is probably correct but unplayed.
+
+**Gotchas for later milestones:**
+- **`TimerWidget.prefab` is the single authoring point for both radials.** `StationStateWidget.prefab`
+  contains a prefab *instance* of it, not a copy, so anything added to `TimerWidget.prefab` appears on the
+  job radial and the construction radial at once. Do not "fix" a divergence by editing the nested instance —
+  that creates an override and breaks the one-visual guarantee.
+- **`WorldState.Init` and `ConstructionSiteView.Init` both gained a `TimeSkip`** — `WorldState`'s is the 3rd
+  argument (after `jobs`), `ConstructionSiteView`'s is the 3rd (after `build`). Anything constructing either
+  outside `GameBoot` won't compile until updated.
+- **`constructionSiteView.Init` no longer sits beside `stationRegistry.Init`.** If a future milestone needs
+  it to subscribe earlier, the fix is to hoist the `OrderBoard`/`TimeSkip` construction, not to move the
+  `Init` back — it depends on `TimeSkip` now.
+- **`InputRouter`'s branch order is load-bearing and unenforced.** `TimerWidget` → `QueueSlot` →
+  `StationView`, in `TryTapStation`; `TimerWidget` → `StationView` in `StationUnder`. All three sit under the
+  same station root, so reordering them silently changes which one claims a tap. There is no test for this.
+- **Playmode is still frozen at `frameCount = 1`.** Everything here was verified by pumping the private
+  `Update()` methods through reflection (`WorldState`, `ConstructionSiteView`) and ticking `JobSystem` /
+  `BuildSystem` by hand, then rendering `Camera.main` to a `RenderTexture`. For a shot that includes the
+  overlay UI, flip every root `ScreenSpaceOverlay` canvas to `ScreenSpaceCamera` first and flip it back —
+  the change is playmode-only, and the scene was confirmed `IsDirty=False` after exiting.
+- **`BuildSystem.Demolish` throws on a station still under construction** (`JobSystem.Unregister` has no
+  entry for it yet). Not a bug to fix here — just don't reach for it when setting up a test.

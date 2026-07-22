@@ -231,7 +231,7 @@ MonoBehaviour:
     m_FontStyle: 1
     m_BestFit: 0
     m_MinSize: 10
-    m_MaxSize: 40
+    m_MaxSize: 48
     m_Alignment: 4
     m_AlignByGeometry: 0
     m_RichText: 1
@@ -3424,9 +3424,13 @@ MonoBehaviour:
   confirmLabel: {fileID: 553407894}
   cancelButton: {fileID: 1984359433}
   shortfallText: {fileID: 886331312}
+  subtitleText: {fileID: 1589786914}
   theme: {fileID: 11400000, guid: 9c8aec00e03bf467eb7151666ce6d2a0, type: 2}
   costFormat: '{0}'
   shortfallFormat: You need {0} more gems.
+  jobSubtitle: The job finishes instantly.
+  constructionSubtitle: The building finishes instantly.
+  orderRefillSubtitle: Order slot refills instantly.
 --- !u!1 &466429846
 GameObject:
   m_ObjectHideFlags: 0
@@ -18011,7 +18015,7 @@ MonoBehaviour:
     m_FontStyle: 1
     m_BestFit: 0
     m_MinSize: 10
-    m_MaxSize: 40
+    m_MaxSize: 46
     m_Alignment: 3
     m_AlignByGeometry: 0
     m_RichText: 1

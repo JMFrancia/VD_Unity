@@ -32,12 +32,18 @@ namespace VoidDay.View
         [Tooltip("Shown only when the purse is short. {0} is how many more gems are needed.")]
         [SerializeField] Text shortfallText;
 
+        [Tooltip("Says what the player is buying. One popup serves three timer kinds, so the line is per-kind.")]
+        [SerializeField] Text subtitleText;
+
         [Header("State colors")]
         [SerializeField] UiThemeSO theme;
 
         [Header("Copy")]
         [SerializeField] string costFormat = "{0}";
         [SerializeField] string shortfallFormat = "You need {0} more gems.";
+        [SerializeField] string jobSubtitle = "The job finishes instantly.";
+        [SerializeField] string constructionSubtitle = "The building finishes instantly.";
+        [SerializeField] string orderRefillSubtitle = "Order slot refills instantly.";
 
         EventBus _bus;
         TimeSkip _skip;
@@ -66,9 +72,19 @@ namespace VoidDay.View
             if (!_skip.CanSkip(e.Timer, Time.timeAsDouble)) return; // the timer expired between tap and here
             _timer = e.Timer;
             _open = true;
+            subtitleText.text = SubtitleFor(e.Timer.Kind);
             popupRoot.SetActive(true);
             Refresh();
         }
+
+        /// The kind never changes while a popup is open, so it is bound once on open rather than in Refresh.
+        string SubtitleFor(TimerKind kind) => kind switch
+        {
+            TimerKind.Job => jobSubtitle,
+            TimerKind.Construction => constructionSubtitle,
+            TimerKind.OrderRefill => orderRefillSubtitle,
+            _ => throw new System.InvalidOperationException($"Unhandled timer kind {kind}")
+        };
 
         /// The timer keeps running behind the popup, so both the price and the afford state are live.
         /// Closing when the timer stops being skippable is what stops a stale popup charging for nothing.

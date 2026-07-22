@@ -114,7 +114,6 @@ namespace VoidDay.Systems
             }
 
             stationRegistry.Init(bus, buildSystem, stationsParent.transform, projection, config.stationRoster, preplaced);
-            constructionSiteView.Init(bus, buildSystem, projection, stationsParent.transform, config.stationRoster);
             var roots = stationRegistry.Roots; // shared live map, mutated by StationRegistry on build/demolish
 
             // id → ResourceSO: the display lookup the UI reads for both name and icon. One SO per resource, so
@@ -199,7 +198,12 @@ namespace VoidDay.Systems
             cameraController.Init(Vector3.zero, config.gridCols * config.cellSize, config.gridRows * config.cellSize, bus, roots);
             producer.Init(bus, jobs, pool, wallet, startingCounts);
             inputRouter.Init(bus, worldCamera);
-            worldState.Init(bus, jobs, catalog, upgrades, resourceDisplays, roots, worldCamera);
+            worldState.Init(bus, jobs, timeSkip, catalog, upgrades, resourceDisplays, roots, worldCamera);
+            // Moved down from beside stationRegistry.Init: it now needs TimeSkip, which cannot exist until
+            // OrderBoard does. Nothing publishes construction events before this point, so the subscription
+            // is no later than it was, and every other Init already lives here.
+            constructionSiteView.Init(bus, buildSystem, timeSkip, projection, stationsParent.transform,
+                config.stationRoster);
             stationPanel.Init(bus, jobs, catalog, pool, wallet, upgrades, resourceDisplays, roots, worldCamera);
             orderBoardPanel.Init(bus, orderBoard, pool, jobs, timeSkip, resourceDisplays);
             siloPanel.Init(bus, pool, jobs, upgrades, wallet, resourceList);
