@@ -8,15 +8,11 @@ namespace VoidDay.View
     /// fills with QueueSlot instances. This component only animates what it owns; state decisions stay in
     /// WorldState (view-sync) and Core.
     ///
-    /// The radial is a quad rendered by the VoidDay/RadialProgress shader (its _Fill drives the sweep), not a
-    /// UGUI Image — world-space canvases don't render in this project's URP camera setup, so the whole rig is
-    /// meshes. Progress is pushed through a MaterialPropertyBlock so every station shares one material asset.
+    /// The running job's countdown is a nested TimerWidget — the same authored prefab construction sites use,
+    /// so a job timer and a build timer are one visual rather than two that drift apart.
     public sealed class StationStateWidget : MonoBehaviour
     {
-        static readonly int FillId = Shader.PropertyToID("_Fill");
-
-        [SerializeField] GameObject radialRoot;
-        [SerializeField] MeshRenderer radialRenderer; // VoidDay/RadialProgress material; _Fill = job progress
+        [SerializeField] TimerWidget timer;
         [SerializeField] GameObject readyRoot;
         [SerializeField] SpriteRenderer readyIcon; // the finished good's crop icon, hops while output waits
         [SerializeField] GameObject storageFullRoot; // world.storageFull — warning triangle, deliberately still
@@ -27,21 +23,16 @@ namespace VoidDay.View
         public Transform QueueRow => queueRow;
 
         Vector3 _readyBasePosition;
-        MaterialPropertyBlock _mpb;
 
         void Awake()
         {
             _readyBasePosition = readyRoot.transform.localPosition;
-            _mpb = new MaterialPropertyBlock();
-            radialRoot.SetActive(false);
+            timer.Show(false);
             readyRoot.SetActive(false);
             storageFullRoot.SetActive(false);
         }
 
-        public void SetRadialVisible(bool visible)
-        {
-            if (radialRoot.activeSelf != visible) radialRoot.SetActive(visible);
-        }
+        public void SetTimerVisible(bool visible) => timer.Show(visible);
 
         public void SetReady(bool ready)
         {
@@ -62,12 +53,8 @@ namespace VoidDay.View
             if (readyIcon.sprite != icon) readyIcon.sprite = icon;
         }
 
-        public void SetRadialProgress(float fraction)
-        {
-            radialRenderer.GetPropertyBlock(_mpb);
-            _mpb.SetFloat(FillId, fraction);
-            radialRenderer.SetPropertyBlock(_mpb);
-        }
+        public void SetTimer(float fraction, float secondsRemaining) =>
+            timer.SetProgress(fraction, secondsRemaining);
 
         void Update()
         {

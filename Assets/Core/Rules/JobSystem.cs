@@ -112,10 +112,15 @@ namespace VoidDay.Core.Rules
                 && !_pool.HasRoomForAll(s.Queue[0].Outputs);
         }
 
-        public bool TryGetHeadProgress(string stationId, double now, out float fraction, out bool complete)
+        /// secondsRemaining is handed out rather than left for the View to derive: the end time is Core's, and a
+        /// View recomputing it from a duration would ignore the resolve seam the same way a re-derived duration
+        /// would ignore upgrades. Zero on a complete head — it is done, not "0 seconds away".
+        public bool TryGetHeadProgress(string stationId, double now, out float fraction, out bool complete,
+            out float secondsRemaining)
         {
             fraction = 0f;
             complete = false;
+            secondsRemaining = 0f;
             var s = GetStation(stationId);
             if (s.Queue.Count == 0) return false;
             var head = s.Queue[0];
@@ -125,6 +130,8 @@ namespace VoidDay.Core.Rules
             fraction = span <= 0 ? 1f : (float)((now - head.StartTime) / span);
             if (fraction < 0f) fraction = 0f;
             if (fraction > 1f) fraction = 1f;
+            secondsRemaining = (float)(head.EndTime - now);
+            if (secondsRemaining < 0f) secondsRemaining = 0f;
             return true;
         }
 

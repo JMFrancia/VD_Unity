@@ -142,13 +142,14 @@ namespace VoidDay.View
                     RebuildSlots(rig);
 
                 bool panelOpen = rig.StationId == _openStationId;
-                bool has = _jobs.TryGetHeadProgress(rig.StationId, now, out float fraction, out bool complete);
+                bool has = _jobs.TryGetHeadProgress(rig.StationId, now, out float fraction, out bool complete,
+                    out float secondsRemaining);
                 bool running = has && !complete;
-                // The radial is the glance-able working indicator when the panel is closed; with the panel open
-                // the queue slots are visible and show the head's progress, so the radial steps aside (BUG-03).
-                bool showRadial = running && !panelOpen;
-                rig.Widget.SetRadialVisible(showRadial);
-                if (showRadial) rig.Widget.SetRadialProgress(fraction);
+                // The timer is the glance-able working indicator when the panel is closed; with the panel open
+                // the queue slots are visible and show the head's progress, so the timer steps aside (BUG-03).
+                bool showTimer = running && !panelOpen;
+                rig.Widget.SetTimerVisible(showTimer);
+                if (showTimer) rig.Widget.SetTimer(fraction, secondsRemaining);
 
                 // A completed head is either collectable (ready) or refused for want of silo room (§4.4). The
                 // two are mutually exclusive and read differently in-world: bouncing crop vs still warning.
@@ -248,7 +249,7 @@ namespace VoidDay.View
                 if (filled) slot.SetIcon(OutputIcon(queue[i].RecipeId));
 
                 bool runningHead = filled && i == 0 && queue[i].State == JobState.Running;
-                if (runningHead && _jobs.TryGetHeadProgress(rig.StationId, now, out float f, out bool complete))
+                if (runningHead && _jobs.TryGetHeadProgress(rig.StationId, now, out float f, out bool complete, out _))
                     slot.SetRunningProgress(true, complete ? 1f : f);
                 else
                     slot.SetRunningProgress(false, 0f);
