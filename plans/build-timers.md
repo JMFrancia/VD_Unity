@@ -4,7 +4,7 @@
 <!-- implement_phase reads and updates this ledger. -->
 | Phase | State | Commit | Notes |
 |---|---|---|---|
-| 1 — Shared TimerWidget | ✅ DONE | — | TMP essentials imported (LiberationSans SDF). Label is black — white was unreadable on the light ring. `TryGetHeadProgress` gained `secondsRemaining`; both call sites are in `WorldState`. |
+| 1 — Shared TimerWidget | ✅ DONE | `c61340a` | TMP essentials imported (LiberationSans SDF). Label is black — white was unreadable on the light ring. `TryGetHeadProgress` gained `secondsRemaining`; both call sites are in `WorldState`. |
 | 2 — Core build timer + construction site | ⬜ TODO | — | |
 | 3 — Completion celebration | ⬜ TODO | — | |
 

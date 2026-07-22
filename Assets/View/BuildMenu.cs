@@ -70,6 +70,7 @@ namespace VoidDay.View
             SetTrayOpen(false);
 
             _bus.Subscribe<MoneyChanged>(OnMoneyChanged);
+            _bus.Subscribe<StationConstructionStarted>(OnConstructionStarted);
             _bus.Subscribe<StationBuilt>(OnStationBuilt);
             _bus.Subscribe<StationDemolished>(OnStationDemolished);
             _bus.Subscribe<UnlockGranted>(OnUnlockGranted);   // dormant until M8 fires it
@@ -84,6 +85,7 @@ namespace VoidDay.View
         {
             if (_bus == null) return;
             _bus.Unsubscribe<MoneyChanged>(OnMoneyChanged);
+            _bus.Unsubscribe<StationConstructionStarted>(OnConstructionStarted);
             _bus.Unsubscribe<StationBuilt>(OnStationBuilt);
             _bus.Unsubscribe<StationDemolished>(OnStationDemolished);
             _bus.Unsubscribe<UnlockGranted>(OnUnlockGranted);
@@ -104,6 +106,9 @@ namespace VoidDay.View
         }
 
         void OnMoneyChanged(MoneyChanged _) => Refresh();
+        // A site counts against the cap the moment it is placed, and a zero-cost type fires no MoneyChanged
+        // to trigger the refresh on its own.
+        void OnConstructionStarted(StationConstructionStarted _) => Refresh();
         void OnStationBuilt(StationBuilt _) => Refresh();
         void OnStationDemolished(StationDemolished _) => Refresh();
         void OnUnlockGranted(UnlockGranted _) => Refresh();

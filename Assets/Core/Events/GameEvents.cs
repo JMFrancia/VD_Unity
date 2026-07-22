@@ -212,6 +212,21 @@ namespace VoidDay.Core.Events
     }
 
     // ---- Stations built / moved / demolished (published by Core) ----
+
+    /// A placement was accepted and paid for, and the station is now under construction (§4.3). The peer of
+    /// StationBuilt, which fires later when the build timer expires — that one still means "this station now
+    /// exists and is operable", which is why XP, the real prefab and the completion sound all ride it unchanged.
+    /// A construction site holds its cell and counts against the cap from this moment.
+    public readonly struct StationConstructionStarted
+    {
+        public readonly string StationId;
+        public readonly string StationType;
+        public readonly GridCoord Cell;
+        public readonly float Duration; // seconds; 0 when the type builds instantly
+        public StationConstructionStarted(string stationId, string stationType, GridCoord cell, float duration)
+        { StationId = stationId; StationType = stationType; Cell = cell; Duration = duration; }
+    }
+
     public readonly struct StationBuilt
     {
         public readonly string StationId;

@@ -14,9 +14,13 @@ namespace VoidDay.Core.Model
         public readonly int Width;
         public readonly int Height;
 
+        /// Seconds under construction before the station exists (§4.3). 0 = placed and finished the same frame.
+        public readonly float BuildSeconds;
+
         public StationTypeModel(string stationType, string displayName, int buildCostBase, int capBase,
-            int unlockLevel, int queueDepthBase, int width, int height)
+            int unlockLevel, int queueDepthBase, int width, int height, float buildSeconds)
         {
+            BuildSeconds = buildSeconds;
             StationType = stationType;
             DisplayName = displayName;
             BuildCostBase = buildCostBase;

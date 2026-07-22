@@ -128,6 +128,7 @@ namespace VoidDay.Systems
             Require(s.queueDepth > 0, s, nameof(s.queueDepth), "must be > 0");
             Require(s.buildCost >= 0, s, nameof(s.buildCost), "must be >= 0");
             Require(s.cap > 0, s, nameof(s.cap), "must be > 0");
+            Require(s.buildSeconds >= 0f, s, nameof(s.buildSeconds), "must be >= 0");
             Require(s.unlockLevel >= Progression.StartingLevel, s, nameof(s.unlockLevel),
                 $"must be >= {Progression.StartingLevel} (the starting level)");
             Require(s.buildThumbnail != null, s, nameof(s.buildThumbnail),

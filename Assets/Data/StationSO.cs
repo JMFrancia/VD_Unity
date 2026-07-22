@@ -29,6 +29,11 @@ namespace VoidDay.Data
         [Tooltip("Per-type cap on placed instances (§4.3). Read through the seam; M8 raises it by level. Starts 2 for Field, 1 for the rest.")]
         public int cap = 1;
 
+        [Tooltip("Seconds a placed station spends under construction before it exists and can be used. The site "
+            + "occupies its cell and counts against the cap for the whole time. 0 = finishes on the frame it is "
+            + "placed, i.e. the old build-instantly behaviour.")]
+        [Min(0f)] public float buildSeconds = 15f;
+
         [Tooltip("Player level that unlocks building this type (§9). 1 = buildable from the start. > current level = shown locked in the build menu.")]
         public int unlockLevel = 1;
 

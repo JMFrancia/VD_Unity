@@ -32,6 +32,7 @@ namespace VoidDay.Systems
         [SerializeField] ProgressionSystem progressionSystem;
         [SerializeField] UpgradesSystem upgradesSystem;
         [SerializeField] StationRegistry stationRegistry;
+        [SerializeField] ConstructionSiteView constructionSiteView;
         [SerializeField] GameObject stationsParent;
         [SerializeField] BuildMenu buildMenu;
         [SerializeField] PlacementController placementController;
@@ -110,6 +111,7 @@ namespace VoidDay.Systems
             }
 
             stationRegistry.Init(bus, buildSystem, stationsParent.transform, projection, config.stationRoster, preplaced);
+            constructionSiteView.Init(bus, buildSystem, projection, stationsParent.transform, config.stationRoster);
             var roots = stationRegistry.Roots; // shared live map, mutated by StationRegistry on build/demolish
 
             // id → ResourceSO: the display lookup the UI reads for both name and icon. One SO per resource, so
@@ -166,9 +168,14 @@ namespace VoidDay.Systems
             {
                 var ids = new HashSet<string>();
                 foreach (var kv in grid.All)
+                {
+                    // A station still under construction does not produce yet, so it must not widen the pool —
+                    // otherwise a half-built Bakery starts attracting cake orders nothing can fill (§4.3).
+                    if (kv.Value.UnderConstruction) continue;
                     foreach (var recipe in catalog.ForStationType(kv.Value.StationType))
                         foreach (var output in recipe.Outputs)
                             ids.Add(output.ResourceId);
+                }
                 return ids;
             }
 
@@ -223,6 +230,7 @@ namespace VoidDay.Systems
             Require(progressionSystem, nameof(progressionSystem));
             Require(upgradesSystem, nameof(upgradesSystem));
             Require(stationRegistry, nameof(stationRegistry));
+            Require(constructionSiteView, nameof(constructionSiteView));
             Require(stationsParent, nameof(stationsParent));
             Require(buildMenu, nameof(buildMenu));
             Require(placementController, nameof(placementController));

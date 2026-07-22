@@ -17,6 +17,24 @@ namespace VoidDay.Core.Rules
     /// effect and M8's level-raised caps extend the read site instead of reopening this code.
     public sealed class BuildSystem
     {
+        /// One station mid-build. Timers are absolute timestamps (§13), exactly as JobSystem's are, so the
+        /// View can render a countdown by asking rather than by keeping its own clock.
+        private sealed class Site
+        {
+            public readonly string Id;
+            public readonly double StartTime;
+            public readonly double EndTime;
+            public Site(string id, double startTime, double endTime)
+            {
+                Id = id;
+                StartTime = startTime;
+                EndTime = endTime;
+            }
+        }
+
+        private readonly Dictionary<string, Site> _sites = new();
+        private readonly List<string> _finished = new(); // scratch, so Tick doesn't mutate _sites mid-iteration
+
         private readonly EventBus _bus;
         private readonly StationGrid _grid;
         private readonly JobSystem _jobs;
@@ -72,7 +90,11 @@ namespace VoidDay.Core.Rules
 
         /// Place a new station. The View only emits PlaceRequested for a valid, affordable, unlocked, under-cap
         /// cell, so any violation here is a contract breach (a bug), not a normal outcome — hence fail-loud.
-        public void Place(string stationType, GridCoord cell)
+        ///
+        /// Placing does not build: the station enters the grid flagged UnderConstruction, which is what makes
+        /// the cell occupied and the cap honest immediately, and Tick finishes it when its timer expires. The
+        /// money is charged here, at placement — otherwise a player could queue five builds they cannot afford.
+        public void Place(string stationType, GridCoord cell, double now)
         {
             var type = Type(stationType);
             if (type.UnlockLevel > _playerLevel())
@@ -93,10 +115,64 @@ namespace VoidDay.Core.Rules
 
             _wallet.Add(-cost);
             string id = $"{stationType}#{_nextInstance++}";
-            _grid.Add(cell, new StationModel(id, stationType, type.DisplayName, type.Width, type.Height));
-            _jobs.Register(id, stationType, type.QueueDepthBase);
-            _lastBuiltId = id;
-            _bus.Publish(new StationBuilt(id, stationType, cell));
+            var model = new StationModel(id, stationType, type.DisplayName, type.Width, type.Height)
+            {
+                UnderConstruction = true
+            };
+            _grid.Add(cell, model);
+
+            float duration = type.BuildSeconds;
+            _sites[id] = new Site(id, now, duration <= 0f ? now : now + duration);
+            _bus.Publish(new StationConstructionStarted(id, stationType, cell, duration));
+
+            // An instant type still goes through the site path, so the same event pair fires in the same order
+            // whether the timer is 0 or 60 — nothing downstream needs a special case (§5.2 does this for
+            // zero-duration recipes for the same reason).
+            if (duration <= 0f) Complete(id);
+        }
+
+        /// Finish every site whose timer has expired. The only place time turns a construction site into a
+        /// station; the Systems layer pumps it with an absolute timestamp each frame, as it does JobSystem.
+        public void Tick(double now)
+        {
+            if (_sites.Count == 0) return;
+
+            _finished.Clear();
+            foreach (var kv in _sites)
+                if (now >= kv.Value.EndTime) _finished.Add(kv.Key);
+
+            foreach (var id in _finished) Complete(id);
+        }
+
+        /// Progress of a station still under construction, for the View's countdown. False once it is built —
+        /// the same shape as JobSystem.TryGetHeadProgress, so a timer renders from either without caring which.
+        public bool TryGetSiteProgress(string stationId, double now, out float fraction, out float secondsRemaining)
+        {
+            fraction = 0f;
+            secondsRemaining = 0f;
+            if (!_sites.TryGetValue(stationId, out var site)) return false;
+
+            double span = site.EndTime - site.StartTime;
+            fraction = span <= 0 ? 1f : (float)((now - site.StartTime) / span);
+            if (fraction < 0f) fraction = 0f;
+            if (fraction > 1f) fraction = 1f;
+            secondsRemaining = (float)(site.EndTime - now);
+            if (secondsRemaining < 0f) secondsRemaining = 0f;
+            return true;
+        }
+
+        /// The construction site becomes the station: it stops being under construction, gains a job queue, and
+        /// announces itself with the same station:built every listener already reacts to.
+        private void Complete(string stationId)
+        {
+            _sites.Remove(stationId);
+            var cell = CellOf(stationId);
+            _grid.TryGet(cell, out var model);
+            model.UnderConstruction = false;
+
+            _jobs.Register(stationId, model.StationType, Type(model.StationType).QueueDepthBase);
+            _lastBuiltId = stationId;
+            _bus.Publish(new StationBuilt(stationId, model.StationType, cell));
         }
 
         /// Move a placed station to another cell. Free (§4.3). Same-cell drop is a no-op.

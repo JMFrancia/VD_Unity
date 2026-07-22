@@ -57,8 +57,16 @@ namespace VoidDay.Systems
             _bus.Unsubscribe<StationDemolished>(OnDemolished);
         }
 
+        /// Pumps the build timers, exactly as Producer pumps the job timers — absolute timestamp (§13). The
+        /// rule for when a construction site becomes a station lives in Core; this only supplies the clock.
+        void Update()
+        {
+            if (_build == null) return;
+            _build.Tick(Time.timeAsDouble);
+        }
+
         // ---- Input intents → Core (Systems translate, per CLAUDE.md rule 3) ----
-        void OnPlaceRequested(PlaceRequested e) => _build.Place(e.StationType, e.Cell);
+        void OnPlaceRequested(PlaceRequested e) => _build.Place(e.StationType, e.Cell, Time.timeAsDouble);
         void OnMoveRequested(MoveRequested e) => _build.Move(e.StationId, e.Cell);
         void OnDemolishLastRequested(DebugDemolishLastRequested _) => _build.DemolishLast();
 

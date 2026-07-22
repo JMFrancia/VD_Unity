@@ -28,7 +28,7 @@ namespace VoidDay.Systems
 
         public static StationTypeModel ProjectType(StationSO so) =>
             new StationTypeModel(so.stationType, so.displayName, so.buildCost, so.cap, so.unlockLevel,
-                so.queueDepth, so.width, so.height);
+                so.queueDepth, so.width, so.height, so.buildSeconds);
 
         /// Upgrade track → model. Effects cross unprojected (§14) — the Core Effect[] is authored on the SO and
         /// handed to the resolver straight, no DTO.

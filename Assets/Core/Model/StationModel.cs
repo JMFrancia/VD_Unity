@@ -10,6 +10,11 @@ namespace VoidDay.Core.Model
         public readonly int Width;
         public readonly int Height;
 
+        /// True between placement and the build timer expiring (§4.3). The station holds its cell and counts
+        /// against its type's cap the whole time, but does not exist as far as the rest of the game is
+        /// concerned — notably the order pool, which must not offer goods an unfinished station would make.
+        public bool UnderConstruction;
+
         public StationModel(string id, string stationType, string displayName, int width, int height)
         {
             Id = id;

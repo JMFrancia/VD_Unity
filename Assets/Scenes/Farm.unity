@@ -119,6 +119,55 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
+--- !u!1 &2089663
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2089665}
+  - component: {fileID: 2089664}
+  m_Layer: 0
+  m_Name: ConstructionSites
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &2089664
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2089663}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: eae0ef95ae6954654baa084734ce48bc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::VoidDay.View.ConstructionSiteView
+  constructionMaterial: {fileID: 2100000, guid: 8d0f81e6dcfb74450ae59a7c0b24d2c2, type: 2}
+  timerTemplate: {fileID: 1726711522191711442, guid: 03a749df0a2914820bce5abbe20247fc, type: 3}
+  timerHeight: 1.15
+  confettiPrefab: {fileID: 0}
+  confettiLifetime: 4
+--- !u!4 &2089665
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2089663}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &28485491
 GameObject:
   m_ObjectHideFlags: 0
@@ -8127,6 +8176,7 @@ MonoBehaviour:
   progressionSystem: {fileID: 1308095718}
   upgradesSystem: {fileID: 1308095722}
   stationRegistry: {fileID: 1308095721}
+  constructionSiteView: {fileID: 2089664}
   stationsParent: {fileID: 255853375}
   buildMenu: {fileID: 567045142}
   placementController: {fileID: 1308095720}
@@ -14484,7 +14534,7 @@ RectTransform:
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 0, y: 1}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 0, y: 0}
+  m_SizeDelta: {x: 48, y: 0}
   m_Pivot: {x: 0, y: 0.5}
 --- !u!114 &1603150006
 MonoBehaviour:
@@ -16702,3 +16752,4 @@ SceneRoots:
   - {fileID: 93377387}
   - {fileID: 488764267}
   - {fileID: 2044472977}
+  - {fileID: 2089665}
