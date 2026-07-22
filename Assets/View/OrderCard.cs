@@ -30,6 +30,10 @@ namespace VoidDay.View
         [SerializeField] GameObject refillingRoot;
         [SerializeField] Text refillingText;
 
+        [Tooltip("Gem skip. NOT skipButton above — that one discards a filled order and costs nothing.")]
+        [SerializeField] Button skipTimerButton;
+        [SerializeField] Text skipTimerCostText;
+
         [Header("State colors")]
         [SerializeField] UiThemeSO theme;
 
@@ -63,12 +67,20 @@ namespace VoidDay.View
             skipButton.onClick.AddListener(() => onSkip());
         }
 
-        public void BindRefilling(float secondsRemaining)
+        /// gemCost is what a skip costs RIGHT NOW — priced by Core and handed in, never re-derived here
+        /// (CLAUDE.md: one rule, one home). Zero or less means the timer isn't skippable and the control hides.
+        public void BindRefilling(float secondsRemaining, int gemCost, Action onSkipTimer)
         {
             filledRoot.SetActive(false);
             refillingRoot.SetActive(true);
             int seconds = Mathf.CeilToInt(Mathf.Max(0f, secondsRemaining));
             refillingText.text = $"Refilling · {seconds / 60}:{seconds % 60:00}";
+
+            skipTimerButton.gameObject.SetActive(gemCost > 0);
+            if (gemCost <= 0) return;
+            skipTimerCostText.text = gemCost.ToString();
+            skipTimerButton.onClick.RemoveAllListeners();
+            skipTimerButton.onClick.AddListener(() => onSkipTimer());
         }
 
         static void Clear(Transform t)

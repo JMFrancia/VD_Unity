@@ -57,6 +57,19 @@ namespace VoidDay.Core.Rules
         public float RefillRemaining(int slot, double now) =>
             slot < _slots.Count ? (float)Math.Max(0d, _slots[slot].RefillAt - now) : 0f;
 
+        /// Refill a slot early (the gem sink, §13). A timestamp nudge only: the next Tick runs Fill on its
+        /// normal path, so a skipped refill publishes the same OrderGenerated / OrderSlotRefilled pair a
+        /// naturally-expired one does. Refusing a filled slot is fail-loud, not a no-op — TimeSkip.CanSkip
+        /// already said there was a live timer here.
+        public void SkipRefill(int slot, double now)
+        {
+            if (slot < 0 || slot >= _slots.Count)
+                throw new InvalidOperationException($"No order slot {slot} on the board");
+            if (_slots[slot].Order != null)
+                throw new InvalidOperationException($"Order slot {slot} is filled — there is no refill to skip");
+            _slots[slot].RefillAt = now;
+        }
+
         // ---- Ticking ----
 
         /// Fills any empty slot whose refill moment has passed. Also grows the board when SlotCount rises;

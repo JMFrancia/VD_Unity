@@ -374,6 +374,33 @@ namespace VoidDay.Core.Events
         public DebugAddGemsRequested(int amount) { Amount = amount; }
     }
 
+    // ---- Timer skips (the gem sink) ----
+
+    /// Input intent: the player tapped a skippable timer. States what happened, not what should follow —
+    /// the confirm popup is what decides a tap means "ask them", and it could as easily mean something else.
+    public readonly struct TimerSkipTapped
+    {
+        public readonly TimerRef Timer;
+        public TimerSkipTapped(TimerRef timer) { Timer = timer; }
+    }
+
+    /// The confirm popup said yes. Still an intent — the price is re-read and the purse charged in Core.
+    public readonly struct TimerSkipConfirmed
+    {
+        public readonly TimerRef Timer;
+        public TimerSkipConfirmed(TimerRef timer) { Timer = timer; }
+    }
+
+    /// Core fact: gems were spent and a timer was pulled to now. The thing the timer was waiting on then
+    /// completes on its owner's next Tick, publishing its own normal completion event — this does not
+    /// replace that, it only names the purchase.
+    public readonly struct TimerSkipped
+    {
+        public readonly TimerRef Timer;
+        public readonly int Cost;
+        public TimerSkipped(TimerRef timer, int cost) { Timer = timer; Cost = cost; }
+    }
+
     // ---- Upgrades (M5) ----
 
     /// Buy the next tier of a station-upgrade track (§8). §15 lists only {upgradeId}; StationId is added

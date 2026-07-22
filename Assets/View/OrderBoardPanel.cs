@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using VoidDay.Core.Events;
+using VoidDay.Core.Model;
 using VoidDay.Core.Rules;
 using VoidDay.Data;
 
@@ -28,18 +29,20 @@ namespace VoidDay.View
         OrderBoard _board;
         ResourcePool _pool;
         JobSystem _jobs;
+        TimeSkip _skip;
         IReadOnlyDictionary<string, ResourceSO> _resources;
 
         readonly List<OrderCard> _cards = new();
         bool _open;
 
-        public void Init(EventBus bus, OrderBoard board, ResourcePool pool, JobSystem jobs,
+        public void Init(EventBus bus, OrderBoard board, ResourcePool pool, JobSystem jobs, TimeSkip skip,
             IReadOnlyDictionary<string, ResourceSO> resources)
         {
             _bus = bus;
             _board = board;
             _pool = pool;
             _jobs = jobs;
+            _skip = skip;
             _resources = resources;
 
             closeButton.onClick.AddListener(Close);
@@ -94,7 +97,14 @@ namespace VoidDay.View
                 var order = _board.OrderAt(slot);
                 if (order == null)
                 {
-                    _cards[slot].BindRefilling(_board.RefillRemaining(slot, Time.timeAsDouble));
+                    double now = Time.timeAsDouble;
+                    var timer = TimerRef.OrderRefill(slot);
+                    // `for` variables are NOT per-iteration in C# — capturing `slot` directly would fire every
+                    // card's callback with the LAST slot index. Same reason `orderId` is hoisted below.
+                    int slotIndex = slot;
+                    _cards[slot].BindRefilling(_board.RefillRemaining(slot, now),
+                        _skip.CanSkip(timer, now) ? _skip.CostFor(timer, now) : 0,
+                        onSkipTimer: () => _bus.Publish(new TimerSkipTapped(TimerRef.OrderRefill(slotIndex))));
                     continue;
                 }
 

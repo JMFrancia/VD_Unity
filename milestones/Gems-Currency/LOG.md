@@ -219,3 +219,103 @@ but the build uses a radial `TimerWidget`. The new `world.timerSkip` sheet is dr
   discarded on exit.
 - **`ProjectSettings.asset` is dirty and not ours.** DOTween (the untracked `Assets/Plugins/Demigiant/`)
   writes a `DOTWEEN` scripting define on every AssetDatabase refresh. It was deliberately left uncommitted.
+
+---
+
+## Milestone 02 — Skip Any Timer
+**Status:** ✅ Complete · **Date:** 2026-07-22
+
+**Built:** Gems have a sink. The whole skip mechanism exists — the Core pricing rule, all three owner hooks,
+the three events, the shared confirm popup — and the complete tap → confirm → spend chain is proven
+end-to-end on the order-refill timer.
+
+- **Core** — `Model/TimerRef.cs` (new): `TimerKind { Job, Construction, OrderRefill }` + a plain readonly
+  struct with `Job(id)` / `Construction(id)` / `OrderRefill(slot)` factories. `Rules/TimeSkip.cs` (new): the
+  single pricing authority — `CanSkip`, `CostFor` = `max(minGemCost, ceil(remaining / secondsPerGem))`,
+  `Skip` (charge, nudge the timestamp, publish). **Two members per owner, a read and a write**, exactly as
+  the plan specified: `JobSystem.HeadSecondsRemaining` / `SkipHead`, `BuildSystem.SiteSecondsRemaining` /
+  `SkipSite` (`Site.EndTime` stops being `readonly`), `OrderBoard.SkipRefill` (`RefillRemaining` already
+  existed). Every skip is a **one-line timestamp nudge** — the owner's next `Tick` completes the thing on
+  its normal path, so a skipped job/build/refill fires exactly the events a natural one does. No completion
+  logic is duplicated anywhere.
+- **The `-1` sentinel.** All three reads return **-1 when there is no live timer of that kind here**, which
+  is what lets one pricing rule serve three unrelated owners through one private `SecondsRemaining` switch.
+  `TryGetHeadProgress` could not have served: it reports `0` for a *complete* head too.
+- **Events** — `TimerSkipTapped(TimerRef)`, `TimerSkipConfirmed(TimerRef)`, `TimerSkipped(TimerRef, Cost)`.
+- **Systems** — `TimeSkipSystem.cs` (new): `TimerSkipConfirmed` → `TimeSkip.Skip(..., Time.timeAsDouble)`,
+  plus the two gem debug affordances. It is now the gems' owning system (see *Deviations*).
+- **View** — `SkipConfirmPopup.cs` (new), `OrderCard.BindRefilling(secondsRemaining, gemCost, onSkipTimer)`
+  with a `skipTimerButton` / `skipTimerCostText` pair (deliberately NOT the existing `skipButton`, which
+  discards an order and costs nothing), and `OrderBoardPanel` taking a `TimeSkip` and hoisting `slotIndex`
+  before capturing it.
+- **Scene (`Farm.unity`)** — `HudCanvas/SkipConfirmPopup`. The component sits on an always-active root so
+  its `Update` and subscriptions survive; the child `Root` is what toggles. `Root` = a full-screen `Scrim`
+  (black 45%, which dims *and* swallows taps meant for the board underneath) + a 720×500 cream `Panel`:
+  "Skip the wait?" / "Order slot refills instantly." / a cost chip (rotated-quad gem glyph + amount) /
+  a red shortfall line, hidden when affordable / Cancel + Skip. **HudCanvas sorts at 20 and
+  OrderBoardCanvas at 15**, which is why the popup can stack over the board at all.
+- **Prefab (`OrderCard.prefab`)** — `Refilling/SkipTimerButton`, a cyan `rounded_28` pill (200×96) on the
+  right edge with a white rotated-quad glyph and the live cost. `Clock` and `RefillingText` shifted 110px
+  left to make room. The cyan is **authored static chrome**: the card's control is always cyan, because
+  affordability is the popup's job, not the card's.
+- **Tests** — `Assets/Tests/TimeSkipTests.cs` (13): the floor at 1s remaining, ceil-not-round at 31s, no
+  off-by-one at an exact multiple, a long timer priced high, a dead/absent timer refused, each of the three
+  owners completing down its normal path with its normal events, the charge + `TimerSkipped` payload, and
+  an unaffordable `Skip` throwing with the timer untouched. Suite **93 → 106**, all green.
+
+**Deviations from the plan:**
+- **Gems moved off `Producer` entirely.** The milestone doc offered "move it here from wherever M1 parked it
+  if that is tidier"; it was. `TimeSkipSystem` now owns *both* the `DebugAddGemsRequested` cheat and the
+  `DebugResetRequested` purse reset, so `Producer.Init` **loses** the `(GemPurse gems, int startingGems)`
+  pair M1 added and is back to `(bus, jobs, pool, wallet, startingCounts)`. M1's LOG warning that "the purse
+  is reset in `Producer.OnDebugReset` and NOWHERE else" is superseded: it is now reset in
+  `TimeSkipSystem.OnDebugReset` and nowhere else. The one-reset-only rule is unchanged.
+- **`SkipConfirmPopup` also *listens* to `ExclusiveUiClosed`.** The plan only said it must not *publish*
+  `ExclusiveUiOpened`. Listening was added so a popup can never outlive the surface it stacks on (close the
+  board with the popup open and the popup goes too). See *Gotchas*.
+- **Nothing else.** The `TimerRef` shape, the two-members-per-owner hooks, the three event names, the cost
+  formula, the `skipTimerButton` name and the hoisted `slotIndex` are all exactly as specified.
+
+**Tech debt:**
+- **The gem glyph is still three different placeholders** — the HUD pill's rotated quad, `gem.png` in the
+  level-up popup, and now two more rotated quads (the card pill, the popup cost chip). All four collapse to
+  one reference when real gem art lands. Nothing else changes.
+- **`TimeSkip` holds all three owners.** Fine at three; if a fourth timer kind appears, the `switch` in
+  `Skip` and the one in `SecondsRemaining` are the two places to touch, and that is the point at which an
+  `ITimerOwner` seam would finally earn itself.
+- **The popup has no open/close animation** and no sound. Every other surface here is equally plain, so this
+  is consistent, not a regression.
+
+**Assumptions:**
+- **`secondsPerGem` 30 / `minGemCost` 1 are still the M1 guesses**, now load-bearing: a 60s order refill
+  prices at 2 gems against a 5-gem starting purse, so a fresh player can afford exactly two skips. That felt
+  reasonable in the numbers but has not been *played*. It is one number in `GameConfig.asset`.
+- **Skipping shows no confirmation of what you got.** Confirm closes the popup and the card silently becomes
+  a real order. There is no toast, no `TimerSkipped` listener anywhere in the View. If the spend feels
+  invisible in play, that is the first thing to add — the event is already published.
+- **The scrim swallows taps.** Chosen deliberately (you should not be able to Fill an order mid-confirm),
+  but it means there is no tap-outside-to-dismiss: Cancel is the only way out. Unverified as a feel choice.
+
+**Gotchas for later milestones:**
+- **`SkipConfirmPopup` is the project's first stacking surface, and M3 reuses it unchanged.** It does not
+  publish `ExclusiveUiOpened` (that would retract whatever opened it) but *does* subscribe to
+  `ExclusiveUiClosed` → `Close()`. Any future stacking popup should copy that exact pair. Note the asymmetry
+  is deliberate: publishing is what makes a surface exclusive; listening is what keeps it honest.
+- **M3 needs no Core work at all.** `TimerRef.Job` and `TimerRef.Construction` are built, tested, and
+  verified working in playmode; the popup is kind-agnostic. M3 is a collider, a cost label and two
+  `InputRouter` guards — publish `TimerSkipTapped(TimerRef.Job(id))` and everything downstream already works.
+- **The popup's copy is hardcoded to the order-refill case.** "Order slot refills instantly." is authored
+  scene text with no serialized field behind it. M3 skipping a *job* will show that sentence unless the
+  subtitle is made per-kind. Decide there, not here.
+- **`Producer` no longer knows gems exist.** Anything that constructs a `Producer` outside `GameBoot` and was
+  updated for M1's signature must be updated *back*.
+- **Playmode is still frozen at `frameCount = 1`** and `Application.runInBackground = true` still does not
+  help; `EditorApplication.QueuePlayerLoopUpdate()` does not either. Everything in this milestone was
+  verified by driving the real objects directly from `script-execute` (reflect the private service fields off
+  the scene components — `OrderBoardPanel._board` / `._bus` / `._skip`, `TimeSkipSystem._gems`,
+  `Producer._jobs`, `BuildMenu._build`), which exercises the same code paths minus the `Update` pump. **To
+  make a falling timer observable with a frozen clock, rewind the absolute timestamp instead of advancing
+  `now`** — `slot.RefillAt = 25` is indistinguishable, to every read, from 35 seconds having passed.
+- **The order-board station's type id is `orderBoard`** (capital B) and its instance id is `OrderBoard`.
+  Field recipes are `field.cornGrow` / `field.wheatGrow`, not `grow-corn`. `henhouse` is level-3 gated, so
+  `field` is the only type a level-1 test can place.

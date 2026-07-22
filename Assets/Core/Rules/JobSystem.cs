@@ -135,6 +135,30 @@ namespace VoidDay.Core.Rules
             return true;
         }
 
+        /// Seconds left on this station's running head, or **-1 when there is no running head at all** — an
+        /// empty queue, a head still queued behind a blocking one, or a head already complete. The negative
+        /// sentinel is what lets TimeSkip ask "is there a live timer here?" and "how long?" in one call;
+        /// TryGetHeadProgress can't answer it, because it reports 0 for a *complete* head too.
+        public float HeadSecondsRemaining(string stationId, double now)
+        {
+            var s = GetStation(stationId);
+            if (s.Queue.Count == 0) return -1f;
+            var head = s.Queue[0];
+            if (head.State != JobState.Running) return -1f;
+            return (float)(head.EndTime - now);
+        }
+
+        /// Finish the running head early (the gem sink, §13). Deliberately only a timestamp nudge: the next
+        /// Tick completes the job down its normal path, so a skipped job publishes exactly the same
+        /// JobCompleted / StationBlocked pair a naturally-finished one does. No completion logic is duplicated.
+        public void SkipHead(string stationId, double now)
+        {
+            var s = GetStation(stationId);
+            if (s.Queue.Count == 0 || s.Queue[0].State != JobState.Running)
+                throw new InvalidOperationException($"No running job to skip at '{stationId}'");
+            s.Queue[0].EndTime = now;
+        }
+
         // ---- Commands (the Systems layer calls these to translate input intents) ----
 
         public void QueueJob(string stationId, string recipeId, double now)

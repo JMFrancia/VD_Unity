@@ -23,7 +23,7 @@ namespace VoidDay.Core.Rules
         {
             public readonly string Id;
             public readonly double StartTime;
-            public readonly double EndTime;
+            public double EndTime; // not readonly: a gem skip pulls it to `now` and lets Tick finish normally
             public Site(string id, double startTime, double endTime)
             {
                 Id = id;
@@ -159,6 +159,21 @@ namespace VoidDay.Core.Rules
             secondsRemaining = (float)(site.EndTime - now);
             if (secondsRemaining < 0f) secondsRemaining = 0f;
             return true;
+        }
+
+        /// Seconds left on this station's construction site, or **-1 when no site exists** — the station is
+        /// already built, or was never placed. Same negative-sentinel shape as JobSystem.HeadSecondsRemaining,
+        /// so TimeSkip prices either timer through one call.
+        public float SiteSecondsRemaining(string stationId, double now) =>
+            _sites.TryGetValue(stationId, out var site) ? (float)(site.EndTime - now) : -1f;
+
+        /// Finish a construction site early (the gem sink, §13). A timestamp nudge only: the next Tick runs
+        /// Complete on its normal path, so a skipped build publishes the same StationBuilt a natural one does.
+        public void SkipSite(string stationId, double now)
+        {
+            if (!_sites.TryGetValue(stationId, out var site))
+                throw new InvalidOperationException($"No construction site to skip at '{stationId}'");
+            site.EndTime = now;
         }
 
         /// The construction site becomes the station: it stops being under construction, gains a job queue, and

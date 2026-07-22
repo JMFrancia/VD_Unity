@@ -29,6 +29,7 @@ namespace VoidDay.Systems
         [SerializeField] OrderBoardPanel orderBoardPanel;
         [SerializeField] SiloPanel siloPanel;
         [SerializeField] OrderBoardSystem orderBoardSystem;
+        [SerializeField] TimeSkipSystem timeSkipSystem;
         [SerializeField] ProgressionSystem progressionSystem;
         [SerializeField] UpgradesSystem upgradesSystem;
         [SerializeField] StationRegistry stationRegistry;
@@ -39,6 +40,7 @@ namespace VoidDay.Systems
         [SerializeField] Hud hud;
         [SerializeField] LevelXpHud levelXpHud;
         [SerializeField] LevelUpPopup levelUpPopup;
+        [SerializeField] SkipConfirmPopup skipConfirmPopup;
         [SerializeField] SfxController sfxController;
         [SerializeField] ToastController toastController;
         [SerializeField] StationFlattenMask stationFlattenMask;
@@ -188,15 +190,21 @@ namespace VoidDay.Systems
             var orderBoard = new OrderBoard(bus, pool, wallet, generation, orderConfig, resolver,
                 Producible, () => progression.PlayerLevel);
 
+            // The gem sink (§13). Constructed last of the core objects because it is the only one that spans
+            // all three timer owners; it holds the pricing rule and routes to whichever owner a TimerRef names.
+            var timeSkip = new TimeSkip(bus, gems, jobs, buildSystem, orderBoard,
+                config.secondsPerGem, config.minGemCost);
+
             // Grid is centered on the world origin; the camera only needs its world-space extents for pan bounds.
             cameraController.Init(Vector3.zero, config.gridCols * config.cellSize, config.gridRows * config.cellSize, bus, roots);
-            producer.Init(bus, jobs, pool, wallet, gems, config.startingGems, startingCounts);
+            producer.Init(bus, jobs, pool, wallet, startingCounts);
             inputRouter.Init(bus, worldCamera);
             worldState.Init(bus, jobs, catalog, upgrades, resourceDisplays, roots, worldCamera);
             stationPanel.Init(bus, jobs, catalog, pool, wallet, upgrades, resourceDisplays, roots, worldCamera);
-            orderBoardPanel.Init(bus, orderBoard, pool, jobs, resourceDisplays);
+            orderBoardPanel.Init(bus, orderBoard, pool, jobs, timeSkip, resourceDisplays);
             siloPanel.Init(bus, pool, jobs, upgrades, wallet, resourceList);
             orderBoardSystem.Init(bus, orderBoard, wallet);
+            timeSkipSystem.Init(bus, timeSkip, gems, config.startingGems);
             progressionSystem.Init(bus, progression, xpConfig);
             upgradesSystem.Init(bus, upgrades);
             buildMenu.Init(bus, buildSystem, wallet, () => progression.PlayerLevel, config.stationRoster);
@@ -204,6 +212,7 @@ namespace VoidDay.Systems
             hud.Init(bus, pool, progression, resourceList);
             levelXpHud.Init(bus, progression);
             levelUpPopup.Init(bus, config.stationRoster);
+            skipConfirmPopup.Init(bus, timeSkip, gems);
             sfxController.Init(bus);
             toastController.Init(bus);
             stationFlattenMask.Init(bus, roots);
@@ -229,6 +238,7 @@ namespace VoidDay.Systems
             Require(stationPanel, nameof(stationPanel));
             Require(orderBoardPanel, nameof(orderBoardPanel));
             Require(orderBoardSystem, nameof(orderBoardSystem));
+            Require(timeSkipSystem, nameof(timeSkipSystem));
             Require(progressionSystem, nameof(progressionSystem));
             Require(upgradesSystem, nameof(upgradesSystem));
             Require(stationRegistry, nameof(stationRegistry));
@@ -239,6 +249,7 @@ namespace VoidDay.Systems
             Require(hud, nameof(hud));
             Require(levelXpHud, nameof(levelXpHud));
             Require(levelUpPopup, nameof(levelUpPopup));
+            Require(skipConfirmPopup, nameof(skipConfirmPopup));
             Require(siloPanel, nameof(siloPanel));
             Require(sfxController, nameof(sfxController));
             Require(stationFlattenMask, nameof(stationFlattenMask));
