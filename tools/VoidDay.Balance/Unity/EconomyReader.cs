@@ -20,12 +20,33 @@ public sealed class EconomyReader
     private readonly Dictionary<string, UpgradeRaw> _upgrades = new();
     private readonly Dictionary<string, ResourceRaw> _resources = new();
 
+    // Source maps the writer (M2) needs: an id/type back to the guid that owns it, so a config
+    // path can be resolved to the exact asset file to edit. Filled during Read().
+    private readonly Dictionary<string, string> _recipeGuidById = new();
+    private readonly Dictionary<string, string> _resourceGuidById = new();
+    private readonly Dictionary<string, string> _stationGuidByType = new();
+
+    public IReadOnlyDictionary<string, string> RecipeGuidById => _recipeGuidById;
+    public IReadOnlyDictionary<string, string> ResourceGuidById => _resourceGuidById;
+    public IReadOnlyDictionary<string, string> StationGuidByType => _stationGuidByType;
+
+    // Asset paths for the singleton config SOs (the writer edits scalars in these directly).
+    public string XpConfigPath { get; private set; } = "";
+    public string OrderConfigPath { get; private set; } = "";
+    public string LevelsPath { get; private set; } = "";
+
+    public GuidIndex Guids => _reader.Guids;
+
     public EconomyReader(AssetReader reader) => _reader = reader;
 
     public BalanceConfig Read()
     {
         var gc = _reader.Read<GameConfigRaw>(GameConfigPath);
         var config = new BalanceConfig();
+
+        XpConfigPath = _reader.Guids.PathFor(RequireGuid(gc.xpConfig, "GameConfig.xpConfig"));
+        OrderConfigPath = _reader.Guids.PathFor(RequireGuid(gc.orderConfig, "GameConfig.orderConfig"));
+        LevelsPath = _reader.Guids.PathFor(RequireGuid(gc.levels, "GameConfig.levels"));
 
         ReadGlobal(gc, config);
         ReadGems(gc, config);
@@ -97,6 +118,7 @@ public sealed class EconomyReader
         {
             var guid = RequireGuid(stationRef, "GameConfig.stationRoster");
             var s = _reader.ReadByGuid<StationRaw>(guid);
+            _stationGuidByType[s.stationType] = guid;
 
             var recipeIds = new List<string>();
             foreach (var r in s.recipes)
@@ -230,7 +252,10 @@ public sealed class EconomyReader
     private RecipeRaw CacheRecipe(string guid)
     {
         if (!_recipes.TryGetValue(guid, out var r))
+        {
             _recipes[guid] = r = _reader.ReadByGuid<RecipeRaw>(guid);
+            _recipeGuidById[r.id] = guid;
+        }
         return r;
     }
 
@@ -245,7 +270,10 @@ public sealed class EconomyReader
     {
         var guid = RequireGuid(reference, context);
         if (!_resources.TryGetValue(guid, out var r))
+        {
             _resources[guid] = r = _reader.ReadByGuid<ResourceRaw>(guid);
+            _resourceGuidById[r.id] = guid;
+        }
         return r;
     }
 

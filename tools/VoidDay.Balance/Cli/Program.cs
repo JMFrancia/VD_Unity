@@ -1,34 +1,101 @@
 using Newtonsoft.Json;
+using VoidDay.Balance.Schema;
 using VoidDay.Balance.Unity;
 
-// VoidDay Balance Tool — CLI entrypoint. M01 ships one verb: `read`.
+// VoidDay Balance Tool — CLI entrypoint. Verbs: `read` (M01), `write` (M02).
 // The Unity project is never told this tool exists (spec, the agnosticism rule).
 
-var args2 = Environment.GetCommandLineArgs()[1..];   // drop the exe path
-if (args2.Length == 0 || args2[0] != "read")
+if (args.Length == 0)
 {
-    Console.Error.WriteLine("usage: balance read [--project <dir>] [--out <file>]");
+    Usage();
     return 1;
 }
 
-var opts = ParseOptions(args2[1..]);
+var verb = args[0];
+var opts = ParseOptions(args[1..]);
 var projectRoot = opts.GetValueOrDefault("project") ?? FindProjectRoot();
-var outPath = opts.GetValueOrDefault("out")
-              ?? Path.Combine(projectRoot, "tools", "VoidDay.Balance", "versions", "baseline.json");
 
-var guids = new GuidIndex(projectRoot);
-var reader = new AssetReader(guids);
-var config = new EconomyReader(reader).Read();
+switch (verb)
+{
+    case "read": return Read(projectRoot, opts);
+    case "write": return Write(projectRoot, opts);
+    default:
+        Usage();
+        return 1;
+}
 
-var json = JsonConvert.SerializeObject(config, Formatting.Indented);
-Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(outPath))!);
-File.WriteAllText(outPath, json + "\n");
+static int Read(string projectRoot, Dictionary<string, string> opts)
+{
+    var outPath = opts.GetValueOrDefault("out")
+                  ?? Path.Combine(projectRoot, "tools", "VoidDay.Balance", "versions", "baseline.json");
 
-Console.WriteLine(
-    $"read ok: {config.Stations.Count} stations, {config.Recipes.Count} recipes, " +
-    $"{config.Upgrades.Count} upgrades, {config.Resources.Count} resources, {config.Levels.Count} levels " +
-    $"→ {outPath}");
-return 0;
+    var config = new EconomyReader(new AssetReader(new GuidIndex(projectRoot))).Read();
+
+    var json = JsonConvert.SerializeObject(config, Formatting.Indented);
+    Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(outPath))!);
+    File.WriteAllText(outPath, json + "\n");
+
+    Console.WriteLine(
+        $"read ok: {config.Stations.Count} stations, {config.Recipes.Count} recipes, " +
+        $"{config.Upgrades.Count} upgrades, {config.Resources.Count} resources, {config.Levels.Count} levels " +
+        $"→ {outPath}");
+    return 0;
+}
+
+static int Write(string projectRoot, Dictionary<string, string> opts)
+{
+    if (!opts.TryGetValue("config", out var configPath))
+    {
+        Console.Error.WriteLine("write: --config <file> is required (the edited JSON to apply).");
+        return 1;
+    }
+    var apply = opts.ContainsKey("apply");
+
+    var incoming = JsonConvert.DeserializeObject<BalanceConfig>(File.ReadAllText(configPath))
+                   ?? throw new InvalidOperationException($"{configPath}: parsed to null — not a BalanceConfig JSON.");
+
+    var reader = new EconomyReader(new AssetReader(new GuidIndex(projectRoot)));
+    var current = reader.Read();
+    var writer = new AssetWriter(projectRoot, reader, current);
+
+    WritePlan plan;
+    try
+    {
+        // All validation happens here, before a single byte is written. A refusal aborts whole.
+        plan = writer.Plan(incoming);
+    }
+    catch (WriteRefusedException ex)
+    {
+        Console.Error.WriteLine("refused: " + ex.Message);
+        return 1;
+    }
+
+    if (plan.IsEmpty)
+    {
+        Console.WriteLine("no changes.");
+        return 0;
+    }
+
+    foreach (var c in plan.Scalars)
+        Console.WriteLine($"  {c.AssetPath} {c.Field}: {c.Old} → {c.New}");
+    foreach (var i in plan.RecipeInsertions)
+        Console.WriteLine($"  + create recipe '{i.Recipe.Id}' (station '{i.Recipe.StationType}') + wire into its StationSO");
+
+    if (!apply)
+    {
+        Console.WriteLine($"dry run: {plan.Scalars.Count} scalar change(s), {plan.RecipeInsertions.Count} insertion(s). Pass --apply to write.");
+        return 0;
+    }
+
+    writer.Apply(plan);
+    Console.WriteLine($"applied: {plan.Scalars.Count} scalar change(s), {plan.RecipeInsertions.Count} insertion(s).");
+    return 0;
+}
+
+static void Usage() => Console.Error.WriteLine(
+    "usage:\n" +
+    "  balance read  [--project <dir>] [--out <file>]\n" +
+    "  balance write --config <file> [--project <dir>] [--apply]");
 
 static Dictionary<string, string> ParseOptions(string[] tokens)
 {
@@ -38,6 +105,8 @@ static Dictionary<string, string> ParseOptions(string[] tokens)
         if (!tokens[i].StartsWith("--"))
             throw new ArgumentException($"unexpected argument '{tokens[i]}'");
         var key = tokens[i][2..];
+        // Flags (no value): --apply. Everything else takes the next token as its value.
+        if (key == "apply") { opts[key] = "true"; continue; }
         if (i + 1 >= tokens.Length)
             throw new ArgumentException($"option --{key} needs a value");
         opts[key] = tokens[++i];
@@ -46,7 +115,6 @@ static Dictionary<string, string> ParseOptions(string[] tokens)
 }
 
 // Discover the repo root by walking up from cwd to the folder holding both Assets/ and .gitignore.
-// Keeps `dotnet run --project tools/VoidDay.Balance -- read` working from the repo root or the tool dir.
 static string FindProjectRoot()
 {
     var dir = new DirectoryInfo(Directory.GetCurrentDirectory());

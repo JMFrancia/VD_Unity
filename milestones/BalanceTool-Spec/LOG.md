@@ -151,3 +151,35 @@ _(sha not recorded here — the entry ships inside its own commit; the milestone
 - **`versions/` lives at `tools/VoidDay.Balance/versions/`** (spec arch diagram + Config table), not repo root. `--out` defaults there regardless of cwd; `--project` is discovered by walking up to the folder with `Assets/` + `.gitignore`.
 - Resources are reached only via recipe I/O + `startingResources`; the resource cache must be fully populated (recipes/upgrades projected) before resources are emitted (a bug caught in build: resources projected too early → only the 2 starting resources).
 - Two resource assets are `CropSO` (a `ResourceSO` subclass with an extra `cropSprite`); the reader reads by field name and ignores unmatched properties, so the subclass is transparent.
+
+## Milestone 02 — Write It Back
+**Status:** ✅ Complete · **Date:** 2026-07-22
+_(sha not recorded here — the entry ships inside its own commit; the milestone number in the commit message is the link.)_
+
+**Built:**
+- `Unity/AssetWriter.cs` — surgical writer. `Plan(incoming)` validates + diffs against a fresh read (writes nothing); `Apply(plan)` performs edits. Types: `WritePlan`, `ScalarChange`, `RecipeInsertion`, `WriteRefusedException`.
+  - **Scalar edits** replace only the value after `: ` on the one matching top-level line (2-space indent match; asserts exactly one match). **Never reserializes** — a one-field change is a one-line `git diff`.
+  - **Absent-scalar edits** (`perStationBuilt`, `buildSeconds` — absent from assets, SO-default) append one line at EOF; Unity reads SO fields by name (order-independent), so this is a valid 1-line diff.
+  - **Recipe insertion** writes a `RecipeSO` `.asset` (m_Script guid *stolen from an existing recipe*, not hardcoded) + a `.meta` with a fresh `Guid.NewGuid("N")`, then appends one reference line to the owning `StationSO.recipes` block.
+  - **Refusals abort before the first byte:** schemaVersion mismatch; resource/station id matching no asset; any nested-collection edit, deletion, or resource/station creation. Fail loud, fail whole.
+- Extended `EconomyReader`: exposes `RecipeGuidById` / `ResourceGuidById` / `StationGuidByType` source maps + `XpConfigPath` / `OrderConfigPath` / `LevelsPath` + `Guids` — so a config path resolves to the exact asset. `BalanceConfig.CurrentSchemaVersion` const.
+- `Program.cs`: `write --config X [--project ..] [--apply]`; **dry-run is the default**, prints `asset field: old → new` per change.
+- `WriterTests.cs` — 6 tests (round-trip plans zero changes; scalar edit = 1 change; new recipe = 1 insertion; schemaVersion/bogus-id/nested-level refusals). **8/8 total pass.**
+
+**Verified** (dotnet build/run/test + `git diff`; no editor, by design):
+- No-op write → `no changes`, `Assets/` clean. Halving `field.wheatGrow` 5→2.5 → **exactly one changed line**; re-read shows 2.5; second write `no changes`.
+- Bogus resource id and `schemaVersion: 999` → both `refused:` (exit 1), `Assets/` untouched.
+- New recipe `field.testGrow` → valid asset+meta+1-line wiring; full re-read (13 recipes, wired into field) proves the reference graph is intact — the same traversal `GameBoot` runs, which is the boot-validity proxy this run can give.
+- **NOT verified:** in-editor `BootValidator`/playmode (this run never opens Unity).
+
+**Deviations from the plan:** Level-row and upgrade-tier *insertion* (listed under "Build This") were **not** built — no DoD/acceptance case exercises them and each carries real nested-YAML risk under a minimal-diff bar. Deferred to when a caller needs them (likely M4). Recipe insertion (the DoD-tested, boot-validated path) is complete.
+
+**Tech debt:** ★ **Nested-collection edits are refused, not written** — changing a recipe's inputs/outputs, an upgrade tier/effect, a level `xpThreshold`/grant, or `startingResources` aborts loud (`… not supported by the M2 writer`). These are legitimate balance knobs; M4's workbench will need a surgical path (list-index line addressing) or a scoped block-replace. Absent-scalar append (buildSeconds/perStationBuilt) *is* supported.
+
+**Assumptions:** (1) Unity deserializes SO fields by name, order-independent — so appending an absent scalar at EOF is safe (holds for `MonoBehaviour` YAML; if ever false, the appended field would be ignored, not corrupt). (2) The stolen `m_Script` guid + `--- !u!114 &11400000 / mainObjectFileID: 11400000` header make a boot-valid `RecipeSO` — verified structurally + by re-read, not by the in-editor importer.
+
+**Gotchas for later milestones:**
+- ★ **Writer contract (M4 inherits):** the writer edits by re-reading current state and diffing incoming; **only changed fields are written**, which is what makes the no-op round-trip byte-identical. Any new editable surface must add both a diff branch and a line/append target, or be refused — never silently dropped.
+- ★ **Gems are authored top-level on `GameConfig.asset`** (`startingGems`/`secondsPerGem`/`minGemCost`) even though the schema groups them under `Gems`. The writer targets `GameConfigPath` for them; a future reader/writer split must preserve that.
+- **CLI arg parsing uses the top-level `args`, not `Environment.GetCommandLineArgs()`** (the latter mis-indexes under `dotnet run`). Run verbs as `dotnet run -- <verb> …`; `dotnet run --nologo/-v` leaks those flags into `args`.
+- New recipe assets land at `Assets/Data/SO/Recipe_<id-with-dots→underscores>.asset` with `m_Name` matching. Filename is cosmetic to the game (referenced by guid), but keep the convention for reviewability.

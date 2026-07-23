@@ -6,7 +6,8 @@ namespace VoidDay.Balance.Schema;
 /// discriminator that could silently reassign if an enum were reordered.
 public sealed class BalanceConfig
 {
-    public int SchemaVersion = 1;   // the writer (M2) refuses a mismatch
+    public const int CurrentSchemaVersion = 1;
+    public int SchemaVersion = CurrentSchemaVersion;   // the writer (M2) refuses a mismatch
     public string Name = "baseline";
 
     public GlobalConfig Global = new();
