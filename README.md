@@ -2,9 +2,7 @@
 
 A small, playable recreation of Hay Day's core experience, built in Unity for the Voidpet Game Developer Challenge.
 
-**[Play the WebGL build](BUILD_LINK)** | **[Watch the gameplay video](VIDEO_LINK)** | **[Read the AI session log](docs/ai-transcript/README.md)**
-
-> Replace `BUILD_LINK` and `VIDEO_LINK` above before submission. The AI session log link already resolves.
+**[Play the WebGL build](https://play.unity.com/en/games/638f3e49-b444-4436-b1b7-348e748f221b/voidpet-developer-challenge)** | **[Watch the gameplay video](https://www.youtube.com/watch?v=b_66koJZNz8)** | **[Read the AI session log](docs/ai-transcript/README.md)**
 
 ## Overview
 
