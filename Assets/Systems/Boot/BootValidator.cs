@@ -55,6 +55,69 @@ namespace VoidDay.Systems
                 Require(s != null, config, nameof(config.stationRoster), "contains a null station ref");
                 ValidateStation(s);
             }
+
+            Require(config.quests != null, config, nameof(config.quests), "must not be null");
+            var questIds = new System.Collections.Generic.HashSet<string>();
+            foreach (var q in config.quests)
+            {
+                Require(q != null, config, nameof(config.quests), "contains a null quest ref");
+                Require(!string.IsNullOrWhiteSpace(q.id), q, nameof(q.id), "must not be empty");
+                Require(questIds.Add(q.id), q, nameof(q.id), $"is a duplicate quest id ('{q.id}')");
+            }
+            foreach (var q in config.quests)
+                ValidateQuest(q, questIds);
+        }
+
+        /// § quest system: every referenced SO assigned, amounts in range, and a QuestCompleted condition names
+        /// a real quest id. Throws on the first bad field; QuestLog assumes well-formed past here.
+        static void ValidateQuest(QuestSO q, System.Collections.Generic.HashSet<string> questIds)
+        {
+            Require(q.conditions != null, q, nameof(q.conditions), "must not be null");
+            foreach (var c in q.conditions)
+            {
+                switch (c.kind)
+                {
+                    case ConditionKind.MinLevel:
+                        Require(c.amount >= Progression.StartingLevel, q, nameof(q.conditions),
+                            $"a MinLevel condition amount must be >= {Progression.StartingLevel}");
+                        break;
+                    case ConditionKind.ResourceAtLeast:
+                        Require(!string.IsNullOrWhiteSpace(c.arg), q, nameof(q.conditions),
+                            "a ResourceAtLeast condition must name a resource id in arg");
+                        Require(c.amount > 0, q, nameof(q.conditions),
+                            "a ResourceAtLeast condition amount must be > 0");
+                        break;
+                    case ConditionKind.QuestCompleted:
+                        Require(!string.IsNullOrWhiteSpace(c.arg), q, nameof(q.conditions),
+                            "a QuestCompleted condition must name a prerequisite quest id in arg");
+                        Require(c.arg != q.id, q, nameof(q.conditions),
+                            $"a QuestCompleted condition cannot reference its own quest ('{q.id}')");
+                        Require(questIds.Contains(c.arg), q, nameof(q.conditions),
+                            $"a QuestCompleted condition references '{c.arg}', which is not a quest id");
+                        break;
+                    case ConditionKind.UpgradePurchased:
+                        Require(!string.IsNullOrWhiteSpace(c.arg), q, nameof(q.conditions),
+                            "an UpgradePurchased condition must name an upgrade track id in arg");
+                        break;
+                }
+            }
+
+            Require(q.goal.amount > 0, q, nameof(q.goal), $"goal amount must be > 0 (is {q.goal.amount})");
+            if (q.goal.kind == GoalKind.HarvestCrops)
+                Require(!string.IsNullOrWhiteSpace(q.goal.targetId), q, nameof(q.goal),
+                    "a HarvestCrops goal must name a crop resource id in targetId");
+
+            Require(q.reward.xp >= 0, q, nameof(q.reward), "reward xp must be >= 0");
+            Require(q.reward.money >= 0, q, nameof(q.reward), "reward money must be >= 0");
+            Require(q.reward.gems >= 0, q, nameof(q.reward), "reward gems must be >= 0");
+            if (q.reward.resources != null)
+                foreach (var g in q.reward.resources)
+                {
+                    Require(g.resource != null, q, nameof(q.reward), "a reward resource grant has no resource assigned");
+                    ValidateResource(g.resource);
+                    Require(g.amount > 0, q, nameof(q.reward),
+                        $"a reward grant of '{g.resource.id}' must be > 0");
+                }
         }
 
         static void ValidateOrderConfig(OrderConfigSO o)
@@ -96,10 +159,11 @@ namespace VoidDay.Systems
                                       // renders rewards[0] only, so two of either kind would hide one.
                 foreach (var g in def.grants)
                 {
-                    Require(g.kind != LevelEntryKind.StationType && g.kind != LevelEntryKind.Upgrade,
+                    Require(g.kind != LevelEntryKind.StationType && g.kind != LevelEntryKind.Upgrade
+                            && g.kind != LevelEntryKind.Recipe,
                         l, $"{nameof(l.levels)}[{i}].grants",
-                        $"may not grant {g.kind} — that gate lives on the StationSO.unlockLevel / "
-                        + "UpgradeSO.unlockLevel of the thing being gated, not on the level");
+                        $"may not grant {g.kind} — that gate lives on the StationSO / UpgradeSO / RecipeSO "
+                        + "unlockLevel of the thing being gated, not on the level");
                     Require(g.amount > 0, l, $"{nameof(l.levels)}[{i}].grants",
                         $"{g.kind} amount must be > 0");
                     Require(g.kind != LevelEntryKind.StationCap || g.targetStation != null,
@@ -150,7 +214,7 @@ namespace VoidDay.Systems
             foreach (var r in s.recipes)
             {
                 Require(r != null, s, nameof(s.recipes), "contains a null recipe ref");
-                ValidateRecipe(r, s.stationType);
+                ValidateRecipe(r, s.stationType, s.unlockLevel);
             }
 
             Require(s.upgrades != null, s, nameof(s.upgrades), "must not be null");
@@ -204,11 +268,20 @@ namespace VoidDay.Systems
             _ => false
         };
 
-        static void ValidateRecipe(RecipeSO r, string ownerStationType)
+        static void ValidateRecipe(RecipeSO r, string ownerStationType, int ownerUnlockLevel)
         {
             Require(!string.IsNullOrWhiteSpace(r.id), r, nameof(r.id), "must not be empty");
             Require(r.stationType == ownerStationType, r, nameof(r.stationType),
                 $"is '{r.stationType}' but the station referencing it is '{ownerStationType}'");
+            Require(r.unlockLevel >= Progression.StartingLevel, r, nameof(r.unlockLevel),
+                $"must be >= {Progression.StartingLevel} (the starting level)");
+            // Either available the moment the station is built (StartingLevel), or gated at/after the station
+            // itself opens — never in the gap between, where the level-up popup would announce a recipe for a
+            // building the player still cannot make.
+            Require(r.unlockLevel == Progression.StartingLevel || r.unlockLevel >= ownerUnlockLevel,
+                r, nameof(r.unlockLevel),
+                $"must be {Progression.StartingLevel} (open as soon as the station is built) or >= its "
+                + $"station's unlockLevel ({ownerUnlockLevel}) — not in the gap before the station exists");
             Require(r.outputs != null && r.outputs.Count > 0, r, nameof(r.outputs), "must have at least one output");
             ValidateIngredients(r, r.inputs, nameof(r.inputs));
             ValidateIngredients(r, r.outputs, nameof(r.outputs));

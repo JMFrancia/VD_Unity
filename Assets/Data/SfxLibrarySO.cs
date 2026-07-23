@@ -1,12 +1,11 @@
 using System;
-using System.Collections.Generic;
 using UnityEngine;
 
 namespace VoidDay.Data
 {
-    /// Every moment in the game that can make a sound. One entry per value in SfxLibrarySO, one listener per
-    /// value in SfxController — adding a cue means adding it here, mapping an event to it there, and dropping
-    /// a clip on it in the inspector.
+    /// Every moment in the game that can make a sound. The controller routes on these values; the library
+    /// holds one field per value. Adding a cue means adding it here, adding a matching field + Get case in
+    /// SfxLibrarySO, and mapping an event to it in SfxController.
     public enum SfxCue
     {
         // Jobs — the core loop
@@ -17,6 +16,7 @@ namespace VoidDay.Data
         JobCancelled,
         StationBlocked,
         StorageFull,
+        CollectRefused, // tried to collect with a full silo — the "no" beat
 
         // Orders
         OrderFulfilled,
@@ -25,6 +25,7 @@ namespace VoidDay.Data
 
         // Build & manage
         StationPickedUp,
+        StationConstructionStarted, // the thunk of a build site going down; StationBuilt is its completion
         StationBuilt,
         StationMoved,
         StationDemolished,
@@ -34,17 +35,7 @@ namespace VoidDay.Data
         UpgradePurchased,
         MoneySpent,
         XpGained,
-
-        // UI
-        UiOpen,
-        UiClose,
-        UiTap,
-
-        // New cues APPEND here — the enum's integer values are what the library asset serializes, so
-        // inserting one in the middle would silently reassign every clip below it.
         LevelUp,
-        CollectRefused, // tried to collect with a full silo — the "no" beat
-        StationConstructionStarted, // the thunk of a build site going down; StationBuilt is now its completion
 
         // One tick per collection particle landing in its HUD home. These layer ON TOP of the umbrella cue
         // for the same moment (OrderFulfilled / XpGained / JobCollected) — the umbrella keeps its voice and
@@ -52,11 +43,17 @@ namespace VoidDay.Data
         EarnParticleMoney,
         EarnParticleXp,
         EarnParticleResource,
+
+        // UI
+        UiOpen,
+        UiClose,
+        UiTap,
     }
 
-    /// The one place a clip is assigned to a moment. The controller holds no clip and no volume — everything
-    /// tunable about a cue lives on this asset (CLAUDE.md rule 1); the controller only knows which event maps
-    /// to which cue.
+    /// The one place a clip is assigned to a moment. Each cue has its own named field, so a cue can never be
+    /// duplicated or accidentally missing (the failure modes of the old list). The controller holds no clip
+    /// and no volume — everything tunable about a cue lives on this asset (CLAUDE.md rule 1); the controller
+    /// only knows which event maps to which cue.
     ///
     /// A cue with no clip is SILENT, not an error: the set is authored incrementally, and "this moment has no
     /// sound" is a legitimate designer answer. That is the one deliberate exception to fail-loud validation.
@@ -66,9 +63,6 @@ namespace VoidDay.Data
         [Serializable]
         public sealed class Entry
         {
-            [Tooltip("The moment this clip plays on. Rows are kept in sync with the SfxCue enum automatically.")]
-            public SfxCue cue;
-
             public AudioClip clip;
 
             [Range(0f, 1f)] public float volume = 1f;
@@ -81,24 +75,83 @@ namespace VoidDay.Data
             [Min(0f)] public float minInterval;
         }
 
-        public List<Entry> entries = new();
+        [Header("Jobs — the core loop")]
+        [SerializeField] Entry jobQueued = new();
+        [SerializeField] Entry jobStarted = new();
+        [SerializeField] Entry jobCompleted = new();
+        [SerializeField] Entry jobCollected = new();
+        [SerializeField] Entry jobCancelled = new();
+        [SerializeField] Entry stationBlocked = new();
+        [SerializeField] Entry storageFull = new();
+        [SerializeField] Entry collectRefused = new();
 
-        /// Keeps exactly one row per cue, in enum order, without ever touching an assignment you have made.
-        /// The alternative — hand-adding 21 rows and hoping none is duplicated or missed — is a worse
-        /// inspector, and this is the asset's whole reason to exist.
-        void OnValidate() => SyncRows();
+        [Header("Orders")]
+        [SerializeField] Entry orderFulfilled = new();
+        [SerializeField] Entry orderSkipped = new();
+        [SerializeField] Entry orderRefilled = new();
 
-        public void SyncRows()
+        [Header("Build & manage")]
+        [SerializeField] Entry stationPickedUp = new();
+        [SerializeField] Entry stationConstructionStarted = new();
+        [SerializeField] Entry stationBuilt = new();
+        [SerializeField] Entry stationMoved = new();
+        [SerializeField] Entry stationDemolished = new();
+        [SerializeField] Entry placeRejected = new();
+
+        [Header("Economy")]
+        [SerializeField] Entry upgradePurchased = new();
+        [SerializeField] Entry moneySpent = new();
+        [SerializeField] Entry xpGained = new();
+        [SerializeField] Entry levelUp = new();
+
+        [Header("Earn particles")]
+        [SerializeField] Entry earnParticleMoney = new();
+        [SerializeField] Entry earnParticleXp = new();
+        [SerializeField] Entry earnParticleResource = new();
+
+        [Header("UI")]
+        [SerializeField] Entry uiOpen = new();
+        [SerializeField] Entry uiClose = new();
+        [SerializeField] Entry uiTap = new();
+
+        /// Maps a cue to its assigned entry. Throws on an unmapped cue so a new enum value without a matching
+        /// field fails loud at boot rather than going silently mute.
+        public Entry Get(SfxCue cue) => cue switch
         {
-            var byCue = new Dictionary<SfxCue, Entry>();
-            foreach (var entry in entries)
-                if (entry != null && !byCue.ContainsKey(entry.cue)) byCue[entry.cue] = entry;
+            SfxCue.JobQueued => jobQueued,
+            SfxCue.JobStarted => jobStarted,
+            SfxCue.JobCompleted => jobCompleted,
+            SfxCue.JobCollected => jobCollected,
+            SfxCue.JobCancelled => jobCancelled,
+            SfxCue.StationBlocked => stationBlocked,
+            SfxCue.StorageFull => storageFull,
+            SfxCue.CollectRefused => collectRefused,
 
-            var synced = new List<Entry>();
-            foreach (SfxCue cue in Enum.GetValues(typeof(SfxCue)))
-                synced.Add(byCue.TryGetValue(cue, out var existing) ? existing : new Entry { cue = cue });
+            SfxCue.OrderFulfilled => orderFulfilled,
+            SfxCue.OrderSkipped => orderSkipped,
+            SfxCue.OrderRefilled => orderRefilled,
 
-            entries = synced;
-        }
+            SfxCue.StationPickedUp => stationPickedUp,
+            SfxCue.StationConstructionStarted => stationConstructionStarted,
+            SfxCue.StationBuilt => stationBuilt,
+            SfxCue.StationMoved => stationMoved,
+            SfxCue.StationDemolished => stationDemolished,
+            SfxCue.PlaceRejected => placeRejected,
+
+            SfxCue.UpgradePurchased => upgradePurchased,
+            SfxCue.MoneySpent => moneySpent,
+            SfxCue.XpGained => xpGained,
+            SfxCue.LevelUp => levelUp,
+
+            SfxCue.EarnParticleMoney => earnParticleMoney,
+            SfxCue.EarnParticleXp => earnParticleXp,
+            SfxCue.EarnParticleResource => earnParticleResource,
+
+            SfxCue.UiOpen => uiOpen,
+            SfxCue.UiClose => uiClose,
+            SfxCue.UiTap => uiTap,
+
+            _ => throw new InvalidOperationException($"SfxLibrary '{name}': no entry field for cue {cue}"),
+        };
     }
 }

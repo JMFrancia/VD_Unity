@@ -14,11 +14,13 @@ Also the largest and least certain milestone. Budget accordingly.
 - **`Sim/CoreHarness.cs`** — wires the Core object graph from a `BalanceConfig`, mirroring `GameBoot.Start()`.
   Header comment naming the mirrored file and the reconciliation date.
 - **`Sim/GameBootParityTests.cs`** — the staleness canary: hash `GameBoot.cs`, compare to a recorded value,
-  fail with *"GameBoot.cs changed since CoreHarness was last reconciled"*. **★ Hash it only after gems M03
-  ships.** Gems M01–M02 already moved `GameBoot` (the purse is constructed after `Wallet`, before
-  `Progression`, and `EmitCurrent` is called beside the wallet's), and M03 wires `TimeSkip` into
-  `WorldState` / `ConstructionSiteView` — likely another `Init(...)`. Hashing before that guarantees the
-  canary fires on arrival for a change you already knew about.
+  fail with *"GameBoot.cs changed since CoreHarness was last reconciled"*. **★ Hash it last — after every
+  in-flight plan that could move `GameBoot` has landed.** Any plan adding a component that needs an
+  `Init(...)` moves it. Known movers at time of writing: gems M01–M02 already did (the purse is constructed
+  after `Wallet`, before `Progression`, with `EmitCurrent` beside the wallet's), gems M03 wires `TimeSkip`
+  into `WorldState` / `ConstructionSiteView`, and Collection-Particles adds View components that need the
+  bus. Hashing early guarantees the canary fires on arrival for a change you already knew about — which
+  trains you to ignore it, defeating the point.
 - **`Sim/SimClock.cs`** — single continuous session. 1s stepping while there is anything to do; exact jump to
   `min(next job end, next construction end, next order refill)` when there isn't. **Construction end is easy
   to omit** — the original three-timer list predates build timers — and omitting it makes the clock skip past

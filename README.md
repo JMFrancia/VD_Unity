@@ -1,0 +1,164 @@
+# VoidDay
+
+A small, playable recreation of Hay Day's core experience, built in Unity for the Voidpet Game Developer Challenge.
+
+**[Play the WebGL build](BUILD_LINK)** | **[Watch the gameplay video](VIDEO_LINK)** | **[Read the AI session log](docs/ai-transcript/README.md)**
+
+> Replace `BUILD_LINK` and `VIDEO_LINK` above before submission. The AI session log link already resolves.
+
+## Overview
+
+VoidDay is a top-down farming/production-chain game for portrait mobile. You build stations that convert resources into other resources on timers, then sell the results to an Order Board for cash and XP — cash buys more stations and upgrades, XP levels the farm and unlocks new station types. The central tension is Hay Day's: a station **blocks** on its uncollected output, so every finished job demands a tap, and progression is the constant push-pull between adding throughput and staying on top of it.
+
+## What I Built
+
+- **The full production loop** — tap a station, queue jobs from its recipes, watch real-time timers, collect blocked output. Eight station types (Field, Henhouse, Bakery, Creamery, Pasture, Workshop, Silo, Order Board) chaining ten resources from raw crops up to multi-ingredient goods.
+- **An Order Board economy** — procedurally generated orders you fulfill for cash and XP, with refilling slots.
+- **A quest system** — data-driven goals (harvest a crop, earn coins, fulfill orders, reach a level) that pay XP and resources on collection, with grant conditions that can chain one quest off another. It surfaces as a scrollable quest menu, a new-quest toast, and a progress pill that drops from under the XP bar — and because its rules live in the pure-C# core, the same quests run inside the headless balance sim.
+- **Build, upgrade, and a unified effect system** — place and upgrade stations; upgrades, and everything else that modifies the game, resolve through one shared Effect schema so a new effect type becomes available to every system at once.
+- **Levels, unlocks, and per-resource storage** — a Silo whose capacity is upgraded one resource at a time, and a level curve that gates new stations, individual recipes, and caps.
+- **A premium "gems" currency** whose single sink is skipping any running timer early — jobs, construction, and order refills, both from the HUD and by tapping the timer in the world.
+- **Collection juice** — earning something throws icon particles from the point of action to its HUD counter, and the counter only ticks up as each particle lands.
+- **Sound** and a data-driven placeholder-to-final art path, so real 3D station meshes drop in over primitives with no code change.
+
+## How to Play
+
+Touch and drag only — no keyboard.
+
+- **Pan / zoom** the farm by dragging and pinching (mouse-drag and scroll on desktop).
+- **Tap a station** to open its panel, then queue a job from one of its recipes. Jobs run on a timer.
+- **Tap a finished job** to collect it. A station won't start its next job until you clear the finished one.
+- **Tap the Order Board** to fulfill orders with resources you've produced, for cash and XP.
+- **Open the quest menu** to see your active goals; when one fills up, tap it to collect its XP and resource reward.
+- **Spend cash** to build and upgrade stations and expand storage; **spend gems** to skip a timer you don't want to wait on.
+
+The objective is the Hay Day objective: keep the production chain flowing, fill orders, and level up the farm.
+
+## Scope and Product Decisions
+
+I began by playing Hay Day to identify its essential systems, interaction patterns, and progression loop. I then selected a scope intended to feel like a coherent miniature game rather than a collection of disconnected features.
+
+I treated the **production-chain economy and the moment-to-moment collection loop as the essential core** — the part of Hay Day you actually spend time doing — and built it to real depth: the blocking-on-uncollected-output tension, chained recipes, the order economy, upgrades, levels, and storage pressure all interact as one system.
+
+I deliberately **cut the social and collectible layers.** The spec included VoidPets (collectable familiars that auto-collect and form relationships) and world events; I left those out because they sit *on top of* a working economy rather than being the thing that makes the loop feel good, and a shallow version of all of it would have read as a pile of half-features. I would rather ship a small game that hangs together than a large one that doesn't. The Workshop/universal-upgrade milestone was also pared to just the part a later milestone depended on, once playtesting showed the full version wasn't earning its place yet.
+
+The two systems I *added* beyond the original spec — the gems skip-timer currency and the collection particles — came from playing the build and feeling what it was missing, not from the plan.
+
+## Development Process
+
+### Reference and Specification
+
+After establishing the target scope, I captured the concept in a rough Markdown specification. I then iterated on the specification with Claude to identify missing requirements, resolve ambiguities, and convert the design into an actionable implementation plan.
+
+### Adapting My AI Workflow for Prototyping
+
+My existing AI-assisted Unity workflow was optimized for careful, production-oriented implementation. For this project, I adapted it for faster prototyping by adding a `--prototype` mode to several existing workflows and creating a lightweight preproduction pipeline.
+
+Once the specification was stable, I ran three preproduction workstreams in parallel:
+
+- Converted the specification and visual direction into an asset inventory, then produced 2D and 3D art through my asset-generation pipeline (image generation for 2D, Meshy for 3D).
+- Converted the specification into concrete UI requirements, then used the Figma MCP to produce and approve interface mockups before any Unity UI work began.
+- Decomposed the specification into milestone documents with the relevant UI and asset references attached to each milestone.
+
+<p align="center">
+  <img src="docs/media/assets-3d-stations.png" alt="Asset review page showing the eight baked 3D station models — field, henhouse, pasture, creamery, bakery, order board, silo, workshop — side by side" width="820"><br>
+  <em>The asset review page — all eight baked 3D station models reviewed side by side before import.</em>
+</p>
+
+<p align="center">
+  <img src="docs/media/assets-2d-icons.png" alt="Asset review page showing generated 2D resource icons rendered on both the warm-UI and void backdrop tones" width="820"><br>
+  <em>The 2D side of the same pipeline — resource icons generated as transparent cutouts and checked against both the warm-UI and void backdrops they appear on.</em>
+</p>
+
+<p align="center">
+  <img src="docs/media/figma-mockups.png" alt="Figma file showing the full set of VoidDay UI mockup frames laid out on one page" width="820"><br>
+  <em>The Figma mockups — every UI surface (HUD, station panel, order board, build menu, popups) mocked up and approved before any Unity UI work began.</em>
+</p>
+
+### Implementation and Human-Guided Iteration
+
+I implemented the selected milestones in Unity through MCP, handling them individually so that I could playtest and evaluate the result between each stage.
+
+I used my existing debugging and feature-design workflows to correct weak generated output, improve interactions, and refine the game. I skipped or reordered milestones when the playable result showed that other work would have greater impact. Several features, including the collection particles and the gems skip-timer currency, emerged during this process rather than from the original specification.
+
+A concrete record of where I redirected the agent — including the point where I found the scene was being built entirely in code with no prefabs and forced a full architectural correction — is in the [AI session log](docs/ai-transcript/README.md).
+
+## Economy Simulation and Balancing
+
+To make progression tuning faster, I built a separate headless economy simulator that integrates with the Unity project. It reuses the game's own pure-C# economy core (which carries no Unity dependency) and supports:
+
+- Simulating progression without repeatedly operating the Unity client
+- Editing the economy from one interface
+- Saving and comparing named economy configurations
+- Writing selected configurations directly into Unity `ScriptableObject` assets
+- Giving Claude explicit balance goals and allowing it to iterate against simulation results
+
+The tool reads the Unity project but nothing under `Assets/` knows the tool exists — a strict one-way dependency. This separated economy iteration from moment-to-moment game implementation and made both manual and agent-assisted balancing faster.
+
+<p align="center">
+  <img src="docs/media/sim-config.png" alt="The economy simulator workbench — a browser UI for editing global tunables, XP, gems, starting resources, and stations, with a Push to Unity button" width="820"><br>
+  <em>The workbench — every economy tunable editable in one place, with a gated <strong>Push to Unity</strong> that writes a minimal diff back into the ScriptableObject assets.</em>
+</p>
+
+<p align="center">
+  <img src="docs/media/sim-reports-sweep.png" alt="The simulator's Reports view — a 30-seed A/B sweep comparing two economy configs across time-per-level, money entry/exit, and acting-vs-waiting charts" width="820"><br>
+  <em>A 30-seed A/B sweep — two economy configs compared across time-per-level, money in/out, and acting-vs-waiting, so a change is judged on the median of many runs rather than one lucky seed.</em>
+</p>
+
+<p align="center">
+  <img src="docs/media/sim-session-loss.png" alt="The simulator's Session view — a loss curve descending over seven iterations and a log of the config patch applied at each step" width="820"><br>
+  <em>An agent-driven balancing session — the loss falls 7.45 → 0.83 over seven iterations, each row logging the exact config patch Claude applied against the stated goal.</em>
+</p>
+
+<p align="center">
+  <img src="docs/media/sim-pressure.png" alt="The simulator's pressure heatmap — level by category grid showing gross seconds lost to each bottleneck (capacity, storage, throughput, yield) per level" width="820"><br>
+  <em>The pressure heatmap — gross seconds lost to each bottleneck (capacity, storage, yield…) at every level, so tuning targets the constraint that actually hurts.</em>
+</p>
+
+<details>
+<summary><strong>AI Workflow Details</strong></summary>
+
+| Workflow | Purpose |
+| --- | --- |
+| [`style_guide`](docs/workflow/skills/style_guide/SKILL.md) | Establishes the game's visual direction through an interactive design process |
+| [`ui_inventory`](docs/workflow/skills/ui_inventory/SKILL.md) | Converts the specification and style guide into concrete UI requirements |
+| [`asset_list`](docs/workflow/skills/asset_list/SKILL.md) | Produces an inventory of required 2D and 3D assets |
+| [`plan_milestones`](docs/workflow/skills/plan_milestones/SKILL.md) | Breaks the specification into milestone documents with relevant UI and asset references |
+| [`preproduction`](docs/workflow/skills/preproduction/SKILL.md) | Runs the complete style, asset, UI, and milestone-planning sequence |
+| [`implement_milestone`](docs/workflow/skills/implement_milestone/SKILL.md) | Implements a single Unity milestone from its specification and references |
+| [`implement_all_milestones`](docs/workflow/skills/implement_all_milestones/SKILL.md) | Implements milestones sequentially while maintaining assumption and technical-debt logs across isolated contexts |
+
+Although I created both single-milestone and one-shot implementation paths, I used the single-milestone workflow for the final build. This preserved more control over playtesting, prioritization, and iteration. The skills themselves, and an explanation of why each exists, are in [`docs/workflow/`](docs/workflow/README.md).
+
+</details>
+
+## Key Tradeoffs
+
+- **Cut VoidPets and world events to deepen the core loop.** At the beginning I wrote some specs for incorporating two features into the game I really wanted; see "VoidPets" and "World Events" in "What I Would Build Next" section below. But I was running short on time, and per the instructions of the challenge, wanted to focus on making a tight, well-polished product. That meant prioritizing juice, balance, hard currency, and quests to shore up the core loop, rather than tacking on whole new systems (even though I was really excited to build them).
+
+- **Rebuilt the project's foundation mid-stream.** The agent's initial approach generated the entire scene and UI hierarchy in code at runtime, with no prefabs. It ran, but it was structurally wrong for Unity and would have made every later art and layout task painful. I stopped and re-established authored scenes/prefabs and a data-driven architecture as a hard rule before continuing.
+
+## Known Issues
+
+- An initial balance pass — the `progression-v1` config shown above — has been tuned and applied through the simulator, so the early/mid game is paced; late-game tuning is where I'd keep iterating.
+- The game targets a portrait mobile aspect; on a desktop browser it renders in that aspect rather than filling the window.
+- No save/load or offline progression — the build is scoped to a single play session.
+
+## What I Would Build Next
+
+- **Collectable VoidPets** When I worked on Evergrove (another mobile farming game with pet collection) the feedback we kept getting from players was how much they loved the pets, who could be assigned to automate stations. I designed features (well-recieved, but never implemented) to make them feel more alive, and have more personality. They would each have personalities, develop opinions, and form relationships with one another granting bonuses. I believe it would have added some interesting dimensionality to the game both from a mechanical and narrative perspective, especially since Evergrove was meant to have a stronger narrative component than it wound up with. For this project I generated milestones and assets that would give a little taste of this; gatcha-collectable VoidPets that would automate stations, give passive bonuses, and form relationships when assigned together. Unfortunately I ran out of time to implement, choosing to focus on making the primary experience feel juicier.
+
+- **World Events** Another feature that I spec'd but was cut for time was random world events (such as Dopamine rain, or Serotonin bloom) that would make temporary changes to the simulation adding variety and extra narrative flavor.
+
+## Running the Project Locally
+
+1. **Unity `6000.3.7f1`** (URP / Universal 3D), with the new Input System package.
+2. Clone the repository and open the project folder in Unity Hub with that editor version.
+3. Open **`Assets/Scenes/Farm.unity`** and press Play.
+4. No additional setup is required to run in the editor; the WebGL build target is used for the shipped build.
+
+## Build and Shipping
+
+The game was built for WebGL and published on Unity Play.
+
+*Thank you for the opportunity!*

@@ -37,7 +37,7 @@ namespace VoidDay.Tests
             var resolver = new ValueResolver();
             var pool = new ResourcePool(bus, resolver);
             var catalog = new RecipeCatalog();
-            var jobs = new JobSystem(bus, pool, catalog, resolver);
+            var jobs = new JobSystem(bus, pool, catalog, resolver, () => 1);
             var grid = new StationGrid(10, 10);
             var wallet = new Wallet(bus);
             wallet.Add(startingMoney);

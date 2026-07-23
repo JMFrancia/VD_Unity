@@ -463,4 +463,49 @@ namespace VoidDay.Core.Events
     /// §15 effects:recalculated — the active effect set changed (an upgrade was bought, or a reset cleared
     /// them). Views/systems re-read resolved values on this; they never re-derive what changed.
     public readonly struct EffectsRecalculated { }
+
+    // ---- Quests (published by Core / QuestLog) ----
+
+    /// A quest's grant conditions all came true and it is now active and tracked. Description is the generated
+    /// player string ("Harvest 10 wheat") so a listener need not re-derive it. A fact — the menu adds a row,
+    /// the toast (M2) decides for itself that a new quest is worth announcing.
+    public readonly struct QuestGranted
+    {
+        public readonly string QuestId;
+        public readonly string Description;
+        public QuestGranted(string questId, string description) { QuestId = questId; Description = description; }
+    }
+
+    /// A quest's progress bar rose. Progress is the clamped, monotonic fraction in [0,1] — the menu (and the
+    /// pill in M3) render it directly.
+    public readonly struct QuestProgressed
+    {
+        public readonly string QuestId;
+        public readonly float Progress;
+        public QuestProgressed(string questId, float progress) { QuestId = questId; Progress = progress; }
+    }
+
+    /// A quest reached 100% and is now waiting to be collected. Distinct from QuestCollected: the reward has
+    /// NOT been paid yet — the player still has to tap the ready row.
+    public readonly struct QuestCompleted
+    {
+        public readonly string QuestId;
+        public QuestCompleted(string questId) { QuestId = questId; }
+    }
+
+    /// The player collected a ready quest: its reward has been applied through the normal sinks and the quest
+    /// is retired (it never re-grants). A QuestCompleted-condition chain gate opens on this.
+    public readonly struct QuestCollected
+    {
+        public readonly string QuestId;
+        public QuestCollected(string questId) { QuestId = questId; }
+    }
+
+    /// Input intent (published by the quest menu, acted on only by QuestLog): the player tapped a ready quest
+    /// to collect it. States what happened; Core re-checks readiness and applies the reward.
+    public readonly struct CollectQuestRequested
+    {
+        public readonly string QuestId;
+        public CollectQuestRequested(string questId) { QuestId = questId; }
+    }
 }

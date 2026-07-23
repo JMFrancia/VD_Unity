@@ -5,18 +5,21 @@ namespace VoidDay.Core.Model
     /// What one line of a level-up is *about* (§9). One vocabulary serves both halves of the feature: the
     /// grant list authored on a level, and the level:up payload the popup renders.
     ///
-    /// StationType and Upgrade are **derived, never authored on a level**: a station type's gate lives on its
-    /// StationSO.unlockLevel and an upgrade track's on its UpgradeSO.unlockLevel, so putting them on the level
-    /// asset too would give one fact two homes. Boot validation rejects them in an authored grant list.
+    /// StationType, Upgrade and Recipe are **derived, never authored on a level**: each gate lives on its own
+    /// asset (StationSO / UpgradeSO / RecipeSO `.unlockLevel`), so putting it on the level asset too would give
+    /// one fact two homes. Boot validation rejects all three in an authored grant list.
     public enum LevelEntryKind
     {
+        // ⚠ Order is serialized by INTEGER index in LevelSO (Levels.asset). Only ever APPEND — inserting or
+        // reordering silently reassigns every authored grant. Recipe was appended for exactly this reason.
         StationType,   // derived — a station type became buildable
         Upgrade,       // derived — an upgrade track became purchasable
         StationCap,    // standing bonus, folded into the value seam
         QueueDepth,    // standing bonus, folded into the value seam
         OrderSlots,    // standing bonus, folded into the value seam
         Money,         // one-shot reward, paid the moment the level lands
-        Gems           // one-shot reward, paid the moment the level lands — never a standing bonus
+        Gems,          // one-shot reward, paid the moment the level lands — never a standing bonus
+        Recipe         // derived — a recipe became queueable (RecipeSO.unlockLevel), like StationType/Upgrade
     }
 
     /// One thing a level hands out (§9, §14). TargetId names the station type for the per-type kinds; an

@@ -235,7 +235,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0b249e11b69bf42de9ebc758736d4f75, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::VoidDay.View.RecipeTile
+  theme: {fileID: 11400000, guid: 9c8aec00e03bf467eb7151666ce6d2a0, type: 2}
   button: {fileID: 5251306086757088793}
+  background: {fileID: 4683463059106878708}
   selectionOutline: {fileID: 3972681084999215684}
   icon: {fileID: 8078389562256115073}
   nameText: {fileID: 3308787336858481896}

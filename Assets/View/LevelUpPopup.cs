@@ -43,6 +43,7 @@ namespace VoidDay.View
         [Header("Copy (§3.6-style wording lives in data, not Core)")]
         [SerializeField] string stationFormat = "{0} station";
         [SerializeField] string upgradeFormat = "{0} upgrade";
+        [SerializeField] string recipeFormat = "{0} recipe";
         [SerializeField] string capFormat = "+{0} {1} cap";
         [SerializeField] string queueAllFormat = "+{0} queue depth on every station";
         [SerializeField] string queueOneFormat = "+{0} queue depth at {1}";
@@ -132,6 +133,7 @@ namespace VoidDay.View
         {
             LevelEntryKind.StationType => string.Format(stationFormat, e.Label),
             LevelEntryKind.Upgrade => string.Format(upgradeFormat, e.Label),
+            LevelEntryKind.Recipe => string.Format(recipeFormat, e.Label),
             LevelEntryKind.StationCap => string.Format(capFormat, e.Amount, e.Label),
             LevelEntryKind.QueueDepth => string.IsNullOrEmpty(e.Label)
                 ? string.Format(queueAllFormat, e.Amount)

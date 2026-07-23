@@ -59,6 +59,12 @@ namespace VoidDay.View
         [SerializeField] Transform upgradeList;
         [SerializeField] UpgradeRow upgradeRowTemplate;
 
+        [Header("Locked-recipe copy")]
+        [Tooltip("Detail-card timer line when the selected recipe is level-gated. {0} = the level it opens at.")]
+        [SerializeField] string lockedDetailFormat = "Unlocks at level {0}";
+        [Tooltip("Queue button label when the selected recipe is level-gated. {0} = the level it opens at.")]
+        [SerializeField] string lockedQueueFormat = "Unlock at Lv {0}";
+
         [Header("State colors + placement")]
         [SerializeField] UiThemeSO theme;
         [SerializeField] float anchorHeight = 1.6f; // world units above the station pivot to hang the popup from
@@ -193,7 +199,12 @@ namespace VoidDay.View
             for (int i = 0; i < _recipes.Count; i++)
             {
                 var tile = Instantiate(tileTemplate, tilesRow);
-                tile.Bind(RecipeLabel(_recipes[i]), OutputIcon(_recipes[i]), TimerText(_recipes[i]), i == _selected);
+                var recipe = _recipes[i];
+                if (_jobs.IsRecipeLocked(recipe.Id))
+                    tile.BindLocked(RecipeLabel(recipe), OutputIcon(recipe),
+                        _jobs.RecipeUnlockLevel(recipe.Id), i == _selected);
+                else
+                    tile.Bind(RecipeLabel(recipe), OutputIcon(recipe), TimerText(recipe), i == _selected);
                 int index = i;
                 tile.Button.onClick.AddListener(() =>
                 {
@@ -216,7 +227,9 @@ namespace VoidDay.View
             var recipe = _recipes[_selected];
             outputNameText.text = OutputName(recipe);
             outputAmountText.text = $"x{OutputAmount(recipe)}";
-            timerText.text = TimerText(recipe);
+            timerText.text = _jobs.IsRecipeLocked(recipe.Id)
+                ? string.Format(lockedDetailFormat, _jobs.RecipeUnlockLevel(recipe.Id))
+                : TimerText(recipe);
 
             if (recipe.Inputs.Count == 0)
             {
@@ -240,14 +253,19 @@ namespace VoidDay.View
                 return;
             }
             var recipe = _recipes[_selected];
+            bool locked = _jobs.IsRecipeLocked(recipe.Id);
             bool affordable = _pool.CanAfford(recipe.Inputs);
             bool queueFull = _jobs.GetQueue(_openStationId).Count >= _jobs.QueueDepth(_openStationId);
-            bool canQueue = affordable && !queueFull;
+            bool canQueue = !locked && affordable && !queueFull;
 
             queueButton.interactable = canQueue;
             queueButtonImage.color = canQueue ? theme.accent : theme.lockedBg;
             queueLabel.color = canQueue ? theme.accentText : theme.lockedText;
-            queueLabel.text = queueFull ? "Queue full" : affordable ? "Queue" : "Can't afford";
+            // Lock beats the money/queue states — a recipe you can't reach yet has nothing to say about price.
+            queueLabel.text = locked ? string.Format(lockedQueueFormat, _jobs.RecipeUnlockLevel(recipe.Id))
+                : queueFull ? "Queue full" : affordable ? "Queue" : "Can't afford";
+
+            if (!canQueue) return; // no click intent for a locked / unaffordable / full queue
 
             string stationId = _openStationId;
             string recipeId = recipe.Id;

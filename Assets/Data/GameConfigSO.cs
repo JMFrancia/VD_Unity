@@ -19,6 +19,9 @@ namespace VoidDay.Data
         [Tooltip("Every buildable station TYPE — the build menu's source of truth. Distinct from scene-placed instances (which are scene data, CLAUDE.md rule 4); this is the catalog of what CAN be built.")]
         public List<StationSO> stationRoster = new();
 
+        [Tooltip("Every quest in the game (§ quest system). 'All of type X' lists live here, like the station roster — QuestLog is granted, tracks, and collects from these.")]
+        public List<QuestSO> quests = new();
+
         [Tooltip("Fraction of build cost returned on demolish (§4.3). 0.5 = 50%. Data, not a literal.")]
         public float refundPercent = 0.5f;
 

@@ -47,6 +47,8 @@ using `fileKey` above and the node id below.
 | **`panel.orderBoard` — refilling slot w/ skip** (M2) | Screen — panel.orderBoard (skip) | `69:73` |
 | **`world.timerSkip`** (M3) | Sheet — world.timerSkip | `69:126` |
 | **gem element states + open choices** | Sheet — gem elements | `71:88` |
+| **`panel.station` — recipe locked (available)** | Feature — Bakery @ L2 (recipe unlocks) | `77:2` |
+| **`panel.station` — recipe locked (tapped)** | Feature — Locked recipe tapped | `77:54` |
 
 ### Design decision: `panel.station` uses the ALT (Full HayDay)
 
@@ -109,6 +111,24 @@ approved resolution moves the egg button **down 116px**, so the right edge stack
 **money → gems → egg**. Implementations must do the same rather than overlap them.
 
 ---
+
+### Design decision: per-recipe unlock levels (2026-07-23, user-approved)
+
+New feature: a recipe can be level-gated by its own `RecipeSO.unlockLevel`, exactly like a station
+(`StationSO.unlockLevel`) or upgrade track (`UpgradeSO.unlockLevel`) — "one gate, one home". Frames `77:2`
+and `77:54` extend the chosen `panel.station` (`42:2`). Decisions:
+
+1. **Locked recipes are greyed *teasers*, not blank boxes.** The tile keeps its name + a dimmed icon and shows
+   the level it opens at, so the player has a goal to play toward (the `42:2` original drew locked tiles blank).
+2. **A locked tile stays selectable.** Tapping it previews what it makes; the Queue action is what refuses it —
+   detail card shows "Unlocks at level N", the button becomes a disabled "Unlock at Lv N".
+3. **Locked-selected uses a muted gold ring**, distinct from the green "ready to queue" ring.
+4. **No lock emoji in copy** — the uGUI/WebGL font stack has no glyph for it; "Lv N" carries the state.
+
+Gate invariant (boot-validated): a recipe's `unlockLevel` is either the starting level (open as soon as its
+station is built) or ≥ its station's `unlockLevel` — never in the gap where the level-up popup would announce a
+recipe for a building the player still can't make. Recipe unlocks are announced on `popup.levelUp` like a
+station/upgrade unlock.
 
 ## How to translate a surface into Unity
 

@@ -78,6 +78,16 @@ __pycache__/
 # so committing them would defeat the redaction. Public record: REDACTIONS.md
 /tools/transcript/redactions.json
 
+# VoidDay.Balance side-tool (.NET). The bare *.csproj rule above would silently
+# untrack the tool's project file, breaking a fresh clone — un-ignore it. Build
+# output (bin/, obj/) stays ignored: /[Oo]bj/ above is root-anchored, so tools/
+# needs its own rule.
+!tools/**/*.csproj
+tools/**/bin/
+tools/**/obj/
+# runs.jsonl is the M05 eval log — runtime output that grows per eval, not source.
+tools/VoidDay.Balance/runs.jsonl
+
 # Asset Bot tooling — proprietary, not required to build or run the game.
 # Kept on disk locally; never tracked.
 /.claude/skills/pipeline/

@@ -45,6 +45,8 @@ namespace VoidDay.Systems
         [SerializeField] SkipConfirmPopup skipConfirmPopup;
         [SerializeField] SfxController sfxController;
         [SerializeField] ToastController toastController;
+        [SerializeField] QuestMenuPanel questMenuPanel;
+        [SerializeField] QuestPill questPill;
         [SerializeField] StationFlattenMask stationFlattenMask;
         [SerializeField] MusicManager musicManager;
 
@@ -63,7 +65,6 @@ namespace VoidDay.Systems
             var wallet = new Wallet(bus);
             var gems = new GemPurse(bus, config.startingGems);
             var catalog = new RecipeCatalog();
-            var jobs = new JobSystem(bus, pool, catalog, resolver);
             var grid = new StationGrid(config.gridCols, config.gridRows);
             var projection = new GridProjection(config.gridCols, config.gridRows, config.cellSize);
 
@@ -88,6 +89,10 @@ namespace VoidDay.Systems
             resolver.SetGrantSource(levelGrants);
             var progression = new Progression(bus, resolver, levelCurve, levelGrants, wallet, gems,
                 ModelProjector.ProjectLevelGates(config.stationRoster));
+
+            // Built after Progression so it can gate recipes by the live player level (§9) — recipes lock like
+            // stations and upgrades. Nothing above this line touches jobs; BuildSystem below is its first reader.
+            var jobs = new JobSystem(bus, pool, catalog, resolver, () => progression.PlayerLevel);
 
             var buildSystem = new BuildSystem(bus, grid, jobs, wallet, resolver, stationTypes,
                 () => progression.PlayerLevel, config.refundPercent);
@@ -177,8 +182,14 @@ namespace VoidDay.Systems
                     // otherwise a half-built Bakery starts attracting cake orders nothing can fill (§4.3).
                     if (kv.Value.UnderConstruction) continue;
                     foreach (var recipe in catalog.ForStationType(kv.Value.StationType))
+                    {
+                        // A placed, built station only *offers* the recipes unlocked at the current level — a
+                        // Bakery at L4 can make bread but not yet cheesecake (recipe unlocks at L7), so
+                        // cheesecake stays out of the order pool until its recipe is actually unlocked.
+                        if (recipe.UnlockLevel > progression.PlayerLevel) continue;
                         foreach (var output in recipe.Outputs)
                             ids.Add(output.ResourceId);
+                    }
                 }
                 return ids;
             }
@@ -195,6 +206,22 @@ namespace VoidDay.Systems
             // all three timer owners; it holds the pricing rule and routes to whichever owner a TimerRef names.
             var timeSkip = new TimeSkip(bus, gems, jobs, buildSystem, orderBoard,
                 config.secondsPerGem, config.minGemCost);
+
+            // The quest engine (§ quest system). Pure Core, so M4's balance sim compiles it in for free. It
+            // reads level / resources for its grant gates and pays rewards through the existing sinks; the
+            // resourceName lookup feeds the generated descriptions ("Harvest 10 wheat").
+            var questModels = new List<QuestModel>(config.quests.Count);
+            foreach (var q in config.quests) questModels.Add(ModelProjector.ProjectQuest(q));
+            // Descriptions name resources (HarvestCrops), station types (BuildStations) and upgrade tracks
+            // (PurchaseUpgrades) — one lookup over all three, falling back to the raw id.
+            var upgradeNames = new Dictionary<string, string>();
+            foreach (var tracks in tracksByType.Values)
+                foreach (var t in tracks) upgradeNames[t.Id] = t.DisplayName;
+            var questLog = new QuestLog(bus, questModels, () => progression.PlayerLevel, pool, upgrades,
+                wallet, gems, progression,
+                id => resourceModels.TryGetValue(id, out var r) ? r.DisplayName
+                    : stationTypes.TryGetValue(id, out var s) ? s.DisplayName
+                    : upgradeNames.TryGetValue(id, out var u) ? u : id);
 
             // Grid is centered on the world origin; the camera only needs its world-space extents for pan bounds.
             cameraController.Init(Vector3.zero, config.gridCols * config.cellSize, config.gridRows * config.cellSize, bus, roots);
@@ -223,6 +250,8 @@ namespace VoidDay.Systems
             skipConfirmPopup.Init(bus, timeSkip, gems);
             sfxController.Init(bus);
             toastController.Init(bus);
+            questMenuPanel.Init(bus, questLog);
+            questPill.Init(bus);
             stationFlattenMask.Init(bus, roots);
             musicManager.Init(bus);
 
@@ -262,6 +291,8 @@ namespace VoidDay.Systems
             Require(skipConfirmPopup, nameof(skipConfirmPopup));
             Require(siloPanel, nameof(siloPanel));
             Require(sfxController, nameof(sfxController));
+            Require(questMenuPanel, nameof(questMenuPanel));
+            Require(questPill, nameof(questPill));
             Require(stationFlattenMask, nameof(stationFlattenMask));
             Require(musicManager, nameof(musicManager));
         }

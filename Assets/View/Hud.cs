@@ -58,6 +58,13 @@ namespace VoidDay.View
         [Tooltip("Gem pill copy. {0} is the balance; the gem glyph is authored art beside this text.")]
         [SerializeField] string gemFormat = "{0}";
 
+        [Header("Quest button flash (§ quest system)")]
+        [Tooltip("A green halo behind the quest button, pulsed while any quest is completed-but-uncollected. " +
+                 "Its alpha is driven here; at rest it is invisible.")]
+        [SerializeField] Graphic questButtonGlow;
+        [Tooltip("Seconds for one full flash cycle of the quest-button glow.")]
+        [SerializeField] float questFlashPeriod = 0.8f;
+
         EventBus _bus;
         ResourcePool _pool;
         Progression _progression;
@@ -65,6 +72,10 @@ namespace VoidDay.View
 
         int _trueMoney;    // what the Wallet actually holds
         int _pendingMoney; // earned but still in the air — the counter withholds this until the coins land
+
+        // Quests that reached 100% but have not been collected yet — the glow pulses while this is non-empty.
+        readonly HashSet<string> _uncollectedCompleted = new();
+        float _questFlashTime;
 
         public void Init(EventBus bus, ResourcePool pool, Progression progression,
             IReadOnlyList<ResourceSO> resources)
@@ -105,6 +116,10 @@ namespace VoidDay.View
             _bus.Subscribe<LevelUp>(_ => RefreshXpReadout());
             _bus.Subscribe<GameReset>(_ => RefreshXpReadout());
             RefreshXpReadout();
+
+            _bus.Subscribe<QuestCompleted>(OnQuestCompleted);
+            _bus.Subscribe<QuestCollected>(OnQuestCollected);
+            SetGlowAlpha(0f);
         }
 
         /// The three earn-particle handlers are the only ones here with teardown, because they are the only
@@ -116,6 +131,31 @@ namespace VoidDay.View
             _bus.Unsubscribe<MoneyChanged>(OnMoneyChanged);
             _bus.Unsubscribe<EarnBurstLaunched>(OnEarnBurstLaunched);
             _bus.Unsubscribe<EarnParticleArrived>(OnEarnParticleArrived);
+            _bus.Unsubscribe<QuestCompleted>(OnQuestCompleted);
+            _bus.Unsubscribe<QuestCollected>(OnQuestCollected);
+        }
+
+        // The quest button flashes green while any completed quest is still uncollected — the persistent
+        // reminder that outlives the progress pill's completion window. Driven off quest facts, not the pill.
+        void OnQuestCompleted(QuestCompleted e) => _uncollectedCompleted.Add(e.QuestId);
+        void OnQuestCollected(QuestCollected e) => _uncollectedCompleted.Remove(e.QuestId);
+
+        void Update()
+        {
+            if (_uncollectedCompleted.Count == 0)
+            {
+                if (questButtonGlow.color.a != 0f) SetGlowAlpha(0f);
+                return;
+            }
+            _questFlashTime += Time.deltaTime;
+            SetGlowAlpha(0.5f + 0.5f * Mathf.Sin(_questFlashTime * (2f * Mathf.PI / questFlashPeriod)));
+        }
+
+        void SetGlowAlpha(float a)
+        {
+            var c = questButtonGlow.color;
+            c.a = a;
+            questButtonGlow.color = c;
         }
 
         void OnMoneyChanged(MoneyChanged e)

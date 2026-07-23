@@ -1,0 +1,1634 @@
+{
+  "SchemaVersion": 1,
+  "Name": "baseline",
+  "Global": {
+    "GridCols": 20,
+    "GridRows": 30,
+    "CellSize": 1.0,
+    "RefundPercent": 0.5,
+    "StartingStorageCapacity": 7,
+    "StartingResources": [
+      {
+        "Resource": "wheat",
+        "Amount": 1
+      },
+      {
+        "Resource": "corn",
+        "Amount": 1
+      }
+    ],
+    "StartingStations": [
+      {
+        "StationType": "field",
+        "Count": 1
+      },
+      {
+        "StationType": "orderBoard",
+        "Count": 1
+      },
+      {
+        "StationType": "silo",
+        "Count": 1
+      }
+    ]
+  },
+  "Xp": {
+    "PerJobCollected": 2,
+    "PerStationBuilt": 5
+  },
+  "Gems": {
+    "StartingGems": 0,
+    "SecondsPerGem": 30.0,
+    "MinGemCost": 1
+  },
+  "Orders": {
+    "SlotCount": 3,
+    "RefillSeconds": 60.0,
+    "MinRequestKinds": 1,
+    "MaxRequestKinds": 2,
+    "MaxQuantityAtLevel1": 3.0,
+    "MaxQuantityPerLevel": 1.0,
+    "TierWeightBase": 1.0,
+    "TierWeightPerLevel": 0.25,
+    "CashMultiplier": 3.0,
+    "XpMultiplier": 1.5
+  },
+  "Resources": [
+    {
+      "Id": "bread",
+      "DisplayName": "Bread",
+      "BaseValue": 8,
+      "Sellable": true,
+      "Tier": 2
+    },
+    {
+      "Id": "brioche",
+      "DisplayName": "Brioche",
+      "BaseValue": 14,
+      "Sellable": true,
+      "Tier": 3
+    },
+    {
+      "Id": "cheese",
+      "DisplayName": "Cheese",
+      "BaseValue": 32,
+      "Sellable": true,
+      "Tier": 3
+    },
+    {
+      "Id": "cheesecake",
+      "DisplayName": "Cheesecake",
+      "BaseValue": 65,
+      "Sellable": true,
+      "Tier": 4
+    },
+    {
+      "Id": "corn",
+      "DisplayName": "Corn",
+      "BaseValue": 3,
+      "Sellable": true,
+      "Tier": 1
+    },
+    {
+      "Id": "cornbread",
+      "DisplayName": "Cornbread",
+      "BaseValue": 10,
+      "Sellable": true,
+      "Tier": 2
+    },
+    {
+      "Id": "cream",
+      "DisplayName": "Cream",
+      "BaseValue": 16,
+      "Sellable": true,
+      "Tier": 3
+    },
+    {
+      "Id": "egg",
+      "DisplayName": "Egg",
+      "BaseValue": 5,
+      "Sellable": true,
+      "Tier": 2
+    },
+    {
+      "Id": "milk",
+      "DisplayName": "Milk",
+      "BaseValue": 10,
+      "Sellable": true,
+      "Tier": 2
+    },
+    {
+      "Id": "wheat",
+      "DisplayName": "Wheat",
+      "BaseValue": 2,
+      "Sellable": false,
+      "Tier": 1
+    }
+  ],
+  "Recipes": [
+    {
+      "Id": "bakery.bread",
+      "StationType": "bakery",
+      "Inputs": [
+        {
+          "Resource": "wheat",
+          "Amount": 2
+        }
+      ],
+      "Outputs": [
+        {
+          "Resource": "bread",
+          "Amount": 1
+        }
+      ],
+      "Duration": 30.0,
+      "UnlockLevel": 4
+    },
+    {
+      "Id": "bakery.brioche",
+      "StationType": "bakery",
+      "Inputs": [
+        {
+          "Resource": "wheat",
+          "Amount": 1
+        },
+        {
+          "Resource": "egg",
+          "Amount": 1
+        }
+      ],
+      "Outputs": [
+        {
+          "Resource": "brioche",
+          "Amount": 1
+        }
+      ],
+      "Duration": 45.0,
+      "UnlockLevel": 5
+    },
+    {
+      "Id": "bakery.cheesecake",
+      "StationType": "bakery",
+      "Inputs": [
+        {
+          "Resource": "wheat",
+          "Amount": 1
+        },
+        {
+          "Resource": "egg",
+          "Amount": 1
+        },
+        {
+          "Resource": "cheese",
+          "Amount": 1
+        }
+      ],
+      "Outputs": [
+        {
+          "Resource": "cheesecake",
+          "Amount": 1
+        }
+      ],
+      "Duration": 60.0,
+      "UnlockLevel": 7
+    },
+    {
+      "Id": "bakery.cornbread",
+      "StationType": "bakery",
+      "Inputs": [
+        {
+          "Resource": "wheat",
+          "Amount": 1
+        },
+        {
+          "Resource": "corn",
+          "Amount": 1
+        }
+      ],
+      "Outputs": [
+        {
+          "Resource": "cornbread",
+          "Amount": 1
+        }
+      ],
+      "Duration": 35.0,
+      "UnlockLevel": 4
+    },
+    {
+      "Id": "creamery.cheese",
+      "StationType": "creamery",
+      "Inputs": [
+        {
+          "Resource": "milk",
+          "Amount": 2
+        }
+      ],
+      "Outputs": [
+        {
+          "Resource": "cheese",
+          "Amount": 1
+        }
+      ],
+      "Duration": 40.0,
+      "UnlockLevel": 1
+    },
+    {
+      "Id": "creamery.cream",
+      "StationType": "creamery",
+      "Inputs": [
+        {
+          "Resource": "milk",
+          "Amount": 1
+        }
+      ],
+      "Outputs": [
+        {
+          "Resource": "cream",
+          "Amount": 1
+        }
+      ],
+      "Duration": 25.0,
+      "UnlockLevel": 1
+    },
+    {
+      "Id": "field.cornGrow",
+      "StationType": "field",
+      "Inputs": [
+        {
+          "Resource": "corn",
+          "Amount": 1
+        }
+      ],
+      "Outputs": [
+        {
+          "Resource": "corn",
+          "Amount": 2
+        }
+      ],
+      "Duration": 5.0,
+      "UnlockLevel": 1
+    },
+    {
+      "Id": "field.fallowCorn",
+      "StationType": "field",
+      "Inputs": [],
+      "Outputs": [
+        {
+          "Resource": "corn",
+          "Amount": 1
+        }
+      ],
+      "Duration": 30.0,
+      "UnlockLevel": 1
+    },
+    {
+      "Id": "field.fallowWheat",
+      "StationType": "field",
+      "Inputs": [],
+      "Outputs": [
+        {
+          "Resource": "wheat",
+          "Amount": 1
+        }
+      ],
+      "Duration": 30.0,
+      "UnlockLevel": 4
+    },
+    {
+      "Id": "field.wheatGrow",
+      "StationType": "field",
+      "Inputs": [
+        {
+          "Resource": "wheat",
+          "Amount": 1
+        }
+      ],
+      "Outputs": [
+        {
+          "Resource": "wheat",
+          "Amount": 2
+        }
+      ],
+      "Duration": 5.0,
+      "UnlockLevel": 4
+    },
+    {
+      "Id": "henhouse.egg",
+      "StationType": "henhouse",
+      "Inputs": [
+        {
+          "Resource": "wheat",
+          "Amount": 1
+        }
+      ],
+      "Outputs": [
+        {
+          "Resource": "egg",
+          "Amount": 1
+        }
+      ],
+      "Duration": 15.0,
+      "UnlockLevel": 1
+    },
+    {
+      "Id": "pasture.milk",
+      "StationType": "pasture",
+      "Inputs": [
+        {
+          "Resource": "corn",
+          "Amount": 2
+        }
+      ],
+      "Outputs": [
+        {
+          "Resource": "milk",
+          "Amount": 1
+        }
+      ],
+      "Duration": 20.0,
+      "UnlockLevel": 1
+    }
+  ],
+  "Stations": [
+    {
+      "StationType": "field",
+      "DisplayName": "Field",
+      "Buildable": true,
+      "BuildCost": 50,
+      "Cap": 1,
+      "UnlockLevel": 1,
+      "QueueDepth": 3,
+      "Width": 1,
+      "Height": 1,
+      "BuildSeconds": 15.0,
+      "RecipeIds": [
+        "field.cornGrow",
+        "field.wheatGrow",
+        "field.fallowWheat",
+        "field.fallowCorn"
+      ],
+      "UpgradeIds": [
+        "field.speed",
+        "field.queue",
+        "field.yield"
+      ]
+    },
+    {
+      "StationType": "henhouse",
+      "DisplayName": "Henhouse",
+      "Buildable": true,
+      "BuildCost": 200,
+      "Cap": 1,
+      "UnlockLevel": 5,
+      "QueueDepth": 3,
+      "Width": 1,
+      "Height": 1,
+      "BuildSeconds": 15.0,
+      "RecipeIds": [
+        "henhouse.egg"
+      ],
+      "UpgradeIds": [
+        "henhouse.queue"
+      ]
+    },
+    {
+      "StationType": "pasture",
+      "DisplayName": "Pasture",
+      "Buildable": true,
+      "BuildCost": 200,
+      "Cap": 1,
+      "UnlockLevel": 6,
+      "QueueDepth": 3,
+      "Width": 1,
+      "Height": 1,
+      "BuildSeconds": 15.0,
+      "RecipeIds": [
+        "pasture.milk"
+      ],
+      "UpgradeIds": [
+        "pasture.queue"
+      ]
+    },
+    {
+      "StationType": "creamery",
+      "DisplayName": "Creamery",
+      "Buildable": true,
+      "BuildCost": 350,
+      "Cap": 1,
+      "UnlockLevel": 7,
+      "QueueDepth": 3,
+      "Width": 1,
+      "Height": 1,
+      "BuildSeconds": 15.0,
+      "RecipeIds": [
+        "creamery.cream",
+        "creamery.cheese"
+      ],
+      "UpgradeIds": [
+        "creamery.queue"
+      ]
+    },
+    {
+      "StationType": "bakery",
+      "DisplayName": "Bakery",
+      "Buildable": true,
+      "BuildCost": 150,
+      "Cap": 1,
+      "UnlockLevel": 4,
+      "QueueDepth": 3,
+      "Width": 1,
+      "Height": 1,
+      "BuildSeconds": 15.0,
+      "RecipeIds": [
+        "bakery.bread",
+        "bakery.cornbread",
+        "bakery.brioche",
+        "bakery.cheesecake"
+      ],
+      "UpgradeIds": [
+        "bakery.queue"
+      ]
+    },
+    {
+      "StationType": "silo",
+      "DisplayName": "Silo",
+      "Buildable": false,
+      "BuildCost": 300,
+      "Cap": 1,
+      "UnlockLevel": 1,
+      "QueueDepth": 3,
+      "Width": 1,
+      "Height": 1,
+      "BuildSeconds": 15.0,
+      "RecipeIds": [],
+      "UpgradeIds": [
+        "silo.cap"
+      ]
+    },
+    {
+      "StationType": "workshop",
+      "DisplayName": "Workshop",
+      "Buildable": false,
+      "BuildCost": 150,
+      "Cap": 1,
+      "UnlockLevel": 1,
+      "QueueDepth": 3,
+      "Width": 1,
+      "Height": 1,
+      "BuildSeconds": 15.0,
+      "RecipeIds": [],
+      "UpgradeIds": []
+    },
+    {
+      "StationType": "orderBoard",
+      "DisplayName": "Order Board",
+      "Buildable": false,
+      "BuildCost": 250,
+      "Cap": 1,
+      "UnlockLevel": 1,
+      "QueueDepth": 3,
+      "Width": 1,
+      "Height": 1,
+      "BuildSeconds": 15.0,
+      "RecipeIds": [],
+      "UpgradeIds": []
+    }
+  ],
+  "Upgrades": [
+    {
+      "Id": "bakery.queue",
+      "DisplayName": "Queue Depth",
+      "UnlockLevel": 8,
+      "Tiers": [
+        {
+          "Cost": 800,
+          "Effects": [
+            {
+              "Id": "bakery.queue.1",
+              "Type": "StationQueueDepth",
+              "Op": "Flat",
+              "Amount": 1.0,
+              "Resource": "",
+              "Range": 0,
+              "Trigger": "None",
+              "TriggerChance": 0,
+              "ConditionType": "None",
+              "ConditionArg": "",
+              "ConditionAmount": 0
+            }
+          ]
+        },
+        {
+          "Cost": 2000,
+          "Effects": [
+            {
+              "Id": "bakery.queue.2",
+              "Type": "StationQueueDepth",
+              "Op": "Flat",
+              "Amount": 1.0,
+              "Resource": "",
+              "Range": 0,
+              "Trigger": "None",
+              "TriggerChance": 0,
+              "ConditionType": "None",
+              "ConditionArg": "",
+              "ConditionAmount": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "Id": "creamery.queue",
+      "DisplayName": "Queue Depth",
+      "UnlockLevel": 6,
+      "Tiers": [
+        {
+          "Cost": 560,
+          "Effects": [
+            {
+              "Id": "creamery.queue.1",
+              "Type": "StationQueueDepth",
+              "Op": "Flat",
+              "Amount": 1.0,
+              "Resource": "",
+              "Range": 0,
+              "Trigger": "None",
+              "TriggerChance": 0,
+              "ConditionType": "None",
+              "ConditionArg": "",
+              "ConditionAmount": 0
+            }
+          ]
+        },
+        {
+          "Cost": 1400,
+          "Effects": [
+            {
+              "Id": "creamery.queue.2",
+              "Type": "StationQueueDepth",
+              "Op": "Flat",
+              "Amount": 1.0,
+              "Resource": "",
+              "Range": 0,
+              "Trigger": "None",
+              "TriggerChance": 0,
+              "ConditionType": "None",
+              "ConditionArg": "",
+              "ConditionAmount": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "Id": "field.queue",
+      "DisplayName": "Queue Depth",
+      "UnlockLevel": 4,
+      "Tiers": [
+        {
+          "Cost": 80,
+          "Effects": [
+            {
+              "Id": "field.queue.1",
+              "Type": "StationQueueDepth",
+              "Op": "Flat",
+              "Amount": 1.0,
+              "Resource": "",
+              "Range": 0,
+              "Trigger": "None",
+              "TriggerChance": 0,
+              "ConditionType": "None",
+              "ConditionArg": "",
+              "ConditionAmount": 0
+            }
+          ]
+        },
+        {
+          "Cost": 200,
+          "Effects": [
+            {
+              "Id": "field.queue.2",
+              "Type": "StationQueueDepth",
+              "Op": "Flat",
+              "Amount": 1.0,
+              "Resource": "",
+              "Range": 0,
+              "Trigger": "None",
+              "TriggerChance": 0,
+              "ConditionType": "None",
+              "ConditionArg": "",
+              "ConditionAmount": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "Id": "field.speed",
+      "DisplayName": "Job Speed",
+      "UnlockLevel": 3,
+      "Tiers": [
+        {
+          "Cost": 50,
+          "Effects": [
+            {
+              "Id": "field.speed.1",
+              "Type": "StationSpeed",
+              "Op": "Pct",
+              "Amount": 25.0,
+              "Resource": "",
+              "Range": 0,
+              "Trigger": "None",
+              "TriggerChance": 0,
+              "ConditionType": "None",
+              "ConditionArg": "",
+              "ConditionAmount": 0
+            }
+          ]
+        },
+        {
+          "Cost": 120,
+          "Effects": [
+            {
+              "Id": "field.speed.2",
+              "Type": "StationSpeed",
+              "Op": "Pct",
+              "Amount": 25.0,
+              "Resource": "",
+              "Range": 0,
+              "Trigger": "None",
+              "TriggerChance": 0,
+              "ConditionType": "None",
+              "ConditionArg": "",
+              "ConditionAmount": 0
+            }
+          ]
+        },
+        {
+          "Cost": 250,
+          "Effects": [
+            {
+              "Id": "field.speed.3",
+              "Type": "StationSpeed",
+              "Op": "Pct",
+              "Amount": 25.0,
+              "Resource": "",
+              "Range": 0,
+              "Trigger": "None",
+              "TriggerChance": 0,
+              "ConditionType": "None",
+              "ConditionArg": "",
+              "ConditionAmount": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "Id": "field.yield",
+      "DisplayName": "Output Yield",
+      "UnlockLevel": 4,
+      "Tiers": [
+        {
+          "Cost": 100,
+          "Effects": [
+            {
+              "Id": "field.yield.1",
+              "Type": "StationYield",
+              "Op": "Flat",
+              "Amount": 1.0,
+              "Resource": "",
+              "Range": 0,
+              "Trigger": "None",
+              "TriggerChance": 0,
+              "ConditionType": "None",
+              "ConditionArg": "",
+              "ConditionAmount": 0
+            }
+          ]
+        },
+        {
+          "Cost": 260,
+          "Effects": [
+            {
+              "Id": "field.yield.2",
+              "Type": "StationYield",
+              "Op": "Flat",
+              "Amount": 1.0,
+              "Resource": "",
+              "Range": 0,
+              "Trigger": "None",
+              "TriggerChance": 0,
+              "ConditionType": "None",
+              "ConditionArg": "",
+              "ConditionAmount": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "Id": "henhouse.queue",
+      "DisplayName": "Queue Depth",
+      "UnlockLevel": 4,
+      "Tiers": [
+        {
+          "Cost": 320,
+          "Effects": [
+            {
+              "Id": "henhouse.queue.1",
+              "Type": "StationQueueDepth",
+              "Op": "Flat",
+              "Amount": 1.0,
+              "Resource": "",
+              "Range": 0,
+              "Trigger": "None",
+              "TriggerChance": 0,
+              "ConditionType": "None",
+              "ConditionArg": "",
+              "ConditionAmount": 0
+            }
+          ]
+        },
+        {
+          "Cost": 800,
+          "Effects": [
+            {
+              "Id": "henhouse.queue.2",
+              "Type": "StationQueueDepth",
+              "Op": "Flat",
+              "Amount": 1.0,
+              "Resource": "",
+              "Range": 0,
+              "Trigger": "None",
+              "TriggerChance": 0,
+              "ConditionType": "None",
+              "ConditionArg": "",
+              "ConditionAmount": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "Id": "pasture.queue",
+      "DisplayName": "Queue Depth",
+      "UnlockLevel": 5,
+      "Tiers": [
+        {
+          "Cost": 320,
+          "Effects": [
+            {
+              "Id": "pasture.queue.1",
+              "Type": "StationQueueDepth",
+              "Op": "Flat",
+              "Amount": 1.0,
+              "Resource": "",
+              "Range": 0,
+              "Trigger": "None",
+              "TriggerChance": 0,
+              "ConditionType": "None",
+              "ConditionArg": "",
+              "ConditionAmount": 0
+            }
+          ]
+        },
+        {
+          "Cost": 800,
+          "Effects": [
+            {
+              "Id": "pasture.queue.2",
+              "Type": "StationQueueDepth",
+              "Op": "Flat",
+              "Amount": 1.0,
+              "Resource": "",
+              "Range": 0,
+              "Trigger": "None",
+              "TriggerChance": 0,
+              "ConditionType": "None",
+              "ConditionArg": "",
+              "ConditionAmount": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "Id": "silo.cap",
+      "DisplayName": "Silo Expansion",
+      "UnlockLevel": 4,
+      "Tiers": [
+        {
+          "Cost": 120,
+          "Effects": [
+            {
+              "Id": "silo.cap.1",
+              "Type": "StorageCap",
+              "Op": "Flat",
+              "Amount": 25.0,
+              "Resource": "",
+              "Range": 0,
+              "Trigger": "None",
+              "TriggerChance": 0,
+              "ConditionType": "None",
+              "ConditionArg": "",
+              "ConditionAmount": 0
+            }
+          ]
+        },
+        {
+          "Cost": 300,
+          "Effects": [
+            {
+              "Id": "silo.cap.2",
+              "Type": "StorageCap",
+              "Op": "Flat",
+              "Amount": 25.0,
+              "Resource": "",
+              "Range": 0,
+              "Trigger": "None",
+              "TriggerChance": 0,
+              "ConditionType": "None",
+              "ConditionArg": "",
+              "ConditionAmount": 0
+            }
+          ]
+        },
+        {
+          "Cost": 700,
+          "Effects": [
+            {
+              "Id": "silo.cap.3",
+              "Type": "StorageCap",
+              "Op": "Flat",
+              "Amount": 25.0,
+              "Resource": "",
+              "Range": 0,
+              "Trigger": "None",
+              "TriggerChance": 0,
+              "ConditionType": "None",
+              "ConditionArg": "",
+              "ConditionAmount": 0
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "Levels": [
+    {
+      "XpThreshold": 0,
+      "Grants": []
+    },
+    {
+      "XpThreshold": 6,
+      "Grants": [
+        {
+          "Kind": "QueueDepth",
+          "TargetStation": null,
+          "Amount": 1
+        },
+        {
+          "Kind": "Gems",
+          "TargetStation": null,
+          "Amount": 5
+        }
+      ]
+    },
+    {
+      "XpThreshold": 20,
+      "Grants": [
+        {
+          "Kind": "Gems",
+          "TargetStation": null,
+          "Amount": 2
+        },
+        {
+          "Kind": "StationCap",
+          "TargetStation": "field",
+          "Amount": 1
+        }
+      ]
+    },
+    {
+      "XpThreshold": 45,
+      "Grants": [
+        {
+          "Kind": "OrderSlots",
+          "TargetStation": null,
+          "Amount": 1
+        },
+        {
+          "Kind": "Money",
+          "TargetStation": null,
+          "Amount": 200
+        },
+        {
+          "Kind": "StationCap",
+          "TargetStation": "field",
+          "Amount": 1
+        }
+      ]
+    },
+    {
+      "XpThreshold": 90,
+      "Grants": [
+        {
+          "Kind": "StationCap",
+          "TargetStation": "field",
+          "Amount": 1
+        },
+        {
+          "Kind": "Money",
+          "TargetStation": null,
+          "Amount": 250
+        }
+      ]
+    },
+    {
+      "XpThreshold": 180,
+      "Grants": [
+        {
+          "Kind": "QueueDepth",
+          "TargetStation": null,
+          "Amount": 1
+        },
+        {
+          "Kind": "Money",
+          "TargetStation": null,
+          "Amount": 300
+        }
+      ]
+    },
+    {
+      "XpThreshold": 320,
+      "Grants": [
+        {
+          "Kind": "Money",
+          "TargetStation": null,
+          "Amount": 400
+        }
+      ]
+    },
+    {
+      "XpThreshold": 500,
+      "Grants": [
+        {
+          "Kind": "OrderSlots",
+          "TargetStation": null,
+          "Amount": 1
+        },
+        {
+          "Kind": "Money",
+          "TargetStation": null,
+          "Amount": 450
+        }
+      ]
+    },
+    {
+      "XpThreshold": 760,
+      "Grants": [
+        {
+          "Kind": "StationCap",
+          "TargetStation": "henhouse",
+          "Amount": 1
+        },
+        {
+          "Kind": "Money",
+          "TargetStation": null,
+          "Amount": 500
+        }
+      ]
+    },
+    {
+      "XpThreshold": 1000,
+      "Grants": [
+        {
+          "Kind": "QueueDepth",
+          "TargetStation": null,
+          "Amount": 1
+        },
+        {
+          "Kind": "StationCap",
+          "TargetStation": "field",
+          "Amount": 1
+        },
+        {
+          "Kind": "Money",
+          "TargetStation": null,
+          "Amount": 600
+        }
+      ]
+    },
+    {
+      "XpThreshold": 1300,
+      "Grants": [
+        {
+          "Kind": "Money",
+          "TargetStation": null,
+          "Amount": 700
+        }
+      ]
+    },
+    {
+      "XpThreshold": 1650,
+      "Grants": [
+        {
+          "Kind": "StationCap",
+          "TargetStation": "pasture",
+          "Amount": 1
+        },
+        {
+          "Kind": "Money",
+          "TargetStation": null,
+          "Amount": 800
+        }
+      ]
+    },
+    {
+      "XpThreshold": 2050,
+      "Grants": [
+        {
+          "Kind": "OrderSlots",
+          "TargetStation": null,
+          "Amount": 1
+        },
+        {
+          "Kind": "Money",
+          "TargetStation": null,
+          "Amount": 900
+        }
+      ]
+    },
+    {
+      "XpThreshold": 2500,
+      "Grants": [
+        {
+          "Kind": "StationCap",
+          "TargetStation": "creamery",
+          "Amount": 1
+        },
+        {
+          "Kind": "Money",
+          "TargetStation": null,
+          "Amount": 1000
+        }
+      ]
+    },
+    {
+      "XpThreshold": 3000,
+      "Grants": [
+        {
+          "Kind": "QueueDepth",
+          "TargetStation": null,
+          "Amount": 1
+        },
+        {
+          "Kind": "Money",
+          "TargetStation": null,
+          "Amount": 1100
+        }
+      ]
+    },
+    {
+      "XpThreshold": 3600,
+      "Grants": [
+        {
+          "Kind": "StationCap",
+          "TargetStation": "bakery",
+          "Amount": 1
+        },
+        {
+          "Kind": "Money",
+          "TargetStation": null,
+          "Amount": 1200
+        }
+      ]
+    },
+    {
+      "XpThreshold": 4300,
+      "Grants": [
+        {
+          "Kind": "OrderSlots",
+          "TargetStation": null,
+          "Amount": 1
+        },
+        {
+          "Kind": "Money",
+          "TargetStation": null,
+          "Amount": 1300
+        }
+      ]
+    },
+    {
+      "XpThreshold": 5100,
+      "Grants": [
+        {
+          "Kind": "StationCap",
+          "TargetStation": "field",
+          "Amount": 1
+        },
+        {
+          "Kind": "Money",
+          "TargetStation": null,
+          "Amount": 1400
+        }
+      ]
+    },
+    {
+      "XpThreshold": 6000,
+      "Grants": [
+        {
+          "Kind": "QueueDepth",
+          "TargetStation": null,
+          "Amount": 1
+        },
+        {
+          "Kind": "Money",
+          "TargetStation": null,
+          "Amount": 1500
+        }
+      ]
+    },
+    {
+      "XpThreshold": 7000,
+      "Grants": [
+        {
+          "Kind": "OrderSlots",
+          "TargetStation": null,
+          "Amount": 1
+        },
+        {
+          "Kind": "Money",
+          "TargetStation": null,
+          "Amount": 2000
+        }
+      ]
+    }
+  ],
+  "Quests": [
+    {
+      "Id": "q1.corn",
+      "Conditions": [
+        {
+          "Kind": "MinLevel",
+          "Amount": 1,
+          "Arg": ""
+        }
+      ],
+      "Goal": {
+        "Kind": "HarvestCrops",
+        "Amount": 6,
+        "TargetId": "corn"
+      },
+      "Reward": {
+        "Xp": 2,
+        "Money": 8,
+        "Gems": 0,
+        "Resources": []
+      }
+    },
+    {
+      "Id": "q2.orders",
+      "Conditions": [
+        {
+          "Kind": "MinLevel",
+          "Amount": 2,
+          "Arg": ""
+        }
+      ],
+      "Goal": {
+        "Kind": "FulfillOrders",
+        "Amount": 2,
+        "TargetId": ""
+      },
+      "Reward": {
+        "Xp": 6,
+        "Money": 12,
+        "Gems": 0,
+        "Resources": []
+      }
+    },
+    {
+      "Id": "q3.field",
+      "Conditions": [
+        {
+          "Kind": "MinLevel",
+          "Amount": 3,
+          "Arg": ""
+        }
+      ],
+      "Goal": {
+        "Kind": "BuildStations",
+        "Amount": 1,
+        "TargetId": "field"
+      },
+      "Reward": {
+        "Xp": 12,
+        "Money": 15,
+        "Gems": 0,
+        "Resources": []
+      }
+    },
+    {
+      "Id": "q4.bakery",
+      "Conditions": [
+        {
+          "Kind": "MinLevel",
+          "Amount": 4,
+          "Arg": ""
+        }
+      ],
+      "Goal": {
+        "Kind": "BuildStations",
+        "Amount": 1,
+        "TargetId": "bakery"
+      },
+      "Reward": {
+        "Xp": 22,
+        "Money": 20,
+        "Gems": 0,
+        "Resources": []
+      }
+    },
+    {
+      "Id": "q4.wheat",
+      "Conditions": [
+        {
+          "Kind": "MinLevel",
+          "Amount": 4,
+          "Arg": ""
+        }
+      ],
+      "Goal": {
+        "Kind": "HarvestCrops",
+        "Amount": 4,
+        "TargetId": "wheat"
+      },
+      "Reward": {
+        "Xp": 12,
+        "Money": 12,
+        "Gems": 0,
+        "Resources": []
+      }
+    },
+    {
+      "Id": "q4.bread",
+      "Conditions": [
+        {
+          "Kind": "QuestCompleted",
+          "Amount": 0,
+          "Arg": "q4.bakery"
+        }
+      ],
+      "Goal": {
+        "Kind": "HarvestCrops",
+        "Amount": 3,
+        "TargetId": "bread"
+      },
+      "Reward": {
+        "Xp": 18,
+        "Money": 20,
+        "Gems": 0,
+        "Resources": []
+      }
+    },
+    {
+      "Id": "q4.cornbread",
+      "Conditions": [
+        {
+          "Kind": "MinLevel",
+          "Amount": 4,
+          "Arg": ""
+        }
+      ],
+      "Goal": {
+        "Kind": "HarvestCrops",
+        "Amount": 2,
+        "TargetId": "cornbread"
+      },
+      "Reward": {
+        "Xp": 10,
+        "Money": 15,
+        "Gems": 0,
+        "Resources": []
+      }
+    },
+    {
+      "Id": "q5.upgrade",
+      "Conditions": [
+        {
+          "Kind": "MinLevel",
+          "Amount": 5,
+          "Arg": ""
+        }
+      ],
+      "Goal": {
+        "Kind": "PurchaseUpgrades",
+        "Amount": 1,
+        "TargetId": "field.speed"
+      },
+      "Reward": {
+        "Xp": 20,
+        "Money": 15,
+        "Gems": 0,
+        "Resources": []
+      }
+    },
+    {
+      "Id": "q5.henhouse",
+      "Conditions": [
+        {
+          "Kind": "MinLevel",
+          "Amount": 5,
+          "Arg": ""
+        }
+      ],
+      "Goal": {
+        "Kind": "BuildStations",
+        "Amount": 1,
+        "TargetId": "henhouse"
+      },
+      "Reward": {
+        "Xp": 35,
+        "Money": 25,
+        "Gems": 0,
+        "Resources": []
+      }
+    },
+    {
+      "Id": "q5.brioche",
+      "Conditions": [
+        {
+          "Kind": "QuestCompleted",
+          "Amount": 0,
+          "Arg": "q5.henhouse"
+        }
+      ],
+      "Goal": {
+        "Kind": "HarvestCrops",
+        "Amount": 3,
+        "TargetId": "brioche"
+      },
+      "Reward": {
+        "Xp": 35,
+        "Money": 30,
+        "Gems": 0,
+        "Resources": []
+      }
+    },
+    {
+      "Id": "q6.silo",
+      "Conditions": [
+        {
+          "Kind": "MinLevel",
+          "Amount": 6,
+          "Arg": ""
+        }
+      ],
+      "Goal": {
+        "Kind": "PurchaseUpgrades",
+        "Amount": 1,
+        "TargetId": "silo.cap"
+      },
+      "Reward": {
+        "Xp": 30,
+        "Money": 20,
+        "Gems": 0,
+        "Resources": []
+      }
+    },
+    {
+      "Id": "q6.pasture",
+      "Conditions": [
+        {
+          "Kind": "MinLevel",
+          "Amount": 6,
+          "Arg": ""
+        }
+      ],
+      "Goal": {
+        "Kind": "BuildStations",
+        "Amount": 1,
+        "TargetId": "pasture"
+      },
+      "Reward": {
+        "Xp": 55,
+        "Money": 30,
+        "Gems": 0,
+        "Resources": []
+      }
+    },
+    {
+      "Id": "q6.orders",
+      "Conditions": [
+        {
+          "Kind": "MinLevel",
+          "Amount": 6,
+          "Arg": ""
+        }
+      ],
+      "Goal": {
+        "Kind": "FulfillOrders",
+        "Amount": 6,
+        "TargetId": ""
+      },
+      "Reward": {
+        "Xp": 25,
+        "Money": 30,
+        "Gems": 0,
+        "Resources": []
+      }
+    },
+    {
+      "Id": "q7.creamery",
+      "Conditions": [
+        {
+          "Kind": "MinLevel",
+          "Amount": 7,
+          "Arg": ""
+        }
+      ],
+      "Goal": {
+        "Kind": "BuildStations",
+        "Amount": 1,
+        "TargetId": "creamery"
+      },
+      "Reward": {
+        "Xp": 70,
+        "Money": 40,
+        "Gems": 0,
+        "Resources": []
+      }
+    },
+    {
+      "Id": "q7.cheesecake",
+      "Conditions": [
+        {
+          "Kind": "QuestCompleted",
+          "Amount": 0,
+          "Arg": "q7.creamery"
+        }
+      ],
+      "Goal": {
+        "Kind": "HarvestCrops",
+        "Amount": 2,
+        "TargetId": "cheesecake"
+      },
+      "Reward": {
+        "Xp": 70,
+        "Money": 50,
+        "Gems": 1,
+        "Resources": []
+      }
+    },
+    {
+      "Id": "q7.cream",
+      "Conditions": [
+        {
+          "Kind": "MinLevel",
+          "Amount": 7,
+          "Arg": ""
+        }
+      ],
+      "Goal": {
+        "Kind": "HarvestCrops",
+        "Amount": 3,
+        "TargetId": "cream"
+      },
+      "Reward": {
+        "Xp": 35,
+        "Money": 30,
+        "Gems": 0,
+        "Resources": []
+      }
+    },
+    {
+      "Id": "q8.earn",
+      "Conditions": [
+        {
+          "Kind": "MinLevel",
+          "Amount": 8,
+          "Arg": ""
+        }
+      ],
+      "Goal": {
+        "Kind": "EarnMoney",
+        "Amount": 1500,
+        "TargetId": ""
+      },
+      "Reward": {
+        "Xp": 90,
+        "Money": 0,
+        "Gems": 1,
+        "Resources": []
+      }
+    },
+    {
+      "Id": "q8.orders",
+      "Conditions": [
+        {
+          "Kind": "MinLevel",
+          "Amount": 8,
+          "Arg": ""
+        }
+      ],
+      "Goal": {
+        "Kind": "FulfillOrders",
+        "Amount": 8,
+        "TargetId": ""
+      },
+      "Reward": {
+        "Xp": 70,
+        "Money": 40,
+        "Gems": 0,
+        "Resources": []
+      }
+    },
+    {
+      "Id": "q9.earn",
+      "Conditions": [
+        {
+          "Kind": "MinLevel",
+          "Amount": 9,
+          "Arg": ""
+        }
+      ],
+      "Goal": {
+        "Kind": "EarnMoney",
+        "Amount": 3000,
+        "TargetId": ""
+      },
+      "Reward": {
+        "Xp": 90,
+        "Money": 0,
+        "Gems": 1,
+        "Resources": []
+      }
+    },
+    {
+      "Id": "q9.harvest",
+      "Conditions": [
+        {
+          "Kind": "MinLevel",
+          "Amount": 9,
+          "Arg": ""
+        }
+      ],
+      "Goal": {
+        "Kind": "HarvestCrops",
+        "Amount": 20,
+        "TargetId": "corn"
+      },
+      "Reward": {
+        "Xp": 60,
+        "Money": 20,
+        "Gems": 0,
+        "Resources": []
+      }
+    },
+    {
+      "Id": "q10.earn",
+      "Conditions": [
+        {
+          "Kind": "MinLevel",
+          "Amount": 10,
+          "Arg": ""
+        }
+      ],
+      "Goal": {
+        "Kind": "EarnMoney",
+        "Amount": 5000,
+        "TargetId": ""
+      },
+      "Reward": {
+        "Xp": 110,
+        "Money": 0,
+        "Gems": 1,
+        "Resources": []
+      }
+    },
+    {
+      "Id": "q10.orders",
+      "Conditions": [
+        {
+          "Kind": "MinLevel",
+          "Amount": 10,
+          "Arg": ""
+        }
+      ],
+      "Goal": {
+        "Kind": "FulfillOrders",
+        "Amount": 12,
+        "TargetId": ""
+      },
+      "Reward": {
+        "Xp": 70,
+        "Money": 40,
+        "Gems": 0,
+        "Resources": []
+      }
+    }
+  ]
+}

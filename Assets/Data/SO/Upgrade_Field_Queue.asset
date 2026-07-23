@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::VoidDay.Data.UpgradeSO
   id: field.queue
   displayName: Queue Depth
-  unlockLevel: 2
+  unlockLevel: 4
   tiers:
   - cost: 80
     effects:

@@ -20,6 +20,11 @@ namespace VoidDay.Data
 
         [Tooltip("Seconds. ≤ 0 = instant (§5.2). 'fast' vs 'very slow' is just this number.")]
         public float duration = 5f;
+
+        [Tooltip("Level at which this recipe becomes queueable. 1 = available as soon as its station is. "
+            + "Must be >= the station's unlockLevel — a recipe cannot open before the building that holds it. "
+            + "The gate lives here, not on the level asset (one gate has one home, like StationSO/UpgradeSO).")]
+        public int unlockLevel = 1;
     }
 
     [Serializable]
