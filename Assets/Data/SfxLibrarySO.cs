@@ -45,6 +45,13 @@ namespace VoidDay.Data
         LevelUp,
         CollectRefused, // tried to collect with a full silo — the "no" beat
         StationConstructionStarted, // the thunk of a build site going down; StationBuilt is now its completion
+
+        // One tick per collection particle landing in its HUD home. These layer ON TOP of the umbrella cue
+        // for the same moment (OrderFulfilled / XpGained / JobCollected) — the umbrella keeps its voice and
+        // the stream adds the patter.
+        EarnParticleMoney,
+        EarnParticleXp,
+        EarnParticleResource,
     }
 
     /// The one place a clip is assigned to a moment. The controller holds no clip and no volume — everything

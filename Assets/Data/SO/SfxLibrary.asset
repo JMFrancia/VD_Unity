@@ -133,3 +133,18 @@ MonoBehaviour:
     volume: 1
     pitchJitter: 0.05
     minInterval: 0
+  - cue: 24
+    clip: {fileID: 0}
+    volume: 1
+    pitchJitter: 0.05
+    minInterval: 0
+  - cue: 25
+    clip: {fileID: 0}
+    volume: 1
+    pitchJitter: 0.05
+    minInterval: 0
+  - cue: 26
+    clip: {fileID: 0}
+    volume: 1
+    pitchJitter: 0.05
+    minInterval: 0

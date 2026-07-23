@@ -17,7 +17,7 @@
 | id | What | Trigger event (§15) | Qty | Spec | Placeholder |
 |---|---|---|---|---|---|
 | `vfx.dopamineRain` | Void motes raining over the farm during Dopamine Rain (2 min) | `worldEvent:started` (Dopamine Rain) | 1 | §11 | tint pulse / none |
-| `vfx.collectPop` | Small void-accent burst on collect (the loop's reward beat) | `job:collected` | 1 | §4.4, StyleGuide Motion | scale-pop only |
+| `vfx.collectPop` | **BUILT — Collection Particles M03.** The collect beat is the resource pill rail: icons fly from the station into a pill that slides out from behind the money pill, ticking and pulsing per arrival. No separate VFX asset is needed here. | `job:collected` | 1 | §4.4, StyleGuide Motion, `milestones/Collection-Particles/03-resource-pill-rail.md` | shipped (particle burst) |
 | `vfx.levelUp` | Level-up flourish (rising sparkle) | `level:up` | 1 | §9, §12.4 | popup only |
 | `vfx.hatchReveal` | Egg-crack + void burst on hatch | `egg:hatched` | 1 | §10.1, §12.4 | swap mesh only |
 | `vfx.relationshipForm` | Heart-burst when a friendship forms | `relationship:formed` | 1 | §10.5, §12.4 | heart icon only |
@@ -32,5 +32,5 @@
 ## Notes
 
 - **Flavor world-events** (the 2 non-Dopamine-Rain launch events, spec §11) are **toast-only, no VFX** — they carry no real effect, so no particle asset.
-- Everything here is **additive polish**: the game is fully playable with placeholders (tweens/tints). Prioritize `vfx.collectPop` and `vfx.readySparkle` first — they're on the core loop's most-repeated beat.
+- Everything here is **additive polish**: the game is fully playable with placeholders (tweens/tints). Prioritize `vfx.readySparkle` first (`vfx.collectPop` is already built — see its row) — they're on the core loop's most-repeated beat.
 - If **MoreMountains Feel** is later adopted (StyleGuide Motion / Q18), several of these become Feel feedbacks rather than hand-built prefabs — the ids and trigger events stay the same, so this doc survives the swap.
