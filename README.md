@@ -14,8 +14,9 @@ VoidDay is a top-down farming/production-chain game for portrait mobile. You bui
 
 - **The full production loop** — tap a station, queue jobs from its recipes, watch real-time timers, collect blocked output. Eight station types (Field, Henhouse, Bakery, Creamery, Pasture, Workshop, Silo, Order Board) chaining ten resources from raw crops up to multi-ingredient goods.
 - **An Order Board economy** — procedurally generated orders you fulfill for cash and XP, with refilling slots.
+- **A quest system** — data-driven goals (harvest a crop, earn coins, fulfill orders, reach a level) that pay XP and resources on collection, with grant conditions that can chain one quest off another. It surfaces as a scrollable quest menu, a new-quest toast, and a progress pill that drops from under the XP bar — and because its rules live in the pure-C# core, the same quests run inside the headless balance sim.
 - **Build, upgrade, and a unified effect system** — place and upgrade stations; upgrades, and everything else that modifies the game, resolve through one shared Effect schema so a new effect type becomes available to every system at once.
-- **Levels, unlocks, and per-resource storage** — a Silo whose capacity is upgraded one resource at a time, and a level curve that gates new stations and caps.
+- **Levels, unlocks, and per-resource storage** — a Silo whose capacity is upgraded one resource at a time, and a level curve that gates new stations, individual recipes, and caps.
 - **A premium "gems" currency** whose single sink is skipping any running timer early — jobs, construction, and order refills, both from the HUD and by tapping the timer in the world.
 - **Collection juice** — earning something throws icon particles from the point of action to its HUD counter, and the counter only ticks up as each particle lands.
 - **Sound** and a data-driven placeholder-to-final art path, so real 3D station meshes drop in over primitives with no code change.
@@ -28,6 +29,7 @@ Touch and drag only — no keyboard.
 - **Tap a station** to open its panel, then queue a job from one of its recipes. Jobs run on a timer.
 - **Tap a finished job** to collect it. A station won't start its next job until you clear the finished one.
 - **Tap the Order Board** to fulfill orders with resources you've produced, for cash and XP.
+- **Open the quest menu** to see your active goals; when one fills up, tap it to collect its XP and resource reward.
 - **Spend cash** to build and upgrade stations and expand storage; **spend gems** to skip a timer you don't want to wait on.
 
 The objective is the Hay Day objective: keep the production chain flowing, fill orders, and level up the farm.
@@ -132,18 +134,13 @@ Although I created both single-milestone and one-shot implementation paths, I us
 
 ## Key Tradeoffs
 
-- **Cut VoidPets and world events to deepen the core loop.** When I worked on Evergrove (another mobile farming game with pet collection), the feedback we kept getting from players was how much they loved the pets. And they served a mechanical purpose, automating station collection and ordering, to ease player-action bottlenecks. But I thought they could do much more than that - I had just come off of working on a life sim game where I was designing systems
+- **Cut VoidPets and world events to deepen the core loop.** At the beginning I wrote some specs for incorporating two features into the game I really wanted; see "VoidPets" and "World Events" in "What I Would Build Next" section below. But I was running short on time, and per the instructions of the challenge, wanted to focus on making a tight, well-polished product. That meant prioritizing juice, balance, hard currency, and quests to shore up the core loop, rather than tacking on whole new systems (even though I was really excited to build them).
 
-
-
-
-The collectible/social layer is what a Hay Day clone is tempted to lead with; I judged that a solid economy was the thing worth getting right first, and a shallow version of everything would have felt like disconnected systems.
 - **Rebuilt the project's foundation mid-stream.** The agent's initial approach generated the entire scene and UI hierarchy in code at runtime, with no prefabs. It ran, but it was structurally wrong for Unity and would have made every later art and layout task painful. I stopped and re-established authored scenes/prefabs and a data-driven architecture as a hard rule before continuing.
-- **Prioritized game-feel over feature breadth late in the build.** The last additions were juice (collection particles) and a convenience currency (gem skips) rather than new systems, because playtesting said the loop needed to *feel* better more than it needed to be bigger.
 
 ## Known Issues
 
-- Balance is functional but not deeply tuned; the economy simulator exists precisely to keep iterating on it.
+- An initial balance pass — the `progression-v1` config shown above — has been tuned and applied through the simulator, so the early/mid game is paced; late-game tuning is where I'd keep iterating.
 - The game targets a portrait mobile aspect; on a desktop browser it renders in that aspect rather than filling the window.
 - No save/load or offline progression — the build is scoped to a single play session.
 
@@ -151,7 +148,7 @@ The collectible/social layer is what a Hay Day clone is tempted to lead with; I 
 
 - **Collectable VoidPets** When I worked on Evergrove (another mobile farming game with pet collection) the feedback we kept getting from players was how much they loved the pets, who could be assigned to automate stations. I designed features (well-recieved, but never implemented) to make them feel more alive, and have more personality. They would each have personalities, develop opinions, and form relationships with one another granting bonuses. I believe it would have added some interesting dimensionality to the game both from a mechanical and narrative perspective, especially since Evergrove was meant to have a stronger narrative component than it wound up with. For this project I generated milestones and assets that would give a little taste of this; gatcha-collectable VoidPets that would automate stations, give passive bonuses, and form relationships when assigned together. Unfortunately I ran out of time to implement, choosing to focus on making the primary experience feel juicier.
 
-- **World Events** Another feature that I spec'd but was cut for time was random world events (such as Dopamine rain, or Serotonin bloom) that would make temporary changes to the simulation adding variety and extra narrative flavor. 
+- **World Events** Another feature that I spec'd but was cut for time was random world events (such as Dopamine rain, or Serotonin bloom) that would make temporary changes to the simulation adding variety and extra narrative flavor.
 
 ## Running the Project Locally
 
