@@ -25,7 +25,7 @@ The rules themselves live in `tools/transcript/redactions.json`, which is **giti
 Two kinds of session are dropped by the generator rather than redacted:
 
 - **Forked duplicates.** Resuming or rewinding a conversation writes a second transcript replaying the same prompts. Two such forks were collapsed, keeping whichever went furthest.
-- **The session that produced this artifact.** It contains the design of the log and the redaction pass itself, which would be circular to publish inside the result.
+- **The sessions that produced this artifact.** The session that designed the log and its redaction pass, and the later session that refreshed the README and regenerated the log for a whole new day of work — both are self-referential, so publishing them inside the result would be circular.
 
 ## Verifying
 

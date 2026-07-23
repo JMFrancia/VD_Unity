@@ -8,12 +8,12 @@ This is the record of how VoidDay was built with coding agents — how the work 
 
 | | |
 |---|---|
-| Sessions | 45 |
-| Prompts I typed | 315 |
-| Elapsed | 6 days (Jul 16–22) |
-| Commits | 64, one per milestone boundary |
-| Milestone docs | 32, across 4 plans |
-| Pure-C# core | 36 files, zero `using UnityEngine` |
+| Sessions | 54 |
+| Prompts I typed | 360 |
+| Elapsed | 7 days (Jul 16–23) |
+| Commits | 96, one per milestone boundary |
+| Milestone docs | 34, across 5 plans |
+| Pure-C# core | 40 files, zero `using UnityEngine` |
 
 ## How I ran it
 
