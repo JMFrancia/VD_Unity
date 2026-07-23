@@ -182,8 +182,14 @@ namespace VoidDay.Systems
                     // otherwise a half-built Bakery starts attracting cake orders nothing can fill (§4.3).
                     if (kv.Value.UnderConstruction) continue;
                     foreach (var recipe in catalog.ForStationType(kv.Value.StationType))
+                    {
+                        // A placed, built station only *offers* the recipes unlocked at the current level — a
+                        // Bakery at L4 can make bread but not yet cheesecake (recipe unlocks at L7), so
+                        // cheesecake stays out of the order pool until its recipe is actually unlocked.
+                        if (recipe.UnlockLevel > progression.PlayerLevel) continue;
                         foreach (var output in recipe.Outputs)
                             ids.Add(output.ResourceId);
+                    }
                 }
                 return ids;
             }
