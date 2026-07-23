@@ -1,8 +1,9 @@
 using Newtonsoft.Json;
 using VoidDay.Balance.Schema;
+using VoidDay.Balance.Sim;
 using VoidDay.Balance.Unity;
 
-// VoidDay Balance Tool — CLI entrypoint. Verbs: `read` (M01), `write` (M02).
+// VoidDay Balance Tool — CLI entrypoint. Verbs: `read` (M01), `write` (M02), `sim` (M03).
 // The Unity project is never told this tool exists (spec, the agnosticism rule).
 
 if (args.Length == 0)
@@ -19,6 +20,7 @@ switch (verb)
 {
     case "read": return Read(projectRoot, opts);
     case "write": return Write(projectRoot, opts);
+    case "sim": return Sim(projectRoot, opts);
     default:
         Usage();
         return 1;
@@ -92,10 +94,45 @@ static int Write(string projectRoot, Dictionary<string, string> opts)
     return 0;
 }
 
+// Run one seeded player through the real economy and print the per-level table (M03). Reads a BalanceConfig
+// JSON (a versions/*.json, produced by `read`) — never re-reads Unity, and never writes anything.
+static int Sim(string projectRoot, Dictionary<string, string> opts)
+{
+    var name = opts.GetValueOrDefault("config") ?? "baseline";
+    var configPath = File.Exists(name)
+        ? name
+        : Path.Combine(projectRoot, "tools", "VoidDay.Balance", "versions", name + ".json");
+    if (!File.Exists(configPath))
+    {
+        Console.Error.WriteLine($"sim: config '{name}' not found (looked at {configPath}). Run `balance read` first.");
+        return 1;
+    }
+
+    var config = JsonConvert.DeserializeObject<BalanceConfig>(File.ReadAllText(configPath))
+                 ?? throw new InvalidOperationException($"{configPath}: parsed to null — not a BalanceConfig JSON.");
+
+    var profileName = opts.GetValueOrDefault("profile") ?? "typical";
+    var profile = profileName == "perfect" ? SimProfile.Perfect() : SimProfile.Typical();
+    profile.Name = profileName;
+    if (opts.TryGetValue("optimality", out var optStr)) profile.Optimality = float.Parse(optStr);
+
+    int seed = opts.TryGetValue("seed", out var seedStr) ? int.Parse(seedStr) : 1;
+    bool gemsEnabled = !opts.ContainsKey("no-gems");
+
+    var result = new SimRunner(config, profile, seed, gemsEnabled).Run();
+
+    if (opts.ContainsKey("json"))
+        Console.WriteLine(JsonConvert.SerializeObject(result, Formatting.Indented));
+    else
+        Console.Write(SimRunner.Render(result));
+    return 0;
+}
+
 static void Usage() => Console.Error.WriteLine(
     "usage:\n" +
     "  balance read  [--project <dir>] [--out <file>]\n" +
-    "  balance write --config <file> [--project <dir>] [--apply]");
+    "  balance write --config <file> [--project <dir>] [--apply]\n" +
+    "  balance sim   [--config <name|file>] [--profile typical|perfect] [--seed N] [--optimality X] [--no-gems] [--json]");
 
 static Dictionary<string, string> ParseOptions(string[] tokens)
 {
@@ -105,8 +142,8 @@ static Dictionary<string, string> ParseOptions(string[] tokens)
         if (!tokens[i].StartsWith("--"))
             throw new ArgumentException($"unexpected argument '{tokens[i]}'");
         var key = tokens[i][2..];
-        // Flags (no value): --apply. Everything else takes the next token as its value.
-        if (key == "apply") { opts[key] = "true"; continue; }
+        // Flags (no value): --apply, --json, --no-gems. Everything else takes the next token as its value.
+        if (key is "apply" or "json" or "no-gems") { opts[key] = "true"; continue; }
         if (i + 1 >= tokens.Length)
             throw new ArgumentException($"option --{key} needs a value");
         opts[key] = tokens[++i];

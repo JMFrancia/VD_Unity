@@ -183,3 +183,34 @@ _(sha not recorded here — the entry ships inside its own commit; the milestone
 - ★ **Gems are authored top-level on `GameConfig.asset`** (`startingGems`/`secondsPerGem`/`minGemCost`) even though the schema groups them under `Gems`. The writer targets `GameConfigPath` for them; a future reader/writer split must preserve that.
 - **CLI arg parsing uses the top-level `args`, not `Environment.GetCommandLineArgs()`** (the latter mis-indexes under `dotnet run`). Run verbs as `dotnet run -- <verb> …`; `dotnet run --nologo/-v` leaks those flags into `args`.
 - New recipe assets land at `Assets/Data/SO/Recipe_<id-with-dots→underscores>.asset` with `m_Name` matching. Filename is cosmetic to the game (referenced by guid), but keep the convention for reviewability.
+
+## Milestone 03 — Simulate
+**Status:** ✅ Complete · **Date:** 2026-07-22
+_(sha not recorded here — the entry ships inside its own commit; the milestone number in the commit message is the link.)_
+
+**Built:**
+- `Sim/` (10 files): `CoreHarness` (mirrors `GameBoot.Start()` wiring order exactly, header names the file + commit `4b13863` + reconcile date), `ConfigProjector` (BalanceConfig→Core models, mirrors `ModelProjector` incl `EffectConfig`→`Effect`), `SimClock` (1s step / exact jump to `min(job end, construction end, order refill)` — construction IS in the jump set), `PressureLedger` (8 categories, GROSS + separate `GemRelief`, net derived), `RecipeChain` (demand-driven backward chaining, memoised cycle guard that throws `RecipeCycleException` on a real A↔B cycle but allows self-grow), `PlayerAgent` (bottleneck-seeker, optimality dial, gems as the consumable remedy calling the real `TimeSkip`), `MetricsCollector` (subscribes the real `EventBus`), `SimRunner` (the loop + text table).
+- `Schema/SimProfile.cs`, `Schema/SimResult.cs` (`LevelReport`/`PurchaseRecord`/`StopReason`).
+- CLI `sim --config <name|file> [--profile typical|perfect] [--seed N] [--optimality X] [--no-gems] [--json]`.
+- Tests: `GameBootParityTests` (canary) + 9 sim tests. **18/18 pass** (2 M01 + 6 M02 + 10 new).
+
+**Verified** (`dotnet build`/`run`/`test`; no Unity editor, by design):
+- `sim --config baseline --seed 1` → per-level table, reaches L20 in 54.1m; L1→2 short, later levels longer; bottlenecks justifiable. Two `--json` runs byte-identical (determinism). Optimality monotonic: 47.0m(1.0) < 54.1m(0.65) < 89.3m(0.3). Cycle config throws loudly, no hang. **Assets/ stays clean** (agnosticism holds).
+- Capacity↔Yield swap confirmed (field cap 6 → `Capacity:field`; baseline cap 2 → `Yield:field`). Storage/OrderRefill detection confirmed with a silo-flood config. Gem relief confirmed gross (`GemRelief`/`SecondsPurchased` populate; pressure never netted).
+- **NOT verified:** in-editor Unity (this run never opens it). No multi-seed/eval/UI (M4–M7).
+
+**Deviations from the plan:**
+- **★ `buildCost = 999999` does NOT stall baseline** (DoD/QA-17 expected a stall). It reaches L20 in 212m. Root cause: the preplaced field's `cornGrow` (corn→2corn) + corn being sellable is a **complete self-sustaining money loop** — only corn is producible+sellable, so orders are always corn and never require a *built* station. This is CORRECT sim behaviour and exactly the kind of finding the tool exists to surface, not a bug. Same root cause makes **QA-8's "Storage dominates at cap 10" not hold** for baseline: early game is *production-constrained* (corn scarce, sold immediately), not storage-constrained. The Storage/stall GUARDS both work — proven with a silo-flood config (Storage dominates) and an unwinnable config (`SimStallGuardFires`, corn needs an unobtainable input → stall). The automated tests use those genuinely-triggering configs rather than the baseline QA scenarios.
+- Pressure accrues **continuously** (over every clock slice, not only idle) per the spec's "the player is always present, pressure accrues continuously" — Storage per blocked station always; Capacity/Supply/Yield/Throughput + diagnostics only when the player has no productive action.
+
+**Tech debt:**
+- `PressureIsGrossOfGemRelief` is tested as a **ledger invariant** (Accrue never subtracts; AccrueGemRelief adds gross+relief) rather than a full-baseline 0-vs-50-gem equality — an end-to-end equality is fragile because faster leveling under gems shifts the order-generation stream, so the two runs legitimately diverge. The invariant is the load-bearing rule; the gross-accrual is correct by construction in `SimRunner`.
+- Absolute times are a model, not a player (spec risk 3) — trust *relative* answers.
+
+**Gotchas for later milestones:**
+- **★ Second mirror surface, NOT covered by the GameBoot canary:** `CoreHarness` also mirrors two *Systems-layer* behaviours essential to the sim — `ProgressionSystem` (XP awards on `JobCollected`/`OrderFulfilled`/`StationBuilt` — without it nothing ever levels) and `UpgradesSystem` (register a runtime-built station's upgrade tracks on `StationBuilt`). If either `.cs` changes, the canary won't fire. Grep `Assets/Systems/ProgressionSystem.cs` / `UpgradesSystem.cs` when reconciling.
+- **★ Parity canary frozen against `GameBoot.cs` @ commit `4b13863`** (last commit to touch it). Normalized-SHA256 (CRLF/CR→LF) `052ff334f060b74f5ebb86d78804a2940c2a824c9fc368b87f22c2c3c663cb96`, baked in `GameBootParityTests.ExpectedHash`. All named in-flight GameBoot movers (gems M01–M03 `fe0e83c`/`a4b8ad2`/`1822352`, Collection-Particles M01–M03 `734e546`/`aedc6a2`/`4b13863`) are committed. If it fires: reconcile `CoreHarness` then reprint the new hash from the failure message.
+- **Sim data contract (M5/M6 inherit):** `SimResult`/`LevelReport` shape — `Pressure` gross + `GemRelief` separate, net derived; category keys are `Storage`/`Throughput`/`Income`/`OrderRefill`/`Unlock` and the parametrised `Capacity:<type>`/`Supply:<good>`/`Yield:<type>`. `eval`/`suggest` read these keys.
+- **Two Random streams:** order = `new Random(seed)`; agent = `new Random(seed*1103515245+12345)`. Never `HashCode.Combine` (per-process randomized → breaks determinism).
+- Only the six effect types with teeth are honoured (inherited from `ValueResolver`); the sim reads resolved values, so it inherits this for free.
+- `SimProfile` is the player, not the game — the whole `profile/*` namespace must stay read-only to `patch` (M5), gem behaviour fields included.
