@@ -8,12 +8,18 @@ namespace VoidDay.Core.Rules
     /// the projected models (via the resourceName lookup), never hardcoded. Sibling of TraitDescription.
     public static class QuestDescription
     {
-        public static string Describe(QuestGoalModel goal, Func<string, string> resourceName) => goal.Kind switch
+        public static string Describe(QuestGoalModel goal, Func<string, string> displayName) => goal.Kind switch
         {
             GoalKind.EarnMoney => $"Earn ${goal.Amount}",
             GoalKind.FulfillOrders => $"Fulfill {goal.Amount} {Plural(goal.Amount, "order")}",
-            GoalKind.HarvestCrops => $"Harvest {goal.Amount} {resourceName(goal.TargetId)}",
+            GoalKind.HarvestCrops => $"Harvest {goal.Amount} {displayName(goal.TargetId)}",
             GoalKind.ReachLevel => $"Reach level {goal.Amount}",
+            GoalKind.BuildStations => goal.Amount == 1
+                ? $"Build a {displayName(goal.TargetId)}"
+                : $"Build {goal.Amount} {displayName(goal.TargetId)} stations",
+            GoalKind.PurchaseUpgrades => goal.Amount == 1
+                ? $"Upgrade {displayName(goal.TargetId)}"
+                : $"Upgrade {displayName(goal.TargetId)} {goal.Amount} times",
             _ => throw new NotImplementedException(
                 $"QuestDescription: goal kind {goal.Kind} has no description (no example quest exercises it)")
         };

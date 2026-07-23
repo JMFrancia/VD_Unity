@@ -32,7 +32,7 @@ namespace VoidDay.Core.Rules
         readonly Wallet _wallet;
         readonly GemPurse _gems;
         readonly Progression _progression;
-        readonly Func<string, string> _resourceName;
+        readonly Func<string, string> _displayName; // resource / station / upgrade-track id → label, for descriptions
 
         readonly List<QuestModel> _candidates;              // ungranted, not-yet-completed
         readonly List<ActiveQuest> _active = new();
@@ -60,7 +60,7 @@ namespace VoidDay.Core.Rules
 
         public QuestLog(EventBus bus, IReadOnlyList<QuestModel> quests, Func<int> playerLevel,
             ResourcePool pool, UpgradeSystem upgrades, Wallet wallet, GemPurse gems, Progression progression,
-            Func<string, string> resourceName)
+            Func<string, string> displayName)
         {
             _bus = bus;
             _playerLevel = playerLevel;
@@ -69,7 +69,7 @@ namespace VoidDay.Core.Rules
             _wallet = wallet;
             _gems = gems;
             _progression = progression;
-            _resourceName = resourceName;
+            _displayName = displayName;
             _candidates = new List<QuestModel>(quests);
 
             // State-change events re-check grant conditions; action events advance progress. Initial grants
@@ -78,6 +78,7 @@ namespace VoidDay.Core.Rules
             _bus.Subscribe<LevelUp>(OnLevelUp);
             _bus.Subscribe<ResourceChanged>(OnResourceChanged);
             _bus.Subscribe<UpgradePurchased>(OnUpgradePurchased);
+            _bus.Subscribe<StationBuilt>(OnStationBuilt);
             _bus.Subscribe<MoneyChanged>(OnMoneyChanged);
             _bus.Subscribe<OrderFulfilled>(OnOrderFulfilled);
             _bus.Subscribe<JobCollected>(OnJobCollected);
@@ -98,7 +99,14 @@ namespace VoidDay.Core.Rules
 
         void OnGameStarted(GameStarted _) => EvaluateGrants();
         void OnResourceChanged(ResourceChanged _) => EvaluateGrants();
-        void OnUpgradePurchased(UpgradePurchased _) => EvaluateGrants();
+
+        void OnUpgradePurchased(UpgradePurchased e)
+        {
+            EvaluateGrants();     // an UpgradePurchased grant condition may have opened
+            foreach (var q in _active)
+                if (!q.Ready && q.Quest.Goal.Kind == GoalKind.PurchaseUpgrades && e.UpgradeId == q.Quest.Goal.TargetId)
+                    Advance(q, q.Progressed + 1); // one purchased tier = one unit
+        }
 
         void OnLevelUp(LevelUp _)
         {
@@ -139,7 +147,7 @@ namespace VoidDay.Core.Rules
         {
             int baseLevel = _playerLevel();
             long needed = NeededUnits(quest.Goal, baseLevel);
-            string description = QuestDescription.Describe(quest.Goal, _resourceName);
+            string description = QuestDescription.Describe(quest.Goal, _displayName);
             var active = new ActiveQuest(quest, description, baseLevel, needed);
             _active.Add(active);
             _bus.Publish(new QuestGranted(quest.Id, description));
@@ -171,6 +179,13 @@ namespace VoidDay.Core.Rules
             foreach (var q in _active)
                 if (!q.Ready && q.Quest.Goal.Kind == GoalKind.FulfillOrders)
                     Advance(q, q.Progressed + 1);
+        }
+
+        void OnStationBuilt(StationBuilt e)
+        {
+            foreach (var q in _active)
+                if (!q.Ready && q.Quest.Goal.Kind == GoalKind.BuildStations && e.StationType == q.Quest.Goal.TargetId)
+                    Advance(q, q.Progressed + 1); // one built station of the target type = one unit
         }
 
         void OnJobCollected(JobCollected e)

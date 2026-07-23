@@ -206,9 +206,16 @@ namespace VoidDay.Systems
             // resourceName lookup feeds the generated descriptions ("Harvest 10 wheat").
             var questModels = new List<QuestModel>(config.quests.Count);
             foreach (var q in config.quests) questModels.Add(ModelProjector.ProjectQuest(q));
+            // Descriptions name resources (HarvestCrops), station types (BuildStations) and upgrade tracks
+            // (PurchaseUpgrades) — one lookup over all three, falling back to the raw id.
+            var upgradeNames = new Dictionary<string, string>();
+            foreach (var tracks in tracksByType.Values)
+                foreach (var t in tracks) upgradeNames[t.Id] = t.DisplayName;
             var questLog = new QuestLog(bus, questModels, () => progression.PlayerLevel, pool, upgrades,
                 wallet, gems, progression,
-                id => resourceModels.TryGetValue(id, out var m) ? m.DisplayName : id);
+                id => resourceModels.TryGetValue(id, out var r) ? r.DisplayName
+                    : stationTypes.TryGetValue(id, out var s) ? s.DisplayName
+                    : upgradeNames.TryGetValue(id, out var u) ? u : id);
 
             // Grid is centered on the world origin; the camera only needs its world-space extents for pan bounds.
             cameraController.Init(Vector3.zero, config.gridCols * config.cellSize, config.gridRows * config.cellSize, bus, roots);

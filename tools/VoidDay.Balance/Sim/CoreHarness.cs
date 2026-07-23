@@ -128,9 +128,16 @@ public sealed class CoreHarness
         // feeds the generated descriptions — mirrors GameBoot exactly.
         var questModels = new List<QuestModel>(config.Quests.Count);
         foreach (var q in config.Quests) questModels.Add(ConfigProjector.Quest(q));
+        // Descriptions name resources, station types and upgrade tracks — one lookup over all three,
+        // falling back to the raw id. Mirrors GameBoot exactly.
+        var upgradeNames = new Dictionary<string, string>();
+        foreach (var tracks in tracksByType.Values)
+            foreach (var t in tracks) upgradeNames[t.Id] = t.DisplayName;
         Quests = new QuestLog(Bus, questModels, () => Progression.PlayerLevel, Pool, Upgrades,
             Wallet, Gems, Progression,
-            id => resourceModels.TryGetValue(id, out var m) ? m.DisplayName : id);
+            id => resourceModels.TryGetValue(id, out var r) ? r.DisplayName
+                : stationTypes.TryGetValue(id, out var s) ? s.DisplayName
+                : upgradeNames.TryGetValue(id, out var u) ? u : id);
         // ── GameBoot.Start() mirror ends (Init(...) calls are View/Systems wiring — none in the harness) ──
 
         // Systems bridge: the two Systems-layer behaviours that DRIVE Core economically (the rest of the
