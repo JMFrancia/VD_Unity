@@ -1,0 +1,28 @@
+/* Page chrome for the portrait-locked web build. The page background is the
+   void colour (#1B1532, the camera clear colour) so the pillarbox / letterbox
+   bars blend into the game rather than reading as empty black margins. */
+body { padding: 0; margin: 0; background: #1B1532; overflow: hidden }
+
+/* The canvas is always a 9:16 (1080x1920) rectangle centred in the viewport,
+   regardless of the viewer's device or window shape:
+     - wide  (desktop) window     -> pillarboxed portrait, bars on the sides
+     - tall/narrow (phone) window  -> fills width, small letterbox top/bottom
+   width/height are the smaller of "fill the viewport" vs "what the OTHER axis
+   allows at 9:16", so the ratio is exact in every case. matchWebGLToCanvasSize
+   (Unity default) then syncs the render target to this CSS size, so Screen,
+   the CanvasScaler (ref 1080x1920) and the camera all see portrait. */
+#unity-container {
+  position: fixed; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+#unity-canvas {
+  width:  min(100vw, calc(100vh * 1080 / 1920));
+  height: min(100vh, calc(100vw * 1920 / 1080));
+  background: {{{ BACKGROUND_COLOR }}};
+}
+
+#unity-loading-bar { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); display: none }
+#unity-logo { width: 154px; height: 130px; background: url('unity-logo-{{{ SPLASH_SCREEN_STYLE.toLowerCase() }}}.png') no-repeat center }
+#unity-progress-bar-empty { width: 141px; height: 18px; margin-top: 10px; margin-left: 6.5px; background: url('progress-bar-empty-{{{ SPLASH_SCREEN_STYLE.toLowerCase() }}}.png') no-repeat center }
+#unity-progress-bar-full { width: 0%; height: 18px; margin-top: 10px; background: url('progress-bar-full-{{{ SPLASH_SCREEN_STYLE.toLowerCase() }}}.png') no-repeat center }
+#unity-warning { position: absolute; left: 50%; top: 5%; transform: translate(-50%); background: white; padding: 10px; display: none }
