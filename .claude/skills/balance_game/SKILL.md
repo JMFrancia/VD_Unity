@@ -32,11 +32,15 @@ infer; drive toward concrete, measurable targets. Useful questions:
 - **Money:** should the player ever be cash-starved, or swimming? At which levels?
 - **Gems:** are gems meant to meaningfully compress time, or stay decorative? (Watch for gems *hiding* bad
   pacing — see the stopping rule.)
+- **Quests:** how many quests should the player *complete* on the early levels — a steady drip, or a burst?
+  Should quest rewards be a meaningful slice of income or a garnish? Should any quest **gate** progression (a
+  `QuestCompleted` prerequisite chain)? These map to `quest.completions` and `quest.rewardShare`.
 
 Turn the answers into a goal file (see AGENTS.md for the full schema). Metrics: `level.durationMinutes`,
 `total.minutesToLevel`, `pressure.share`, `pressure.rank`, `level.moneyAtEntry`/`moneyAtExit`,
-`gems.compressionShare`, `gems.heldAtExit`. **Read the goal back to the user in plain words and get agreement
-before starting.** Save it (e.g. `tools/VoidDay.Balance/goals/<name>.json`), then open the session:
+`gems.compressionShare`, `gems.heldAtExit`, `quest.completions`, `quest.rewardShare`. **Read the goal back to the
+user in plain words and get agreement before starting.** Save it (e.g. `tools/VoidDay.Balance/goals/<name>.json`),
+then open the session:
 
 ```bash
 balance session start --name <slug> --goal goals/<name>.json
@@ -81,6 +85,21 @@ balance eval  --session <slug> --path <knob> --value <v> --rationale "why this c
   from the session state (`session status`, the journal, a fresh `eval`) — you never lose the run, because the
   run lives on disk, not in your context.
 
+**Authoring quests, not just tuning them.** When the goal calls for a new quest (or reordering/removing one),
+use the `quest` sub-verb (AGENTS.md § Quest authoring). It edits the config **config→config**, so point it at the
+session's working copy in place, then re-measure with a bare `eval --session`:
+
+```bash
+balance quest create --config sessions/<dir>/config.current.json --out sessions/<dir>/config.current.json \
+  --id quest.fulfill --goal-kind FulfillOrders --goal-amount 5 --reward-xp 25 --reward-money 50 --condition MinLevel:2
+balance eval --session <slug> --rationale "added a level-2 fulfill quest to lift quest.completions on levels 2-4"
+```
+
+`quest move --to <i>` reorders the quest list; `quest delete --id <id>` removes one. Once a quest exists, its
+scalar knobs (`quests/<id>/reward.*`, `quests/<id>/goal.amount`, `quests/<id>/conditions[n].amount`) move under
+`eval --session`/`sweep`/`suggest` like any other knob. Quest edits are still config-only until the gated export —
+`quest`/`patch` never touch `Assets/`.
+
 **Guardrails are enforced by the tool, not by good behaviour** (AGENTS.md): `patch`/`eval --session` reject any
 `profile/*` path (the simulated *player*, not the game), any undeclared knob, and any out-of-range value. You
 cannot lower the loss by making the player better — that changes nothing real, and the tool refuses it.
@@ -106,8 +125,11 @@ balance session report --name <slug>      # generates report.md FROM journal.jso
   any `.asset` write.**
   - **If the user declines: stop. Write nothing.** `git diff` on `Assets/` stays empty. "No" is honoured.
   - **If the user approves:** `balance write --config sessions/<dir>/config.current.json --apply`. The writer
-    produces a minimal diff (scalar edits + recipe insertion) or **refuses loudly** anything it can't do
-    surgically — surface the refusal verbatim, never pretend it wrote.
+    produces a minimal diff (scalar edits, recipe insertion, and quest create/reorder/delete/scalar) or
+    **refuses loudly** anything it can't do surgically — surface the refusal verbatim, never pretend it wrote.
+    A quest write creates/deletes `Quest_*.asset` files and rewrites the `GameConfig.quests` list; **always
+    playtest in Unity after** (the sim doesn't model boot/UI rules — confirm the quest validates at boot and the
+    menu/pill/toast behave).
 
 ---
 

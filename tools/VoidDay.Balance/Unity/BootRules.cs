@@ -25,6 +25,7 @@ public static class BootRules
         foreach (var r in c.Resources) ValidateResource(r);
         ValidateStations(c);
         foreach (var u in c.Upgrades) ValidateUpgrade(u);
+        ValidateQuests(c);
     }
 
     static void ValidateGlobal(BalanceConfig c)
@@ -183,6 +184,69 @@ public static class BootRules
             or EffectType.PetEffectStrength or EffectType.PetAutoCollectSpeed => true,
         _ => false
     };
+
+    /// § quest system: mirror of BootValidator.ValidateQuest — condition amounts in range, a QuestCompleted
+    /// condition names a real (non-self) quest id, goal amount > 0, a HarvestCrops goal names a crop, rewards
+    /// non-negative and reward-resource amounts > 0. The writer creating a quest that fails any of these would
+    /// ship a build that throws at GameBoot.Start(); refuse it in config-space instead.
+    static void ValidateQuests(BalanceConfig c)
+    {
+        var questIds = c.Quests.Select(q => q.Id).ToHashSet();
+        foreach (var q in c.Quests)
+        {
+            Require(!string.IsNullOrWhiteSpace(q.Id), "quests", "a quest id must not be empty");
+            var at = $"quests/{q.Id}";
+
+            foreach (var cond in q.Conditions)
+            {
+                switch (ParseConditionKind(cond.Kind, q.Id))
+                {
+                    case ConditionKind.MinLevel:
+                        Require(cond.Amount >= Progression.StartingLevel, $"{at}/conditions",
+                            $"a MinLevel condition amount must be >= {Progression.StartingLevel}");
+                        break;
+                    case ConditionKind.ResourceAtLeast:
+                        Require(!string.IsNullOrWhiteSpace(cond.Arg), $"{at}/conditions",
+                            "a ResourceAtLeast condition must name a resource id in arg");
+                        Require(cond.Amount > 0, $"{at}/conditions",
+                            "a ResourceAtLeast condition amount must be > 0");
+                        break;
+                    case ConditionKind.QuestCompleted:
+                        Require(!string.IsNullOrWhiteSpace(cond.Arg), $"{at}/conditions",
+                            "a QuestCompleted condition must name a prerequisite quest id in arg");
+                        Require(cond.Arg != q.Id, $"{at}/conditions",
+                            $"a QuestCompleted condition cannot reference its own quest ('{q.Id}')");
+                        Require(questIds.Contains(cond.Arg), $"{at}/conditions",
+                            $"a QuestCompleted condition references '{cond.Arg}', which is not a quest id");
+                        break;
+                    case ConditionKind.UpgradePurchased:
+                        Require(!string.IsNullOrWhiteSpace(cond.Arg), $"{at}/conditions",
+                            "an UpgradePurchased condition must name an upgrade track id in arg");
+                        break;
+                }
+            }
+
+            var goalKind = ParseGoalKind(q.Goal.Kind, q.Id);
+            Require(q.Goal.Amount > 0, $"{at}/goal", $"goal amount must be > 0 (is {q.Goal.Amount})");
+            if (goalKind == GoalKind.HarvestCrops)
+                Require(!string.IsNullOrWhiteSpace(q.Goal.TargetId), $"{at}/goal",
+                    "a HarvestCrops goal must name a crop resource id in targetId");
+
+            Require(q.Reward.Xp >= 0, $"{at}/reward", "reward xp must be >= 0");
+            Require(q.Reward.Money >= 0, $"{at}/reward", "reward money must be >= 0");
+            Require(q.Reward.Gems >= 0, $"{at}/reward", "reward gems must be >= 0");
+            foreach (var g in q.Reward.Resources)
+                Require(g.Amount > 0, $"{at}/reward", $"a reward grant of '{g.Resource}' must be > 0");
+        }
+    }
+
+    static ConditionKind ParseConditionKind(string kind, string questId) =>
+        Enum.TryParse<ConditionKind>(kind, out var k) ? k
+            : throw new WriteRefusedException($"boot rule: quest '{questId}' has unknown condition kind '{kind}'. Aborting; nothing written.");
+
+    static GoalKind ParseGoalKind(string kind, string questId) =>
+        Enum.TryParse<GoalKind>(kind, out var g) ? g
+            : throw new WriteRefusedException($"boot rule: quest '{questId}' has unknown goal kind '{kind}'. Aborting; nothing written.");
 
     static LevelEntryKind ParseKind(string kind, int levelIndex) =>
         Enum.TryParse<LevelEntryKind>(kind, out var k) ? k

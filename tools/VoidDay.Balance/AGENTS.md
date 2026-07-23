@@ -21,6 +21,7 @@ Invoke as `dotnet run --project tools/VoidDay.Balance -- <verb> …` (or run the
 | `sweep` | 1-D loss curve across one knob's range, N steps | — |
 | `report` | List the flat global eval log (`runs.jsonl`) | — |
 | `session start/status/report` | Drive and record a full balancing run (§ Balancing sessions) | a session dir |
+| `quest create/delete/move/list` | Structural quest authoring **config→config** (§ Quest authoring) | the edited config JSON |
 
 `sim`, `read`, `write`, `serve` are the earlier-milestone verbs; see `--help`/`Usage`.
 
@@ -69,6 +70,43 @@ balance report [--json]
 ```
 Lists the flat, global `runs.jsonl` (one line per ad-hoc `eval`). Per-run structured reports come from
 **sessions** (below), which is where a real tuning run should live.
+
+---
+
+## Quest authoring
+
+Quests are the one collection the tool can **create, delete and reorder** — not just tune. A quest is a whole
+object (id, conditions, goal, reward), not a single numeric knob, so it lives outside the scalar `patch` grammar
+in its own `quest` sub-verb. Every sub-command is **config→config** (like `patch`): it loads a config, edits the
+`Quests` list in memory, and writes the result to `--out` (or stdout). **Nothing touches Unity** — that is the
+separate, gated `write --apply`. In a session, edit the working copy in place by passing the session's
+`config.current.json` as both `--config` and `--out`, then re-measure with a bare `eval --session … --rationale`.
+
+```
+balance quest create --config <name|file> --id <id> --goal-kind <K> --goal-amount <N> [--goal-target <id>]
+                     [--reward-xp N] [--reward-money N] [--reward-gems N] [--reward-resource <id:amount>]
+                     [--condition <Kind:amount[:arg]>] [--at <index>] [--out <file>]
+balance quest delete --config <name|file> --id <id> [--out <file>]
+balance quest move   --config <name|file> --id <id> --to <index> [--out <file>]
+balance quest list   --config <name|file> [--json]
+```
+
+- **`--goal-kind`** is a `GoalKind`: `EarnMoney`, `FulfillOrders`, `HarvestCrops`, `PurchaseUpgrades`,
+  `BuildStations`, `ReachLevel`. A `HarvestCrops` goal **requires** `--goal-target <resourceId>`.
+- **`--condition`** is `Kind:amount[:arg]` where `Kind` is a `ConditionKind`: `MinLevel` (amount = level),
+  `ResourceAtLeast` (`:count:resourceId`), `QuestCompleted` (`:0:prerequisiteQuestId`), `UpgradePurchased`
+  (`:0:trackId`). One condition per create flag (a multi-condition quest is authored by editing the config JSON).
+- **`--reward-resource`** is `resourceId:amount`. Keep `--reward-xp > 0` — the in-game collect particle rides the
+  XP reward (a zero-XP quest collects silently).
+- **`move`/`--at`** reorder the `GameConfigSO.quests` **list position** (which is all "reorder" means here — not
+  steps within a quest). Indices clamp to the valid range.
+- **`delete`** removes the quest from the config; the export then deletes its `.asset`. Deleting a quest another
+  quest's `QuestCompleted` condition depends on is refused at `write` (it would fail `BootValidator` at play).
+
+Once quests are authored/tuned in the config, the scalar knobs `quests/<id>/reward.{xp,money,gems}`,
+`quests/<id>/goal.amount`, `quests/<id>/conditions[n].amount` move under `patch`/`eval --session`/`sweep` like any
+other knob, and `quest.completions` / `quest.rewardShare` measure the result. Export is the same gated
+`write --apply` (below).
 
 ---
 
@@ -226,7 +264,12 @@ handles: line-addressable scalar edits (including `recipes/*/unlockLevel` and `u
 recipe insertion; **positional edits to the Levels asset** (`levels[*].xpThreshold`,
 `levels[*].grants[*].amount`) plus **structural grant changes** — a grant added, removed, or retargeted to a
 new kind/station regenerates that level's grant block byte-for-byte (an unchanged grant line stays
-diff-clean); and **upgrade tier costs and effect `value.amount`s** (`upgrades/*/tiers[*].cost`,
-`upgrades/*/tiers[*].effects[*].amount`). What it still **refuses loudly before writing a byte**: adding or
-removing a whole level, adding or removing an upgrade tier or effect, changing an effect field other than its
-amount, and creating or deleting a resource or station.
+diff-clean); **upgrade tier costs and effect `value.amount`s** (`upgrades/*/tiers[*].cost`,
+`upgrades/*/tiers[*].effects[*].amount`); and **the full quest structural set** — creating a quest writes a new
+`Quest_<id>.asset` (+ `.meta`) and wires it into `GameConfig.quests`, deleting a quest removes its asset and
+unwires it, reordering regenerates the `GameConfig.quests` reference block byte-for-byte, and quest scalar knobs
+(`quests/*/reward.*`, `quests/*/goal.amount`, `quests/*/conditions[*].amount`) are line-addressable single-scalar
+edits. What it still **refuses loudly before writing a byte**: adding or removing a whole level, adding or
+removing an upgrade tier or effect, changing an effect field other than its amount, creating or deleting a
+resource or station, editing an existing quest's goal kind/target or its condition/reward-resource *structure*
+(only the quest scalars above move), and deleting a quest another quest still depends on.

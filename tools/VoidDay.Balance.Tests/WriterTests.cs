@@ -341,4 +341,146 @@ public sealed class WriterTests
         var change = Assert.Single(plan.Scalars);
         Assert.Equal("unlockLevel", change.Field);
     }
+
+    // ---- M05: quest authoring write-back ----
+
+    // A new quest is planned as one insertion plus a regeneration of the GameConfig.quests reference block —
+    // never a scalar or a recipe insertion.
+    [Fact]
+    public void NewQuestIsAnInsertionPlusBlockRewrite()
+    {
+        var (root, reader, current) = ReadReal();
+        var incoming = JsonConvert.DeserializeObject<BalanceConfig>(JsonConvert.SerializeObject(current))!;
+        incoming.Quests.Add(new QuestConfig
+        {
+            Id = "quest.unitTest",
+            Goal = new QuestGoalConfig { Kind = "EarnMoney", Amount = 250 },
+            Reward = new QuestRewardConfig { Xp = 15 }
+        });
+
+        var plan = new AssetWriter(root, reader, current).Plan(incoming);
+
+        Assert.Empty(plan.QuestEdits);
+        Assert.Empty(plan.QuestDeletions);
+        Assert.Equal("quest.unitTest", Assert.Single(plan.QuestInsertions).Quest.Id);
+        Assert.NotNull(plan.QuestBlockRewrite);
+        // header + one 2-space item per surviving+new quest.
+        Assert.Equal(1 + incoming.Quests.Count, plan.QuestBlockRewrite!.Count);
+    }
+
+    // Deleting a quest with no dependents is a deletion plus a block rewrite; no assets are touched at plan time.
+    [Fact]
+    public void DeletingUnreferencedQuestIsADeletionPlusBlockRewrite()
+    {
+        var (root, reader, current) = ReadReal();
+        var incoming = JsonConvert.DeserializeObject<BalanceConfig>(JsonConvert.SerializeObject(current))!;
+        // quest.chain depends on quest.starter, so delete the LEAF (chain) — nothing references it.
+        incoming.Quests.RemoveAll(q => q.Id == "quest.chain");
+
+        var plan = new AssetWriter(root, reader, current).Plan(incoming);
+
+        Assert.Equal("quest.chain", Assert.Single(plan.QuestDeletions).Id);
+        Assert.NotNull(plan.QuestBlockRewrite);
+        Assert.Equal(1 + incoming.Quests.Count, plan.QuestBlockRewrite!.Count);
+    }
+
+    // Deleting a quest another quest's QuestCompleted condition depends on is refused in config-space — it would
+    // fail BootValidator at play. (quest.chain requires quest.starter, so removing the starter is unsafe.)
+    [Fact]
+    public void DeletingAReferencedQuestRefuses()
+    {
+        var (root, reader, current) = ReadReal();
+        var incoming = JsonConvert.DeserializeObject<BalanceConfig>(JsonConvert.SerializeObject(current))!;
+        incoming.Quests.RemoveAll(q => q.Id == "quest.starter");
+
+        var writer = new AssetWriter(root, reader, current);
+        var ex = Assert.Throws<WriteRefusedException>(() => writer.Plan(incoming));
+        Assert.Contains("quest.starter", ex.Message);
+    }
+
+    // Reordering the quest list is a pure block rewrite — no insertion, deletion, or scalar edit.
+    [Fact]
+    public void ReorderingQuestsIsOnlyABlockRewrite()
+    {
+        var (root, reader, current) = ReadReal();
+        var incoming = JsonConvert.DeserializeObject<BalanceConfig>(JsonConvert.SerializeObject(current))!;
+        var moved = incoming.Quests[0];
+        incoming.Quests.RemoveAt(0);
+        incoming.Quests.Add(moved);   // rotate first quest to the end
+
+        var plan = new AssetWriter(root, reader, current).Plan(incoming);
+
+        Assert.Empty(plan.QuestInsertions);
+        Assert.Empty(plan.QuestDeletions);
+        Assert.Empty(plan.QuestEdits);
+        Assert.NotNull(plan.QuestBlockRewrite);
+    }
+
+    // A quest reward scalar edit is a single positional QuestEdit — not a structural change, no block rewrite.
+    [Fact]
+    public void QuestRewardXpEditIsOneQuestEdit()
+    {
+        var (root, reader, current) = ReadReal();
+        var incoming = JsonConvert.DeserializeObject<BalanceConfig>(JsonConvert.SerializeObject(current))!;
+        var q = incoming.Quests.First(x => x.Id == "quest.starter");
+        int old = q.Reward.Xp;
+        q.Reward.Xp = old + 25;
+
+        var plan = new AssetWriter(root, reader, current).Plan(incoming);
+
+        Assert.Null(plan.QuestBlockRewrite);
+        Assert.Empty(plan.QuestInsertions);
+        var edit = Assert.Single(plan.QuestEdits);
+        Assert.Equal(QuestField.RewardXp, edit.Field);
+        Assert.Equal(old.ToString(), edit.Old);
+        Assert.Equal((old + 25).ToString(), edit.New);
+    }
+
+    // A quest condition amount edit carries the condition index (quest.starter's MinLevel condition).
+    [Fact]
+    public void QuestConditionAmountEditCarriesIndex()
+    {
+        var (root, reader, current) = ReadReal();
+        var incoming = JsonConvert.DeserializeObject<BalanceConfig>(JsonConvert.SerializeObject(current))!;
+        var q = incoming.Quests.First(x => x.Conditions.Count > 0);
+        q.Conditions[0].Amount += 1;
+
+        var plan = new AssetWriter(root, reader, current).Plan(incoming);
+
+        var edit = Assert.Single(plan.QuestEdits);
+        Assert.Equal(QuestField.ConditionAmount, edit.Field);
+        Assert.Equal(0, edit.ConditionIndex);
+    }
+
+    // Structurally editing an existing quest (its goal kind) has no surgical path — refused loud.
+    [Fact]
+    public void QuestGoalKindChangeRefuses()
+    {
+        var (root, reader, current) = ReadReal();
+        var incoming = JsonConvert.DeserializeObject<BalanceConfig>(JsonConvert.SerializeObject(current))!;
+        var q = incoming.Quests.First(x => x.Id == "quest.starter");
+        q.Goal.Kind = q.Goal.Kind == "EarnMoney" ? "FulfillOrders" : "EarnMoney";
+
+        var writer = new AssetWriter(root, reader, current);
+        Assert.Throws<WriteRefusedException>(() => writer.Plan(incoming));
+    }
+
+    // A new quest whose QuestCompleted condition references a non-existent quest is refused (boot rule).
+    [Fact]
+    public void NewQuestWithDanglingPrerequisiteRefuses()
+    {
+        var (root, reader, current) = ReadReal();
+        var incoming = JsonConvert.DeserializeObject<BalanceConfig>(JsonConvert.SerializeObject(current))!;
+        incoming.Quests.Add(new QuestConfig
+        {
+            Id = "quest.dangling",
+            Conditions = new() { new QuestConditionConfig { Kind = "QuestCompleted", Arg = "quest.doesNotExist" } },
+            Goal = new QuestGoalConfig { Kind = "ReachLevel", Amount = 5 },
+            Reward = new QuestRewardConfig { Xp = 10 }
+        });
+
+        var writer = new AssetWriter(root, reader, current);
+        var ex = Assert.Throws<WriteRefusedException>(() => writer.Plan(incoming));
+        Assert.Contains("quest.doesNotExist", ex.Message);
+    }
 }

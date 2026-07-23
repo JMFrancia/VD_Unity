@@ -4,6 +4,7 @@ using VoidDay.Balance.Api;
 using VoidDay.Balance.Schema;
 using VoidDay.Balance.Sim;
 using VoidDay.Balance.Unity;
+using VoidDay.Core.Model;   // GoalKind / ConditionKind for quest authoring validation
 
 // VoidDay Balance Tool — CLI entrypoint. Verbs: `read` (M01), `write` (M02), `sim` (M03), `serve` (M04),
 // `eval`/`patch`/`suggest`/`sweep`/`report` (M05 — agent primitives), `session` (M07 — balancing sessions).
@@ -14,8 +15,10 @@ using VoidDay.Balance.Unity;
 var hasVerb = args.Length > 0 && !args[0].StartsWith("--");
 var verb = hasVerb ? args[0] : "serve";
 
-// `session` is a two-word verb (`session start|status|report`); it parses its own options from args[2..].
+// `session` and `quest` are two-word verbs (`session start|…`, `quest create|delete|move|list`); each parses
+// its own options from args[2..].
 if (verb == "session") return SessionCmd(args);
+if (verb == "quest") return QuestCmd(args);
 
 var opts = ParseOptions(hasVerb ? args[1..] : args);
 var projectRoot = opts.GetValueOrDefault("project") ?? FindProjectRoot();
@@ -107,10 +110,22 @@ static int Write(string projectRoot, Dictionary<string, string> opts)
         Console.WriteLine(u.EffectIndex is int ei
             ? $"  {u.AssetPath} tier {u.TierIndex + 1} effect {ei + 1} amount: {u.Old} → {u.New}"
             : $"  {u.AssetPath} tier {u.TierIndex + 1} cost: {u.Old} → {u.New}");
+    foreach (var i in plan.QuestInsertions)
+        Console.WriteLine($"  + create quest '{i.Quest.Id}' (goal {i.Quest.Goal.Kind} {i.Quest.Goal.Amount}) + wire into GameConfig.quests");
+    foreach (var d in plan.QuestDeletions)
+        Console.WriteLine($"  - delete quest '{d.Id}' ({d.AssetPath}) + unwire from GameConfig.quests");
+    foreach (var e in plan.QuestEdits)
+        Console.WriteLine(e.ConditionIndex is int ci
+            ? $"  {e.AssetPath} condition {ci + 1} amount: {e.Old} → {e.New}"
+            : $"  {e.AssetPath} {e.Field}: {e.Old} → {e.New}");
+    if (plan.QuestBlockRewrite != null)
+        Console.WriteLine($"  GameConfig.quests: regenerate reference list ({plan.QuestBlockRewrite.Count} line(s))");
 
     string Summary() =>
         $"{plan.Scalars.Count} scalar change(s), {plan.RecipeInsertions.Count} insertion(s), " +
-        $"{plan.LevelEdits.Count} level edit(s), {plan.GrantRewrites.Count} grant rewrite(s), {plan.UpgradeEdits.Count} upgrade edit(s)";
+        $"{plan.LevelEdits.Count} level edit(s), {plan.GrantRewrites.Count} grant rewrite(s), {plan.UpgradeEdits.Count} upgrade edit(s), " +
+        $"{plan.QuestInsertions.Count} quest create(s), {plan.QuestDeletions.Count} quest delete(s), {plan.QuestEdits.Count} quest edit(s)" +
+        (plan.QuestBlockRewrite != null ? " + quest list rewrite" : "");
 
     if (!apply)
     {
@@ -412,6 +427,152 @@ static int SessionReport(string projectRoot, Dictionary<string, string> opts)
     return 0;
 }
 
+// ---- quest authoring: quest create / delete / move / list (config→config, NEVER to Unity) ----
+
+// `quest <sub> [--options]`. Structural quest editing the scalar `patch` grammar can't express (a quest is a
+// whole object, not one numeric knob). Every sub-command loads a config, mutates its Quests list in memory, and
+// writes the result to --out (or stdout) — exactly the config→config discipline of `patch`. Nothing touches
+// Unity; that is the separate, gated `write --apply`.
+static int QuestCmd(string[] args)
+{
+    if (args.Length < 2 || args[1].StartsWith("--"))
+    { Console.Error.WriteLine("usage: balance quest <create|delete|move|list> [--options]"); return 1; }
+    var sub = args[1];
+    var opts = ParseOptions(args[2..]);
+    var projectRoot = opts.GetValueOrDefault("project") ?? FindProjectRoot();
+
+    switch (sub)
+    {
+        case "create": return QuestCreate(projectRoot, opts);
+        case "delete": return QuestDelete(projectRoot, opts);
+        case "move": return QuestMove(projectRoot, opts);
+        case "list": return QuestList(projectRoot, opts);
+        default:
+            Console.Error.WriteLine($"quest: unknown sub-verb '{sub}' (expected create | delete | move | list).");
+            return 1;
+    }
+}
+
+// balance quest create --config <f> --id <id> --goal-kind <K> --goal-amount <N> [--goal-target <id>]
+//   [--reward-xp N] [--reward-money N] [--reward-gems N] [--reward-resource <id:amount>]
+//   [--condition <Kind:amount[:arg]>] [--at <index>] [--out <f>]
+static int QuestCreate(string projectRoot, Dictionary<string, string> opts)
+{
+    var config = LoadConfig(projectRoot, opts);
+
+    if (!opts.TryGetValue("id", out var id) || string.IsNullOrWhiteSpace(id))
+    { Console.Error.WriteLine("quest create: --id <id> is required."); return 1; }
+    if (config.Quests.Any(q => q.Id == id))
+    { Console.Error.WriteLine($"quest create: a quest with id '{id}' already exists in the config."); return 1; }
+
+    if (!opts.TryGetValue("goal-kind", out var goalKindStr) || !Enum.TryParse<GoalKind>(goalKindStr, false, out var goalKind))
+    { Console.Error.WriteLine($"quest create: --goal-kind must be one of {string.Join('|', Enum.GetNames<GoalKind>())}."); return 1; }
+    if (!opts.TryGetValue("goal-amount", out var goalAmountStr) || !int.TryParse(goalAmountStr, out var goalAmount) || goalAmount <= 0)
+    { Console.Error.WriteLine("quest create: --goal-amount <N> is required and must be > 0."); return 1; }
+    var goalTarget = opts.GetValueOrDefault("goal-target") ?? "";
+    if (goalKind == GoalKind.HarvestCrops && string.IsNullOrWhiteSpace(goalTarget))
+    { Console.Error.WriteLine("quest create: a HarvestCrops goal needs --goal-target <resourceId>."); return 1; }
+
+    var quest = new QuestConfig
+    {
+        Id = id,
+        Goal = new QuestGoalConfig { Kind = goalKind.ToString(), Amount = goalAmount, TargetId = goalTarget },
+        Reward = new QuestRewardConfig
+        {
+            Xp = ParseIntOpt(opts, "reward-xp", 0),
+            Money = ParseIntOpt(opts, "reward-money", 0),
+            Gems = ParseIntOpt(opts, "reward-gems", 0),
+        }
+    };
+
+    if (opts.TryGetValue("condition", out var condSpec))
+    {
+        var parts = condSpec.Split(':');
+        if (!Enum.TryParse<ConditionKind>(parts[0], false, out var ck))
+        { Console.Error.WriteLine($"quest create: --condition kind must be one of {string.Join('|', Enum.GetNames<ConditionKind>())}."); return 1; }
+        quest.Conditions.Add(new QuestConditionConfig
+        {
+            Kind = ck.ToString(),
+            Amount = parts.Length > 1 && int.TryParse(parts[1], out var a) ? a : 0,
+            Arg = parts.Length > 2 ? parts[2] : ""
+        });
+    }
+
+    if (opts.TryGetValue("reward-resource", out var resSpec))
+    {
+        var parts = resSpec.Split(':');
+        quest.Reward.Resources.Add(new ResourceQuantity
+        {
+            Resource = parts[0],
+            Amount = parts.Length > 1 && int.TryParse(parts[1], out var a) ? a : 1
+        });
+    }
+
+    int at = Math.Clamp(ParseIntOpt(opts, "at", config.Quests.Count), 0, config.Quests.Count);
+    config.Quests.Insert(at, quest);
+    return WriteQuestConfig(config, opts, $"created quest '{id}' at index {at}");
+}
+
+static int QuestDelete(string projectRoot, Dictionary<string, string> opts)
+{
+    var config = LoadConfig(projectRoot, opts);
+    if (!opts.TryGetValue("id", out var id))
+    { Console.Error.WriteLine("quest delete: --id <id> is required."); return 1; }
+    if (config.Quests.RemoveAll(q => q.Id == id) == 0)
+    { Console.Error.WriteLine($"quest delete: no quest with id '{id}'."); return 1; }
+    return WriteQuestConfig(config, opts, $"deleted quest '{id}'");
+}
+
+static int QuestMove(string projectRoot, Dictionary<string, string> opts)
+{
+    var config = LoadConfig(projectRoot, opts);
+    if (!opts.TryGetValue("id", out var id))
+    { Console.Error.WriteLine("quest move: --id <id> is required."); return 1; }
+    if (!opts.TryGetValue("to", out var toStr) || !int.TryParse(toStr, out var to))
+    { Console.Error.WriteLine("quest move: --to <index> is required."); return 1; }
+    int from = config.Quests.FindIndex(q => q.Id == id);
+    if (from < 0) { Console.Error.WriteLine($"quest move: no quest with id '{id}'."); return 1; }
+    to = Math.Clamp(to, 0, config.Quests.Count - 1);
+    var q = config.Quests[from];
+    config.Quests.RemoveAt(from);
+    config.Quests.Insert(to, q);
+    return WriteQuestConfig(config, opts, $"moved quest '{id}' from index {from} to {to}");
+}
+
+static int QuestList(string projectRoot, Dictionary<string, string> opts)
+{
+    var config = LoadConfig(projectRoot, opts);
+    if (opts.ContainsKey("json"))
+    { Console.WriteLine(JsonConvert.SerializeObject(config.Quests, Formatting.Indented)); return 0; }
+
+    Console.WriteLine($"{config.Quests.Count} quest(s):");
+    for (int i = 0; i < config.Quests.Count; i++)
+    {
+        var q = config.Quests[i];
+        var when = q.Conditions.Count == 0 ? "always"
+            : string.Join(", ", q.Conditions.Select(c => $"{c.Kind}({c.Amount}{(string.IsNullOrEmpty(c.Arg) ? "" : ":" + c.Arg)})"));
+        var target = string.IsNullOrEmpty(q.Goal.TargetId) ? "" : " " + q.Goal.TargetId;
+        Console.WriteLine($"  [{i}] {q.Id}: goal {q.Goal.Kind} {q.Goal.Amount}{target} | "
+            + $"reward xp {q.Reward.Xp} money {q.Reward.Money} gems {q.Reward.Gems} | when {when}");
+    }
+    return 0;
+}
+
+static int WriteQuestConfig(BalanceConfig config, Dictionary<string, string> opts, string msg)
+{
+    var json = JsonConvert.SerializeObject(config, Formatting.Indented);
+    if (opts.TryGetValue("out", out var outPath))
+    {
+        File.WriteAllText(outPath, json + "\n");
+        Console.Error.WriteLine($"{msg} → {outPath}");
+    }
+    else Console.WriteLine(json);
+    return 0;
+}
+
+static int ParseIntOpt(Dictionary<string, string> opts, string key, int fallback) =>
+    opts.TryGetValue(key, out var v) ? int.Parse(v) : fallback;
+
 // ---- shared M05 helpers ----
 
 static BalanceConfig LoadConfig(string projectRoot, Dictionary<string, string> opts)
@@ -461,7 +622,11 @@ static void Usage() => Console.Error.WriteLine(
     "  balance report  [--json]\n" +
     "  balance session start  --name <slug> --goal <file> [--config <name|file>]\n" +
     "  balance session status [--name <slug>] [--json]\n" +
-    "  balance session report [--name <slug>] [--print]");
+    "  balance session report [--name <slug>] [--print]\n" +
+    "  balance quest create   --config <name|file> --id <id> --goal-kind <K> --goal-amount <N> [--goal-target <id>] [--reward-xp N] [--reward-money N] [--reward-gems N] [--reward-resource <id:amt>] [--condition <Kind:amt[:arg]>] [--at <i>] [--out <file>]\n" +
+    "  balance quest delete   --config <name|file> --id <id> [--out <file>]\n" +
+    "  balance quest move     --config <name|file> --id <id> --to <index> [--out <file>]\n" +
+    "  balance quest list     --config <name|file> [--json]");
 
 static Dictionary<string, string> ParseOptions(string[] tokens)
 {

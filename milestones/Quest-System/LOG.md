@@ -378,3 +378,95 @@ are clean).
 - **Enums are carried by name at the reader seam** (`EnumName<>`), parsed back by name in `ConfigProjector`
   (`Enum.Parse`). A reordered Core enum can't silently reassign a quest kind — but the quest `.asset` files
   still serialise the enum **by integer index** (append-only, same as M1's warning).
+
+## Milestone 05 — Quest Authoring in the Tool + `balance_game` Skill
+**Status:** ✅ Complete · **Date:** 2026-07-23
+
+**Built:** The balance tool can now **create / reorder / delete** quests, `write --apply` pushes them into
+Unity as real `QuestSO` assets, and the `balance_game` skill knows how to drive quest balance. Tools-only
+milestone (no `Assets/` game code changed; `Assets/` is touched only as the *target* of `write --apply`).
+- **Structural quest ops — a scoped `quest` sub-verb** (`Cli/Program.cs`), not new `patch` ops: `quest
+  create|delete|move|list`, config→config (`--config`/`--out`, never Unity), mirroring `patch`'s discipline and
+  `session`'s two-word-verb pattern. A quest is a whole object, not one numeric scalar — a non-scalar patch op
+  would fight AGENTS' "one path = one numeric scalar" grammar. `create` takes goal/reward/condition flags (one
+  `--condition Kind:amount[:arg]`, one `--reward-resource id:amount`; multi-condition quests are authored by
+  editing the config JSON). `move --to <i>` = reorder the `GameConfigSO.quests` list position (the resolved
+  meaning of "reorder").
+- **Write-back — `Unity/AssetWriter.cs` `DiffQuests`** + Apply path. Create = new `Quest_<id>.asset` (+ `.meta`,
+  guid allocated at plan time) mirroring `InsertRecipe`/`BuildRecipeAsset`. Reorder/create/delete all regenerate
+  the `GameConfig.quests` reference block **byte-for-byte** (grant-block-rewrite template) — one path for all
+  three; a pure scalar edit leaves the block identical so a round-trip plans nothing. Delete removes the
+  `.asset`+`.meta`. Scalar quest edits (`reward.{xp,money,gems}`, `goal.amount`, `conditions[n].amount`) use
+  positional nested finders (`FindNestedScalar`/`FindConditionAmountLine`) since they're 4-space-nested — the
+  flat `SetScalar` can't reach them. Editing an existing quest's goal kind/target or condition/reward-resource
+  *structure* is refused loud (only the scalars move). Never reserializes; a change is a minimal diff.
+- **Boot-rule mirror — `Unity/BootRules.cs` `ValidateQuests`** now mirrors `BootValidator.ValidateQuest`
+  (condition amount ranges, a `QuestCompleted` names a real non-self quest, goal amount > 0, HarvestCrops needs a
+  targetId, rewards ≥ 0, reward-resource amounts > 0). Runs over the whole incoming config in `Plan()`, so
+  deleting a quest a surviving chain still references is refused **for free** before any byte is written.
+- **Contract + skill in lockstep.** `AGENTS.md`: new `quest` verb in the table, a *Quest authoring* section, and
+  the `write` capability paragraph now lists the quest structural set + refusals. `SKILL.md`: quest interview
+  questions (→ `quest.completions`/`quest.rewardShare`), a quest-authoring block in the loop, and the export
+  note (write covers quests; always playtest after). The skill invents no verb/metric.
+- **Tests:** `WriterTests.cs` +8 (55/55 total, was 47): new-quest insertion+block-rewrite, unreferenced delete,
+  referenced-delete refusal, reorder-only block rewrite, reward.xp scalar edit, condition-amount edit, goal-kind
+  structural refusal, dangling-prerequisite refusal. The `RoundTripPlansNoChanges` and `RoundTripPassesBootRules`
+  canaries stay green (the live 3 quests pass the new mirror; a round-trip plans zero quest changes).
+
+**Verified (automated, no user):**
+- **CLI round-trip:** `read` live → `quest create` (FulfillOrders, MinLevel:2, +25xp/+$50) + `move` + `delete
+  quest.harvest` → `sim` shows the new quest completing in-sim (`[quests 1 +25xp +$50]` at L5) → `write --apply`
+  produced a **minimal, correct diff** (2-line `GameConfig.quests` edit dropping harvest + appending the new
+  guid; a new `Quest_quest_fulfill.asset`+`.meta` matching Unity's exact byte format; `Quest_Harvest.asset`+meta
+  deleted) — 0 scalar/level/upgrade changes.
+- **Unity load:** refreshed AssetDatabase, entered playmode — `GameConfigSO.quests` on disk read
+  `[quest.starter, quest.chain, quest.fulfill]`, GameBoot completed (playmode running = BootValidator did **not**
+  throw), zero game-side exceptions (the only two console exceptions were my own `script-execute` typos). Then
+  reverted the test write (`git checkout` + `rm` the created asset) — `Assets/` clean again.
+- **Skill path:** goal with `quest.completions`+`quest.rewardShare` → `session start` → bare `eval` baseline →
+  `quest create` on `config.current` + `eval --session` (completions 0.25→0.5) → `eval --session` moving
+  `quests/quest.fulfill/reward.money` (rewardShare 0.018→0.069, journaled) → `sweep` a quest knob → `session
+  report`. Guardrails hold: an out-of-bounds quest knob refused, an invented metric throws loud.
+
+**Deviations from the plan:** none material. The doc allowed "new ops **or** a scoped `quest` sub-verb"; chose
+the sub-verb (rationale above). Generated asset name is `Quest_<id-underscored>` (e.g. `Quest_quest_fulfill`),
+mirroring `InsertRecipe`'s naming — cosmetic, Unity keys by guid.
+
+**Tech debt:**
+- `quest create` supports one `--condition` and one `--reward-resource` inline (covers all current quest shapes,
+  which have 0–1 conditions). A quest needing 2+ conditions/reward-resources is authored by editing the config
+  JSON directly, then `write`. Extend the flags to repeatable if a real multi-condition quest appears.
+- A `quest create/move/delete` on a session's `config.current.json` is journaled only by the *next* bare
+  `eval --session --rationale` (the structural edit itself isn't a journal line — `quest` is outside the `eval`
+  primitive). The rationale carries the "what"; the config diff carries the structure. Acceptable; noted for the
+  skill.
+
+**Assumptions:**
+- The `QuestSO` script guid is stolen from an existing quest asset at write time (fallback
+  `3c9335b8e6a8345d2ae72fd9e7e239ee`), so it can't drift from the project — same trick as `ResolveRecipeScriptGuid`.
+  If ALL quests are ever deleted and then one created in the same run, it falls back to the constant.
+- Empty-string quest fields serialize as `key: ` (trailing space) and enum kinds as their **integer index** —
+  matched to Unity's exact output, verified against `Quest_Starter.asset`. Enums stay append-only (M1's warning).
+
+**FLAGS (M4 inherited decisions, now resolved / re-flagged for whoever tunes next):**
+- **`progression-v1.json` still does NOT carry quests.** M4 flagged this open. Decision: **left quest-free.** M5
+  is tool/skill plumbing, not a retune of the canonical progression config; splicing quests into progression-v1
+  would silently change its economy (the same monotonicity break M4 saw in baseline) without a balance pass to
+  justify it. Whoever does the next *balance* run on progression-v1 should decide whether it gains quests — and
+  if so, author them via the `quest` verb (now available) rather than hand-editing JSON. Reversible.
+- **`OptimalityMonotonicity` guard stays scoped to the quest-free economy** (`config.Quests.Clear()`, M4's
+  choice). Decision: **kept as-is, not reconciled.** The guard's documented intent is the *dial*, orthogonal to
+  quests; action-rewarding quests legitimately break dial-monotonicity (a perfect player skips a
+  harvest-specific quest), which is a real economy interaction, not a dial regression. Reconciling it would mean
+  either a quest-aware monotonicity model (speculative, YAGNI) or dropping the guard (loses dial coverage) —
+  neither earns its keep now. If quests become central to progression tuning, revisit.
+
+**Gotchas for later milestones:**
+- **The `quest` verb is config→config; `write --apply` is the only thing that touches `Assets/`** and is gated
+  in the skill. A quest authored/tuned in a session is invisible to Unity until export — then **playtest**, since
+  the sim doesn't model boot/UI (a quest with `reward.xp = 0` collects with no particle in-game, per M1).
+- **`write` diffs incoming config against a FRESH `read` of live Unity**, not against baseline. To get a
+  quest-only diff, `read` live to a scratch config first, author on that, then `write` — otherwise baseline's
+  pre-quest tuning shows up as a large scalar diff alongside the quest change.
+- **`GameConfig.quests` is a 2-space block list** (`  quests:` + `  - {fileID…}` items), distinct from the
+  4-space `grants:` block. `BuildQuestsBlock`/`ApplyQuestBlockRewrite` handle both the block and empty (`[]`) forms.
