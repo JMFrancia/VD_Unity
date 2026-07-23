@@ -218,8 +218,9 @@ namespace VoidDay.View
                 $"EarnBurstController: a '{burst.Source}' burst was recorded with no origin enqueued for it");
         }
 
-        /// The station's world position, projected to this canvas. Overlay canvas, so the camera argument
-        /// is null — only the WorldToScreenPoint step uses the world camera.
+        /// The station's world position, projected to this canvas. _fxRect renders in Screen Space - Camera
+        /// on _worldCamera (the letterbox confines the UI to the camera viewport), so the screen->local
+        /// conversion must go through that same camera — null would assume an Overlay canvas.
         Vector2 StationScreenLocal(string stationId)
         {
             if (!_stationRoots.TryGetValue(stationId, out var root))
@@ -227,7 +228,7 @@ namespace VoidDay.View
                     $"EarnBurstController: no station root for id '{stationId}'");
 
             Vector2 screen = _worldCamera.WorldToScreenPoint(root.position);
-            RectTransformUtility.ScreenPointToLocalPointInRectangle(_fxRect, screen, null, out var local);
+            RectTransformUtility.ScreenPointToLocalPointInRectangle(_fxRect, screen, _worldCamera, out var local);
             return local;
         }
 
@@ -241,7 +242,7 @@ namespace VoidDay.View
             {
                 int amount = chunks[i]; // captured per particle — each arrival credits its own chunk
                 var particle = Instantiate(earnParticlePrefab, _fxRect);
-                particle.Launch(icon, origin, target, flight,
+                particle.Launch(icon, origin, target, _worldCamera, flight,
                     () => _bus.Publish(new EarnParticleArrived(burst.Kind, burst.ResourceId, amount)));
 
                 if (i < chunks.Length - 1) yield return wait;
@@ -275,11 +276,12 @@ namespace VoidDay.View
         }
 
         /// InputRouter ignores presses that start over UI, so it cannot supply this origin — an order is
-        /// filled by tapping a button. Read the pointer directly. Overlay canvas, so the camera is null.
+        /// filled by tapping a button. Read the pointer directly. _fxRect is Screen Space - Camera on
+        /// _worldCamera, so the screen->local conversion goes through that camera (not null).
         Vector2 PointerLocal()
         {
             Vector2 screen = Pointer.current.position.ReadValue();
-            RectTransformUtility.ScreenPointToLocalPointInRectangle(_fxRect, screen, null, out var local);
+            RectTransformUtility.ScreenPointToLocalPointInRectangle(_fxRect, screen, _worldCamera, out var local);
             return local;
         }
     }
