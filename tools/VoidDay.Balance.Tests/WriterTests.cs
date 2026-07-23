@@ -143,34 +143,39 @@ public sealed class WriterTests
         Assert.Equal(0, edit.GrantIndex);
     }
 
-    // A grant's kind change is now surgical — the level's grant block is regenerated, not refused.
+    // A grant's kind change is now surgical — the level's grant block is regenerated, not refused. Flip a
+    // non-reward grant (QueueDepth <-> OrderSlots) so the retarget stays boot-valid (no second reward added).
     [Fact]
     public void GrantKindChangeIsAGrantRewrite()
     {
         var (root, reader, current) = ReadReal();
         var incoming = JsonConvert.DeserializeObject<BalanceConfig>(JsonConvert.SerializeObject(current))!;
-        incoming.Levels[1].Grants[0].Kind = "Gems"; // retarget the slot to a different kind
+        var (lvl, li) = incoming.Levels.Select((l, i) => (l, i))
+            .First(t => t.l.Grants.Any(g => g.Kind is "QueueDepth" or "OrderSlots"));
+        var g = lvl.Grants.First(x => x.Kind is "QueueDepth" or "OrderSlots");
+        g.Kind = g.Kind == "QueueDepth" ? "OrderSlots" : "QueueDepth";
 
         var plan = new AssetWriter(root, reader, current).Plan(incoming);
 
         Assert.Empty(plan.LevelEdits);
         var rewrite = Assert.Single(plan.GrantRewrites);
-        Assert.Equal(1, rewrite.LevelIndex);
+        Assert.Equal(li, rewrite.LevelIndex);
     }
 
     // Appending a grant to a level is a structural change — planned as a grant-block rewrite for that level.
+    // A non-reward StationCap grant keeps the level boot-valid regardless of any existing reward grant.
     [Fact]
     public void GrantAppendIsAGrantRewrite()
     {
         var (root, reader, current) = ReadReal();
         var incoming = JsonConvert.DeserializeObject<BalanceConfig>(JsonConvert.SerializeObject(current))!;
-        incoming.Levels[1].Grants.Add(new LevelGrantConfig { Kind = "Gems", TargetStation = null, Amount = 5 });
+        incoming.Levels[1].Grants.Add(new LevelGrantConfig { Kind = "StationCap", TargetStation = "field", Amount = 1 });
 
         var plan = new AssetWriter(root, reader, current).Plan(incoming);
 
         var rewrite = Assert.Single(plan.GrantRewrites);
         Assert.Equal(1, rewrite.LevelIndex);
-        // Block regenerates all three grants (2 original + appended): grants: header + 3 lines each.
+        // Block regenerates every grant: grants: header + 3 lines each.
         Assert.Equal(1 + 3 * incoming.Levels[1].Grants.Count, rewrite.Block.Count);
     }
 
@@ -199,6 +204,66 @@ public sealed class WriterTests
         var writer = new AssetWriter(root, reader, current);
         var ex = Assert.Throws<WriteRefusedException>(() => writer.Plan(incoming));
         Assert.Contains("NOPE", ex.Message);
+    }
+
+    // Canary: the live economy the game boots must pass the config-space boot-rule mirror. If this fails, the
+    // mirror in BootRules has drifted stricter than the real BootValidator.
+    [Fact]
+    public void RoundTripPassesBootRules()
+    {
+        var (root, reader, current) = ReadReal();
+        var incoming = JsonConvert.DeserializeObject<BalanceConfig>(JsonConvert.SerializeObject(current))!;
+
+        var plan = new AssetWriter(root, reader, current).Plan(incoming);
+
+        Assert.True(plan.IsEmpty); // reaching here means BootRules.Validate did not throw on a bootable config
+    }
+
+    // Boot rule: a second reward grant (Money + Gems on one level) is refused in config-space — the exact
+    // violation that reached Unity playmode before this guard existed.
+    [Fact]
+    public void TwoRewardGrantsOnALevelRefused()
+    {
+        var (root, reader, current) = ReadReal();
+        var incoming = JsonConvert.DeserializeObject<BalanceConfig>(JsonConvert.SerializeObject(current))!;
+        // Find a level that already carries one reward grant, then add a second of the other kind.
+        var lvl = incoming.Levels.First(l => l.Grants.Any(g => g.Kind is "Money" or "Gems"));
+        var otherKind = lvl.Grants.Any(g => g.Kind == "Money") ? "Gems" : "Money";
+        lvl.Grants.Add(new LevelGrantConfig { Kind = otherKind, TargetStation = null, Amount = 5 });
+
+        var writer = new AssetWriter(root, reader, current);
+        var ex = Assert.Throws<WriteRefusedException>(() => writer.Plan(incoming));
+        Assert.Contains("reward grant", ex.Message);
+    }
+
+    // Boot rule: a recipe unlocked in the gap between the starting level and its station's unlockLevel is
+    // refused — the popup would announce a recipe for a building the player cannot yet make.
+    [Fact]
+    public void RecipeUnlockInStationGapRefused()
+    {
+        var (root, reader, current) = ReadReal();
+        var incoming = JsonConvert.DeserializeObject<BalanceConfig>(JsonConvert.SerializeObject(current))!;
+        // Pick a station that unlocks at level >= 3, and a recipe on it; unlock the recipe at level 2 —
+        // above the starting level (1, always allowed) but below the station's unlock → the forbidden gap.
+        var station = incoming.Stations.First(s => s.UnlockLevel >= 3 && s.RecipeIds.Count > 0);
+        var recipe = incoming.Recipes.First(r => r.Id == station.RecipeIds[0]);
+        recipe.UnlockLevel = 2;
+
+        var writer = new AssetWriter(root, reader, current);
+        var ex = Assert.Throws<WriteRefusedException>(() => writer.Plan(incoming));
+        Assert.Contains("unlockLevel", ex.Message);
+    }
+
+    // Boot rule: a zeroed reward amount is refused (the popup would show a +0 reward).
+    [Fact]
+    public void ZeroGrantAmountRefused()
+    {
+        var (root, reader, current) = ReadReal();
+        var incoming = JsonConvert.DeserializeObject<BalanceConfig>(JsonConvert.SerializeObject(current))!;
+        incoming.Levels.First(l => l.Grants.Count > 0).Grants[0].Amount = 0;
+
+        var writer = new AssetWriter(root, reader, current);
+        Assert.Throws<WriteRefusedException>(() => writer.Plan(incoming));
     }
 
     // An upgrade tier cost edit is a positional upgrade edit (EffectIndex null), not a refusal.

@@ -48,6 +48,10 @@ public sealed class AssetWriter
             throw new WriteRefusedException(
                 $"schemaVersion mismatch: config declares {incoming.SchemaVersion}, tool supports {BalanceConfig.CurrentSchemaVersion}. Aborting; nothing written.");
 
+        // Refuse in config-space anything the game would reject at boot (rules the economy sim doesn't model),
+        // before a single .asset is touched — a valid diff to Unity must also be a bootable one.
+        BootRules.Validate(incoming);
+
         var plan = new WritePlan();
 
         DiffGlobal(incoming, plan);
