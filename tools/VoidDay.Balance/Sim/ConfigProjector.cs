@@ -63,15 +63,18 @@ public static class ConfigProjector
         return new LevelCurve(levels);
     }
 
-    /// Mirrors ModelProjector.ProjectLevelGates: station types and upgrade tracks gated by their own
-    /// unlockLevel, iterated in roster (config.Stations) order, tracks deduped by id.
+    /// Mirrors ModelProjector.ProjectLevelGates: station types, upgrade tracks and recipes gated by their own
+    /// unlockLevel, iterated in roster (config.Stations) order, tracks and recipes deduped by id.
     public static IReadOnlyList<LevelUnlockModel> LevelGates(BalanceConfig config)
     {
-        var byId = new Dictionary<string, UpgradeConfig>();
-        foreach (var u in config.Upgrades) byId[u.Id] = u;
+        var upgradeById = new Dictionary<string, UpgradeConfig>();
+        foreach (var u in config.Upgrades) upgradeById[u.Id] = u;
+        var recipeById = new Dictionary<string, RecipeConfig>();
+        foreach (var r in config.Recipes) recipeById[r.Id] = r;
 
         var gates = new List<LevelUnlockModel>();
         var seenTracks = new HashSet<string>();
+        var seenRecipes = new HashSet<string>();
         foreach (var station in config.Stations)
         {
             if (station.UnlockLevel > Progression.StartingLevel)
@@ -79,11 +82,26 @@ public static class ConfigProjector
                     station.DisplayName, station.UnlockLevel));
 
             foreach (var upgradeId in station.UpgradeIds)
-                if (byId.TryGetValue(upgradeId, out var u)
+                if (upgradeById.TryGetValue(upgradeId, out var u)
                     && u.UnlockLevel > Progression.StartingLevel && seenTracks.Add(u.Id))
                     gates.Add(new LevelUnlockModel(LevelEntryKind.Upgrade, u.Id, u.DisplayName, u.UnlockLevel));
+
+            foreach (var recipeId in station.RecipeIds)
+                if (recipeById.TryGetValue(recipeId, out var r)
+                    && r.UnlockLevel > Progression.StartingLevel && seenRecipes.Add(r.Id))
+                    gates.Add(new LevelUnlockModel(LevelEntryKind.Recipe, r.Id, RecipeLabel(r, config), r.UnlockLevel));
         }
         return gates;
+    }
+
+    /// Mirrors ModelProjector.RecipeLabel: the output good's display name, "Fallow"-prefixed when the recipe
+    /// has no inputs. Presentation only (the level-up announcement) — it changes no economy.
+    static string RecipeLabel(RecipeConfig r, BalanceConfig config)
+    {
+        string output = r.Outputs.Count > 0
+            ? config.Resources.FirstOrDefault(x => x.Id == r.Outputs[0].Resource)?.DisplayName ?? r.Outputs[0].Resource
+            : r.Id;
+        return r.Inputs.Count == 0 ? $"Fallow {output}" : output;
     }
 
     public static Effect Effect(EffectConfig c) => new()

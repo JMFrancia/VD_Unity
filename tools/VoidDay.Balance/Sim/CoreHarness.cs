@@ -8,8 +8,8 @@ namespace VoidDay.Balance.Sim;
 
 /// Wires the pure-C# Core object graph from a BalanceConfig, mirroring Assets/Systems/Boot/GameBoot.Start().
 ///
-/// ── MIRRORED FILE: Assets/Systems/Boot/GameBoot.cs @ commit 4b13863 (last commit to touch it) ──
-/// ── Reconciled: 2026-07-22. If GameBoot.cs changes, GameBootParityTests fails; re-reconcile here. ──
+/// ── MIRRORED FILE: Assets/Systems/Boot/GameBoot.cs @ commit bde1702 (last commit to touch it) ──
+/// ── Reconciled: 2026-07-23. If GameBoot.cs changes, GameBootParityTests fails; re-reconcile here. ──
 ///
 /// The construction ORDER is load-bearing and matches GameBoot exactly: the gem purse is built after the
 /// wallet and before progression; the resolver's grant source is set before progression, its effect source

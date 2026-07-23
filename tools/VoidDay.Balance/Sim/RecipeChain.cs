@@ -107,6 +107,11 @@ public sealed class RecipeChain
 
         foreach (var R in producers)
         {
+            // A recipe the player has not reached the level for yet is not queueable — skip it, exactly as the
+            // real JobSystem.QueueJob would refuse it (an unqueueable recipe must never be chosen, or the
+            // runner throws). A demand met only by a locked recipe falls through to a Want, like any shortage.
+            if (_h.Jobs.IsRecipeLocked(R.Id)) continue;
+
             if (path.Contains(R.Id))
             {
                 // Back-edge. A self-grow (good is its own input) is legitimate — skip it. A back-edge to a
@@ -181,6 +186,7 @@ public sealed class RecipeChain
         double bestVps = -1;
         foreach (var recipe in _byId.Values)
         {
+            if (_h.Jobs.IsRecipeLocked(recipe.Id)) continue; // gated recipe — QueueJob would refuse it
             if (!Affordable(recipe)) continue;
             var station = FreeSlotStation(recipe.StationType);
             if (station == null) continue;

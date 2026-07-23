@@ -107,15 +107,81 @@ public sealed class WriterTests
         Assert.Contains("NONEXISTENT_RESOURCE", ex.Message);
     }
 
-    // A nested-collection edit the writer has no surgical path for is refused, never silently dropped.
+    // Feature B: a level xpThreshold edit is now a planned, positional level edit — not a refusal, not a scalar.
     [Fact]
-    public void NestedLevelEditRefuses()
+    public void LevelXpThresholdEditIsOneLevelEdit()
     {
         var (root, reader, current) = ReadReal();
         var incoming = JsonConvert.DeserializeObject<BalanceConfig>(JsonConvert.SerializeObject(current))!;
-        incoming.Levels[2].XpThreshold += 1;
+        int oldValue = incoming.Levels[2].XpThreshold;
+        incoming.Levels[2].XpThreshold = oldValue + 1;
+
+        var plan = new AssetWriter(root, reader, current).Plan(incoming);
+
+        Assert.Empty(plan.Scalars);
+        var edit = Assert.Single(plan.LevelEdits);
+        Assert.Equal(2, edit.LevelIndex);
+        Assert.Null(edit.GrantIndex);
+        Assert.Equal(oldValue.ToString(), edit.Old);
+        Assert.Equal((oldValue + 1).ToString(), edit.New);
+    }
+
+    // A grant amount edit is a positional level edit that carries the grant index.
+    [Fact]
+    public void GrantAmountEditCarriesGrantIndex()
+    {
+        var (root, reader, current) = ReadReal();
+        var incoming = JsonConvert.DeserializeObject<BalanceConfig>(JsonConvert.SerializeObject(current))!;
+        // Level 2 (index 1) has grants in the baseline; bump the first grant's amount.
+        int oldAmount = incoming.Levels[1].Grants[0].Amount;
+        incoming.Levels[1].Grants[0].Amount = oldAmount + 5;
+
+        var plan = new AssetWriter(root, reader, current).Plan(incoming);
+
+        var edit = Assert.Single(plan.LevelEdits);
+        Assert.Equal(1, edit.LevelIndex);
+        Assert.Equal(0, edit.GrantIndex);
+    }
+
+    // Structural level surgery still has no surgical path — a grant's kind change is refused loud.
+    [Fact]
+    public void GrantKindChangeRefuses()
+    {
+        var (root, reader, current) = ReadReal();
+        var incoming = JsonConvert.DeserializeObject<BalanceConfig>(JsonConvert.SerializeObject(current))!;
+        incoming.Levels[1].Grants[0].Kind = "Gems"; // was something else; retargeting a grant is structural
 
         var writer = new AssetWriter(root, reader, current);
         Assert.Throws<WriteRefusedException>(() => writer.Plan(incoming));
+    }
+
+    // Feature B: a recipe unlockLevel edit is a single scalar change on that recipe's asset.
+    [Fact]
+    public void RecipeUnlockLevelEditIsOneScalar()
+    {
+        var (root, reader, current) = ReadReal();
+        var incoming = JsonConvert.DeserializeObject<BalanceConfig>(JsonConvert.SerializeObject(current))!;
+        var recipe = incoming.Recipes.First();
+        recipe.UnlockLevel += 1;
+
+        var plan = new AssetWriter(root, reader, current).Plan(incoming);
+
+        var change = Assert.Single(plan.Scalars);
+        Assert.Equal("unlockLevel", change.Field);
+    }
+
+    // Feature B: an upgrade unlockLevel edit is a single scalar change on that upgrade's asset.
+    [Fact]
+    public void UpgradeUnlockLevelEditIsOneScalar()
+    {
+        var (root, reader, current) = ReadReal();
+        var incoming = JsonConvert.DeserializeObject<BalanceConfig>(JsonConvert.SerializeObject(current))!;
+        var upgrade = incoming.Upgrades.First();
+        upgrade.UnlockLevel += 1;
+
+        var plan = new AssetWriter(root, reader, current).Plan(incoming);
+
+        var change = Assert.Single(plan.Scalars);
+        Assert.Equal("unlockLevel", change.Field);
     }
 }

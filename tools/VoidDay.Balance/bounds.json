@@ -19,6 +19,7 @@
   "resources/*/baseValue": { "min": 0, "max": 10000, "step": 1 },
 
   "recipes/*/duration": { "min": 0.5, "max": 600, "step": 0.5 },
+  "recipes/*/unlockLevel": { "min": 1, "max": 20, "step": 1 },
 
   "stations/*/buildCost": { "min": 0, "max": 100000, "step": 1 },
   "stations/*/cap": { "min": 1, "max": 30, "step": 1 },
@@ -26,6 +27,10 @@
   "stations/*/queueDepth": { "min": 1, "max": 20, "step": 1 },
   "stations/*/buildSeconds": { "min": 0, "max": 600, "step": 1 },
 
+  "upgrades/*/unlockLevel": { "min": 1, "max": 20, "step": 1 },
   "upgrades/*/tiers[*].cost": { "min": 0, "max": 100000, "step": 1 },
-  "upgrades/*/tiers[*].effects[*].amount": { "min": 0, "max": 1000, "step": 1 }
+  "upgrades/*/tiers[*].effects[*].amount": { "min": 0, "max": 1000, "step": 1 },
+
+  "levels[*].xpThreshold": { "min": 0, "max": 100000, "step": 1 },
+  "levels[*].grants[*].amount": { "min": 0, "max": 100000, "step": 1 }
 }

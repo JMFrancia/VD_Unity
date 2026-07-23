@@ -94,15 +94,19 @@ static int Write(string projectRoot, Dictionary<string, string> opts)
         Console.WriteLine($"  {c.AssetPath} {c.Field}: {c.Old} → {c.New}");
     foreach (var i in plan.RecipeInsertions)
         Console.WriteLine($"  + create recipe '{i.Recipe.Id}' (station '{i.Recipe.StationType}') + wire into its StationSO");
+    foreach (var e in plan.LevelEdits)
+        Console.WriteLine(e.GrantIndex is int gi
+            ? $"  Levels level {e.LevelIndex + 1} grant {gi + 1} amount: {e.Old} → {e.New}"
+            : $"  Levels level {e.LevelIndex + 1} xpThreshold: {e.Old} → {e.New}");
 
     if (!apply)
     {
-        Console.WriteLine($"dry run: {plan.Scalars.Count} scalar change(s), {plan.RecipeInsertions.Count} insertion(s). Pass --apply to write.");
+        Console.WriteLine($"dry run: {plan.Scalars.Count} scalar change(s), {plan.RecipeInsertions.Count} insertion(s), {plan.LevelEdits.Count} level edit(s). Pass --apply to write.");
         return 0;
     }
 
     writer.Apply(plan);
-    Console.WriteLine($"applied: {plan.Scalars.Count} scalar change(s), {plan.RecipeInsertions.Count} insertion(s).");
+    Console.WriteLine($"applied: {plan.Scalars.Count} scalar change(s), {plan.RecipeInsertions.Count} insertion(s), {plan.LevelEdits.Count} level edit(s).");
     return 0;
 }
 

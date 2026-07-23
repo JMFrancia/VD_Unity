@@ -9,6 +9,8 @@ namespace VoidDay.Balance.Agent;
 ///
 /// Grammar:
 ///   singleton:   "global.startingStorageCapacity"   → Global object, dot into a field
+///   index-root:  "levels[0].xpThreshold"             → a root LIST field, indexed by position, then a member
+///                "levels[0].grants[0].amount"         → the member path may itself index nested lists
 ///   collection:  "stations/field/buildCost"          → collection / id / member
 ///                "recipes/field.wheatGrow/duration"   → ids may contain dots; the '/' delimits id from member
 ///                "upgrades/silo.cap/tiers[0].effects[0].amount"  → member path may index lists
@@ -42,12 +44,21 @@ public static class ConfigPath
         var slash = path.Split('/');
         if (slash.Length == 1)
         {
-            // Singleton: "<root>.<field>[.<field>...]".
+            // Singleton "<root>.<field>...", or index-root "<root>[i].<field>..." (the level list is addressed
+            // by position, not by an id like the slash collections). The root token carries the optional index.
             var dot = slash[0].Split('.', 2);
             if (dot.Length < 2)
                 throw new PathException($"'{path}': a singleton path needs a field (e.g. global.startingStorageCapacity)");
-            object container = Field(config, dot[0]).GetValue(config)
-                               ?? throw new PathException($"'{path}': '{dot[0]}' is null");
+            var (rootName, rootIndex) = ParseToken(dot[0]);
+            object container = Field(config, rootName).GetValue(config)
+                               ?? throw new PathException($"'{path}': '{rootName}' is null");
+            if (rootIndex is int ri)
+            {
+                var list = (IList)container;
+                if (ri < 0 || ri >= list.Count)
+                    throw new PathException($"index [{ri}] out of range on '{rootName}' (count {list.Count})");
+                container = list[ri]!;
+            }
             return NavigateToLeaf(container, dot[1]);
         }
 

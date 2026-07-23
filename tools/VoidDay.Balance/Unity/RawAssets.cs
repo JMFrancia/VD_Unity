@@ -58,6 +58,7 @@ public sealed class RecipeRaw
     public List<IngredientRaw> inputs { get; set; } = new();
     public List<IngredientRaw> outputs { get; set; } = new();
     public float duration { get; set; }
+    public int unlockLevel { get; set; } = 1;   // absent in pre-Feature-A assets → SO initializer (unlock with station)
 }
 
 public sealed class IngredientRaw

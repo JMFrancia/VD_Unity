@@ -52,7 +52,8 @@ public sealed class AssetWriter
         DiffResources(incoming, plan);
         DiffRecipes(incoming, plan);   // finds insertions
         DiffStations(incoming, plan);  // needs insertions resolved first (recipe wiring)
-        RefuseUnsupported(incoming);   // levels, upgrades — no surgical write path yet
+        DiffUpgrades(incoming, plan);  // unlockLevel only; tiers/effects still refuse loud
+        DiffLevels(incoming, plan);    // xpThreshold + grant amounts, addressed positionally
 
         return plan;
     }
@@ -66,6 +67,9 @@ public sealed class AssetWriter
 
         foreach (var insert in plan.RecipeInsertions)
             InsertRecipe(insert);
+
+        if (plan.LevelEdits.Count > 0)
+            ApplyLevelEdits(plan.LevelEdits);
     }
 
     // ================= Diffing =================
@@ -158,6 +162,8 @@ public sealed class AssetWriter
                 if (!SameResourceQuantities(cur.Inputs, r.Inputs) || !SameResourceQuantities(cur.Outputs, r.Outputs))
                     throw Unsupported($"recipe '{r.Id}'", "editing recipe inputs/outputs");
                 Scalar(plan, RecipePath(r.Id), "duration", cur.Duration, r.Duration);
+                // unlockLevel post-dates most recipe assets (added by Feature A) — append it when absent.
+                Scalar(plan, RecipePath(r.Id), "unlockLevel", cur.UnlockLevel, r.UnlockLevel, absentAllowed: true);
             }
             else
             {
@@ -228,12 +234,65 @@ public sealed class AssetWriter
                     $"adding '{added}' to {field} (not a recipe being inserted this run)");
     }
 
-    private void RefuseUnsupported(BalanceConfig inc)
+    // Upgrade unlockLevel is a top-level scalar on the UpgradeSO — line-addressable like any other. Tiers and
+    // effects have no surgical write path, so any change to them is still refused loud.
+    private void DiffUpgrades(BalanceConfig inc, WritePlan plan)
     {
-        if (!SameLevels(_current.Levels, inc.Levels))
-            throw Unsupported("Levels", "editing level thresholds or grants");
-        if (!SameUpgrades(_current.Upgrades, inc.Upgrades))
-            throw Unsupported("Upgrades", "editing upgrade tiers or effects");
+        var currentById = _current.Upgrades.ToDictionary(u => u.Id);
+        var incomingIds = new HashSet<string>();
+
+        foreach (var u in inc.Upgrades)
+        {
+            incomingIds.Add(u.Id);
+            if (!currentById.TryGetValue(u.Id, out var cur))
+                throw new WriteRefusedException(
+                    $"upgrade id '{u.Id}' matches no asset. Creating upgrades is out of scope. Aborting; nothing written.");
+            if (u.DisplayName != cur.DisplayName)
+                throw Unsupported($"upgrade '{u.Id}'", "changing an upgrade displayName");
+            Scalar(plan, UpgradePath(u.Id), "unlockLevel", cur.UnlockLevel, u.UnlockLevel, absentAllowed: true);
+            if (!SameTiers(cur.Tiers, u.Tiers))
+                throw Unsupported($"upgrade '{u.Id}'", "editing upgrade tiers or effects");
+        }
+
+        foreach (var cur in _current.Upgrades)
+            if (!incomingIds.Contains(cur.Id))
+                throw Unsupported($"upgrade '{cur.Id}'", "deleting an upgrade");
+    }
+
+    // The Levels asset is a single SO holding a list of level entries, each with a nested grant list. Only two
+    // scalars are movable — a level's xpThreshold and a grant's amount — and they are addressed positionally
+    // (Feature B). Any structural change (a level or grant added/removed, a grant's kind or target retargeted)
+    // has no surgical path and is refused loud. LevelEdits are applied by ApplyLevelEdits, not SetScalar.
+    private void DiffLevels(BalanceConfig inc, WritePlan plan)
+    {
+        if (inc.Levels.Count != _current.Levels.Count)
+            throw Unsupported("Levels", "adding or removing a level");
+
+        for (int i = 0; i < inc.Levels.Count; i++)
+        {
+            var cur = _current.Levels[i];
+            var lv = inc.Levels[i];
+
+            if (cur.XpThreshold != lv.XpThreshold)
+                plan.LevelEdits.Add(new LevelEdit(i, null,
+                    cur.XpThreshold.ToString(CultureInfo.InvariantCulture),
+                    lv.XpThreshold.ToString(CultureInfo.InvariantCulture)));
+
+            if (cur.Grants.Count != lv.Grants.Count)
+                throw Unsupported($"level {i + 1}", "adding or removing a grant");
+
+            for (int j = 0; j < cur.Grants.Count; j++)
+            {
+                var g0 = cur.Grants[j];
+                var g1 = lv.Grants[j];
+                if (g0.Kind != g1.Kind || g0.TargetStation != g1.TargetStation)
+                    throw Unsupported($"level {i + 1} grant {j + 1}", "changing a grant's kind or target station");
+                if (g0.Amount != g1.Amount)
+                    plan.LevelEdits.Add(new LevelEdit(i, j,
+                        g0.Amount.ToString(CultureInfo.InvariantCulture),
+                        g1.Amount.ToString(CultureInfo.InvariantCulture)));
+            }
+        }
     }
 
     // ================= Structural insertion =================
@@ -290,6 +349,8 @@ public sealed class AssetWriter
         AppendIngredientBlock(sb, "inputs", r.Inputs);
         AppendIngredientBlock(sb, "outputs", r.Outputs);
         sb.Append($"  duration: {FormatFloat(r.Duration)}\n");
+        // Omit when it equals the SO initializer (1), exactly as a hand-authored asset does.
+        if (r.UnlockLevel != 1) sb.Append($"  unlockLevel: {r.UnlockLevel}\n");
         return sb.ToString();
     }
 
@@ -337,6 +398,79 @@ public sealed class AssetWriter
 
         lines.Insert(insertAt, $"  - {{fileID: 11400000, guid: {newGuid}, type: 2}}");
         File.WriteAllText(abs, string.Join('\n', lines));
+    }
+
+    // ================= Positional level editing =================
+
+    // The Levels asset has a fixed, machine-authored shape: a level entry opens with a `  - xpThreshold:` line
+    // (2-space list item), and each grant opens with a `    - kind:` line (4-space) carrying an `      amount:`
+    // line below it. We locate each target by counting those markers in document order and replace only the
+    // scalar after the colon — no reserialize, so a one-field edit is a one-line diff, same as SetScalar.
+    private void ApplyLevelEdits(List<LevelEdit> edits)
+    {
+        var abs = _guids.AbsolutePath(_reader.LevelsPath);
+        var lines = File.ReadAllText(abs).Replace("\r\n", "\n").Split('\n').ToList();
+
+        foreach (var edit in edits)
+        {
+            int lineNo = edit.GrantIndex is int gi
+                ? FindGrantAmountLine(lines, edit.LevelIndex, gi)
+                : FindLevelXpLine(lines, edit.LevelIndex);
+            ReplaceScalarValue(lines, lineNo, edit.Old, edit.New);
+        }
+
+        File.WriteAllText(abs, string.Join('\n', lines));
+    }
+
+    // The line index of the (levelIndex)-th `  - xpThreshold:` marker.
+    private int FindLevelXpLine(List<string> lines, int levelIndex)
+    {
+        int seen = 0;
+        for (int i = 0; i < lines.Count; i++)
+        {
+            if (!lines[i].StartsWith("  - xpThreshold:")) continue;
+            if (seen == levelIndex) return i;
+            seen++;
+        }
+        throw new WriteRefusedException(
+            $"{_reader.LevelsPath}: could not locate level {levelIndex + 1}'s xpThreshold line. Refusing to guess.");
+    }
+
+    // The `      amount:` line of the (grantIndex)-th grant inside the (levelIndex)-th level.
+    private int FindGrantAmountLine(List<string> lines, int levelIndex, int grantIndex)
+    {
+        int start = FindLevelXpLine(lines, levelIndex) + 1;
+        int grantSeen = 0;
+        for (int i = start; i < lines.Count; i++)
+        {
+            if (lines[i].StartsWith("  - xpThreshold:")) break; // next level — grant not found
+            if (!lines[i].StartsWith("    - kind:")) continue;
+            if (grantSeen == grantIndex)
+            {
+                for (int j = i + 1; j < lines.Count; j++)
+                {
+                    if (lines[j].StartsWith("      amount:")) return j;
+                    if (lines[j].StartsWith("    - ") || lines[j].StartsWith("  - ")) break; // ran past the grant
+                }
+                break;
+            }
+            grantSeen++;
+        }
+        throw new WriteRefusedException(
+            $"{_reader.LevelsPath}: could not locate level {levelIndex + 1} grant {grantIndex + 1}'s amount line. Refusing to guess.");
+    }
+
+    // Swap the value after `key:` on one line, asserting it currently reads `expectedOld` — a drift guard so a
+    // stale plan never silently rewrites the wrong number.
+    private void ReplaceScalarValue(List<string> lines, int lineNo, string expectedOld, string newValue)
+    {
+        var line = lines[lineNo];
+        int colon = line.IndexOf(':');
+        string current = line[(colon + 1)..].Trim();
+        if (current != expectedOld)
+            throw new WriteRefusedException(
+                $"{_reader.LevelsPath}: line {lineNo + 1} reads '{current}', expected '{expectedOld}'. The asset changed under the plan; refusing to write.");
+        lines[lineNo] = line[..(colon + 1)] + " " + newValue;
     }
 
     // ================= Scalar line editing =================
@@ -410,6 +544,7 @@ public sealed class AssetWriter
     private string RecipePath(string id) => _guids.PathFor(_reader.RecipeGuidById[id]);
     private string ResourcePath(string id) => _guids.PathFor(_reader.ResourceGuidById[id]);
     private string StationPath(string type) => _guids.PathFor(_reader.StationGuidByType[type]);
+    private string UpgradePath(string id) => _guids.PathFor(_reader.UpgradeGuidById[id]);
 
     // ================= Equality helpers (order-sensitive for lists, as authored) =================
 
@@ -429,38 +564,15 @@ public sealed class AssetWriter
         return true;
     }
 
-    private static bool SameLevels(List<LevelConfig> a, List<LevelConfig> b)
+    // Tier structure (cost + effects) only — unlockLevel is diffed separately as a movable scalar, so it is
+    // deliberately NOT compared here.
+    private static bool SameTiers(List<UpgradeTierConfig> a, List<UpgradeTierConfig> b)
     {
         if (a.Count != b.Count) return false;
-        for (var i = 0; i < a.Count; i++)
+        for (var t = 0; t < a.Count; t++)
         {
-            if (a[i].XpThreshold != b[i].XpThreshold) return false;
-            if (a[i].Grants.Count != b[i].Grants.Count) return false;
-            for (var j = 0; j < a[i].Grants.Count; j++)
-            {
-                var g1 = a[i].Grants[j];
-                var g2 = b[i].Grants[j];
-                if (g1.Kind != g2.Kind || g1.TargetStation != g2.TargetStation || g1.Amount != g2.Amount)
-                    return false;
-            }
-        }
-        return true;
-    }
-
-    private static bool SameUpgrades(List<UpgradeConfig> a, List<UpgradeConfig> b)
-    {
-        if (a.Count != b.Count) return false;
-        for (var i = 0; i < a.Count; i++)
-        {
-            var u1 = a[i];
-            var u2 = b[i];
-            if (u1.Id != u2.Id || u1.DisplayName != u2.DisplayName || u1.UnlockLevel != u2.UnlockLevel) return false;
-            if (u1.Tiers.Count != u2.Tiers.Count) return false;
-            for (var t = 0; t < u1.Tiers.Count; t++)
-            {
-                if (u1.Tiers[t].Cost != u2.Tiers[t].Cost) return false;
-                if (!SameEffects(u1.Tiers[t].Effects, u2.Tiers[t].Effects)) return false;
-            }
+            if (a[t].Cost != b[t].Cost) return false;
+            if (!SameEffects(a[t].Effects, b[t].Effects)) return false;
         }
         return true;
     }
@@ -499,10 +611,14 @@ public sealed class WritePlan
 {
     public List<ScalarChange> Scalars { get; } = new();
     public List<RecipeInsertion> RecipeInsertions { get; } = new();
-    public bool IsEmpty => Scalars.Count == 0 && RecipeInsertions.Count == 0;
+    public List<LevelEdit> LevelEdits { get; } = new();
+    public bool IsEmpty => Scalars.Count == 0 && RecipeInsertions.Count == 0 && LevelEdits.Count == 0;
 }
 
 public readonly record struct ScalarChange(string AssetPath, string Field, string Old, string New, bool AbsentAllowed);
+
+/// One positional edit inside the Levels asset: a level's xpThreshold (GrantIndex == null) or a grant's amount.
+public readonly record struct LevelEdit(int LevelIndex, int? GrantIndex, string Old, string New);
 
 public sealed class RecipeInsertion
 {

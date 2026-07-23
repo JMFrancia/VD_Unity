@@ -8,14 +8,16 @@ namespace VoidDay.Balance.Tests;
 /// wiring by hand — the one thing agnosticism costs. This test hashes GameBoot.cs and fails when it moves, so
 /// silent drift between the game's boot and the harness becomes a loud, actionable failure.
 ///
-/// ── Reconciled against GameBoot.cs @ commit 4b13863 (last commit to touch it), 2026-07-22. ──
+/// ── Reconciled against GameBoot.cs @ commit bde1702 (last commit to touch it), 2026-07-23. ──
+///    (bde1702's only wiring change was JobSystem gaining `() => progression.PlayerLevel`, already mirrored
+///     in CoreHarness; Feature A left the hash stale — re-stamped here after confirming parity.)
 /// When this fails: re-read Assets/Systems/Boot/GameBoot.cs, reconcile Sim/CoreHarness.cs to any changed
 /// wiring (order and the Systems bridge — ProgressionSystem XP + UpgradesSystem register-on-build), then
 /// update the expected hash below to the new value the failure prints.
 public sealed class GameBootParityTests
 {
     // Normalized SHA256 (CRLF/CR → LF, UTF-8) of Assets/Systems/Boot/GameBoot.cs at reconciliation time.
-    const string ExpectedHash = "052ff334f060b74f5ebb86d78804a2940c2a824c9fc368b87f22c2c3c663cb96";
+    const string ExpectedHash = "b52bb3d23f30a8ea1000b41410a7d4d70975a09d7477f10b832fd638e42aecb2";
 
     [Fact]
     public void GameBootHasNotChangedSinceCoreHarnessReconciled()

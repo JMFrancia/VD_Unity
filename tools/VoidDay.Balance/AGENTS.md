@@ -168,6 +168,8 @@ One path addresses one **numeric scalar** knob.
   `resources/corn/baseValue` — `<collection>/<id>/<field>`. The `/` delimits the id from the field, so **ids may
   contain dots**. Collections: `resources`, `recipes`, `stations` (id = stationType), `upgrades`.
 - **Nested lists:** `upgrades/silo.cap/tiers[0].cost`, `upgrades/silo.cap/tiers[0].effects[0].amount`.
+- **Index-addressed root:** `levels[0].xpThreshold`, `levels[1].grants[0].amount` — the level list is addressed
+  by **position** (level N = `levels[N-1]`), not by an id like the slash collections; grants nest inside.
 
 Field names match case-insensitively (the camelCase above binds to the PascalCase C# fields).
 
@@ -213,5 +215,8 @@ balance eval --config store60 --goal goals/pace.json
 balance report
 ```
 
-Pushing a version back into Unity is the separate, gated `write` verb (scalar edits + recipe insertion only) —
-never a side effect of `patch`.
+Pushing a version back into Unity is the separate, gated `write` verb — never a side effect of `patch`. It
+handles: line-addressable scalar edits (including `recipes/*/unlockLevel` and `upgrades/*/unlockLevel`),
+recipe insertion, and **positional edits to the Levels asset** (`levels[*].xpThreshold`,
+`levels[*].grants[*].amount`). Anything it cannot do surgically — a level or grant added/removed, a grant's
+kind or target retargeted, upgrade tier/effect edits — it **refuses loudly before writing a byte**.

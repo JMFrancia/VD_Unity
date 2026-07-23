@@ -25,10 +25,12 @@ public sealed class EconomyReader
     private readonly Dictionary<string, string> _recipeGuidById = new();
     private readonly Dictionary<string, string> _resourceGuidById = new();
     private readonly Dictionary<string, string> _stationGuidByType = new();
+    private readonly Dictionary<string, string> _upgradeGuidById = new();
 
     public IReadOnlyDictionary<string, string> RecipeGuidById => _recipeGuidById;
     public IReadOnlyDictionary<string, string> ResourceGuidById => _resourceGuidById;
     public IReadOnlyDictionary<string, string> StationGuidByType => _stationGuidByType;
+    public IReadOnlyDictionary<string, string> UpgradeGuidById => _upgradeGuidById;
 
     // Asset paths for the singleton config SOs (the writer edits scalars in these directly).
     public string XpConfigPath { get; private set; } = "";
@@ -202,7 +204,8 @@ public sealed class EconomyReader
                 StationType = r.stationType,
                 Inputs = r.inputs.Select(i => Ingredient(i, $"{r.id}.inputs")).ToList(),
                 Outputs = r.outputs.Select(i => Ingredient(i, $"{r.id}.outputs")).ToList(),
-                Duration = r.duration
+                Duration = r.duration,
+                UnlockLevel = r.unlockLevel
             })
             .OrderBy(r => r.Id, StringComparer.Ordinal)
             .ToList();
@@ -262,7 +265,10 @@ public sealed class EconomyReader
     private UpgradeRaw CacheUpgrade(string guid)
     {
         if (!_upgrades.TryGetValue(guid, out var u))
+        {
             _upgrades[guid] = u = _reader.ReadByGuid<UpgradeRaw>(guid);
+            _upgradeGuidById[u.id] = guid;
+        }
         return u;
     }
 
