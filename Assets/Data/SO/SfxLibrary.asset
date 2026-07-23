@@ -12,138 +12,137 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0d852cb61818a4a0697a40aac1999501, type: 3}
   m_Name: SfxLibrary
   m_EditorClassIdentifier: Assembly-CSharp::VoidDay.Data.SfxLibrarySO
-  entries:
-  - cue: 0
+  jobQueued:
     clip: {fileID: 8300000, guid: 32d4b1811dda14a6cb9e059ee8ad17d2, type: 3}
     volume: 1
     pitchJitter: 0.05
     minInterval: 0
-  - cue: 1
+  jobStarted:
     clip: {fileID: 8300000, guid: 32d4b1811dda14a6cb9e059ee8ad17d2, type: 3}
     volume: 1
     pitchJitter: 0.05
     minInterval: 0
-  - cue: 2
+  jobCompleted:
     clip: {fileID: 8300000, guid: 0c008ee3ee72a4362a35be25fa5de043, type: 3}
     volume: 1
     pitchJitter: 0.05
     minInterval: 0
-  - cue: 3
+  jobCollected:
     clip: {fileID: 8300000, guid: 81652031b64c342cc8dbc59c138d77c5, type: 3}
     volume: 1
     pitchJitter: 0.05
     minInterval: 0
-  - cue: 4
+  jobCancelled:
     clip: {fileID: 0}
     volume: 1
     pitchJitter: 0.05
     minInterval: 0
-  - cue: 5
+  stationBlocked:
     clip: {fileID: 0}
     volume: 1
     pitchJitter: 0.05
     minInterval: 0
-  - cue: 6
+  storageFull:
     clip: {fileID: 0}
     volume: 1
     pitchJitter: 0.05
     minInterval: 0
-  - cue: 7
+  collectRefused:
+    clip: {fileID: 8300000, guid: b9eff218e132a4e76be78840eca96fb2, type: 3}
+    volume: 1
+    pitchJitter: 0.05
+    minInterval: 0
+  orderFulfilled:
     clip: {fileID: 8300000, guid: 7bd6b897eb5ca4b7d88a205c4a51640c, type: 3}
     volume: 1
     pitchJitter: 0.05
     minInterval: 0
-  - cue: 8
+  orderSkipped:
     clip: {fileID: 0}
     volume: 1
     pitchJitter: 0.05
     minInterval: 0
-  - cue: 9
+  orderRefilled:
     clip: {fileID: 0}
     volume: 1
     pitchJitter: 0.05
     minInterval: 0
-  - cue: 10
+  stationPickedUp:
     clip: {fileID: 0}
     volume: 1
     pitchJitter: 0.05
     minInterval: 0
-  - cue: 11
+  stationConstructionStarted:
+    clip: {fileID: 8300000, guid: 7e26c9daf4c32483b9c2790e662d3f1b, type: 3}
+    volume: 1
+    pitchJitter: 0.05
+    minInterval: 0
+  stationBuilt:
+    clip: {fileID: 8300000, guid: cf6c0e7fbef9449c98a0cdb5ea0c4d9f, type: 3}
+    volume: 1
+    pitchJitter: 0.05
+    minInterval: 0
+  stationMoved:
     clip: {fileID: 0}
     volume: 1
     pitchJitter: 0.05
     minInterval: 0
-  - cue: 12
+  stationDemolished:
     clip: {fileID: 0}
     volume: 1
     pitchJitter: 0.05
     minInterval: 0
-  - cue: 13
-    clip: {fileID: 0}
-    volume: 1
-    pitchJitter: 0.05
-    minInterval: 0
-  - cue: 14
+  placeRejected:
     clip: {fileID: 8300000, guid: 80e397195ea2940b69ee7bdbded856a5, type: 3}
     volume: 1
     pitchJitter: 0.05
     minInterval: 0
-  - cue: 15
+  upgradePurchased:
     clip: {fileID: 8300000, guid: 52320e590bf774734a288886eba557ba, type: 3}
     volume: 1
     pitchJitter: 0.05
     minInterval: 0
-  - cue: 16
+  moneySpent:
     clip: {fileID: 0}
     volume: 1
     pitchJitter: 0.05
     minInterval: 0
-  - cue: 17
+  xpGained:
     clip: {fileID: 0}
     volume: 1
     pitchJitter: 0.05
     minInterval: 0
-  - cue: 18
+  levelUp:
+    clip: {fileID: 8300000, guid: 7478151cf36724a7dada558f746c3633, type: 3}
+    volume: 1
+    pitchJitter: 0.05
+    minInterval: 0
+  earnParticleMoney:
+    clip: {fileID: 8300000, guid: aabcc7b68783f422abfe56b588328c4f, type: 3}
+    volume: 1
+    pitchJitter: 0.05
+    minInterval: 0
+  earnParticleXp:
+    clip: {fileID: 8300000, guid: a1a69fda7dde2415dabf28029580d207, type: 3}
+    volume: 1
+    pitchJitter: 0.05
+    minInterval: 0
+  earnParticleResource:
+    clip: {fileID: 8300000, guid: b43d102aac6b145468dcaa94a5cccae1, type: 3}
+    volume: 1
+    pitchJitter: 0.05
+    minInterval: 0
+  uiOpen:
     clip: {fileID: 0}
     volume: 1
     pitchJitter: 0.05
     minInterval: 0
-  - cue: 19
+  uiClose:
     clip: {fileID: 0}
     volume: 1
     pitchJitter: 0.05
     minInterval: 0
-  - cue: 20
-    clip: {fileID: 0}
-    volume: 1
-    pitchJitter: 0.05
-    minInterval: 0
-  - cue: 21
-    clip: {fileID: 0}
-    volume: 1
-    pitchJitter: 0.05
-    minInterval: 0
-  - cue: 22
-    clip: {fileID: 0}
-    volume: 1
-    pitchJitter: 0.05
-    minInterval: 0
-  - cue: 23
-    clip: {fileID: 0}
-    volume: 1
-    pitchJitter: 0.05
-    minInterval: 0
-  - cue: 24
-    clip: {fileID: 0}
-    volume: 1
-    pitchJitter: 0.05
-    minInterval: 0
-  - cue: 25
-    clip: {fileID: 0}
-    volume: 1
-    pitchJitter: 0.05
-    minInterval: 0
-  - cue: 26
+  uiTap:
     clip: {fileID: 0}
     volume: 1
     pitchJitter: 0.05

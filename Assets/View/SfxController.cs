@@ -30,11 +30,8 @@ namespace VoidDay.View
                 throw new InvalidOperationException($"SfxController on '{name}': {nameof(sfx)} is not assigned");
 
             _bus = bus;
-            foreach (var entry in library.entries) _byCue[entry.cue] = entry;
             foreach (SfxCue cue in Enum.GetValues(typeof(SfxCue)))
-                if (!_byCue.ContainsKey(cue))
-                    throw new InvalidOperationException(
-                        $"SfxController: '{library.name}' has no row for cue {cue} — select the asset to resync its rows");
+                _byCue[cue] = library.Get(cue);
 
             // Jobs
             _bus.Subscribe<JobQueued>(OnJobQueued);
