@@ -202,3 +202,40 @@ the gold quest button placed under the purple debug button.
 - Menu `Rebuild` is clear-and-`Destroy()`; `Destroy` is deferred to end-of-frame, so multiple rebuilds in
   one synchronous `script-execute` frame show inflated row counts — read row counts in a **later** call.
 - Enums `ConditionKind`/`GoalKind` and `LevelEntryKind` are serialized by integer index — **append only**.
+
+## Milestone 02 — New-Quest Toast
+**Status:** ✅ Complete · **Date:** 2026-07-23
+
+**Built:** A granted quest now toasts. View-only, zero engine change.
+- `View/ToastController.cs`: added `[SerializeField] string questGrantedPrefix = "New Quest: "` +
+  `[SerializeField] Sprite questGrantedIcon`; subscribes/unsubscribes `QuestGranted` alongside the
+  existing `CollectRefused`; `OnQuestGranted(e) => Show(questGrantedPrefix + e.Description, questGrantedIcon)`.
+  Reuses the existing `Show(string,Sprite)` + `Toast.prefab` + `ToastStack` — no new toast system.
+- Scene `Farm.unity`: `HudCanvas/ToastStack` (ToastController host) `questGrantedIcon` wired to the placeholder
+  sprite `Assets/Art/UI/Icons/ready.png`.
+
+**Deviations from the plan:** none. (Description comes straight off the `QuestGranted` payload as the doc's
+Context specifies; no engine/data touched.)
+
+**Tech debt:**
+- Toast copy is a single-line `prefix + description` string because `Toast.Show` takes one text field. The
+  mockup (`03 · New-Quest Toast`) shows a separate bold "NEW QUEST" label above the description; folded into
+  the "New Quest: " prefix instead. If a later polish pass wants the two-line label look, `Toast.prefab` +
+  `Toast.Show` need a second text slot — out of this milestone's View-only, no-new-prefab cut.
+- Icon is a **placeholder** (`ready.png`, the checkmark HUD icon) — the doc marked the quest toast icon
+  `[placeholder OK]` and no dedicated quest sprite exists (M1's quest button uses a Text glyph, not a sprite).
+  Swap for a real gold quest icon when one is produced.
+
+**Assumptions:**
+- `ToastStack`/`ToastController` already stacks multiple toasts (relied on per the doc's "no dedup logic"
+  instruction). Verified live: two near-simultaneous grants produced two independent stacked toasts, each
+  auto-dismissing on its own timer.
+
+**Gotchas for later milestones:**
+- Boot grants (`Quest_Starter`+`Quest_Harvest` on `GameStarted`) fire their toasts at t≈0 and self-destroy
+  after `lifetime` (3s) + `fadeSeconds` (0.35s). A state-read verification must run **within** that window or
+  it sees an empty stack — publish a fresh `QuestGranted` on the live bus and read synchronously instead
+  (Show is synchronous: Instantiate + SetActive same frame). The live bus is reflectable off
+  `ToastController._bus` (private).
+- `M3`'s progress pill must NOT also toast on grant — the toast is the *granted* announcement, the pill owns
+  progress/completion. Kept strictly to `QuestGranted` here.

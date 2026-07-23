@@ -15594,7 +15594,7 @@ MonoBehaviour:
     m_FontStyle: 0
     m_BestFit: 0
     m_MinSize: 10
-    m_MaxSize: 40
+    m_MaxSize: 48
     m_Alignment: 4
     m_AlignByGeometry: 0
     m_RichText: 1
@@ -15880,6 +15880,8 @@ MonoBehaviour:
   fadeSeconds: 0.35
   storageFullMessage: Not enough storage! Upgrade Silo
   storageFullIcon: {fileID: 21300000, guid: cefe5883cb02040088c02a2b97400bdb, type: 3}
+  questGrantedPrefix: 'New Quest: '
+  questGrantedIcon: {fileID: 21300000, guid: 9f8ff891a16c74f80ae28f347581f988, type: 3}
 --- !u!224 &1437424170
 RectTransform:
   m_ObjectHideFlags: 0
