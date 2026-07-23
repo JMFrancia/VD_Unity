@@ -54,8 +54,8 @@ static int Read(string projectRoot, Dictionary<string, string> opts)
 
     Console.WriteLine(
         $"read ok: {config.Stations.Count} stations, {config.Recipes.Count} recipes, " +
-        $"{config.Upgrades.Count} upgrades, {config.Resources.Count} resources, {config.Levels.Count} levels " +
-        $"→ {outPath}");
+        $"{config.Upgrades.Count} upgrades, {config.Resources.Count} resources, {config.Levels.Count} levels, " +
+        $"{config.Quests.Count} quests → {outPath}");
     return 0;
 }
 

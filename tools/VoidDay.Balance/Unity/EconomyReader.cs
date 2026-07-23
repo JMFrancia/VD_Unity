@@ -26,11 +26,13 @@ public sealed class EconomyReader
     private readonly Dictionary<string, string> _resourceGuidById = new();
     private readonly Dictionary<string, string> _stationGuidByType = new();
     private readonly Dictionary<string, string> _upgradeGuidById = new();
+    private readonly Dictionary<string, string> _questGuidById = new();
 
     public IReadOnlyDictionary<string, string> RecipeGuidById => _recipeGuidById;
     public IReadOnlyDictionary<string, string> ResourceGuidById => _resourceGuidById;
     public IReadOnlyDictionary<string, string> StationGuidByType => _stationGuidByType;
     public IReadOnlyDictionary<string, string> UpgradeGuidById => _upgradeGuidById;
+    public IReadOnlyDictionary<string, string> QuestGuidById => _questGuidById;   // M5 writer: quest id → .asset
 
     // Asset paths for the singleton config SOs (the writer edits scalars in these directly).
     public string XpConfigPath { get; private set; } = "";
@@ -56,6 +58,7 @@ public sealed class EconomyReader
         ReadOrders(gc, config);
         ReadStationsAndDependencies(gc, config);   // fills Stations, Recipes, Upgrades, Resources caches
         ReadLevels(gc, config);
+        ReadQuests(gc, config);                     // a reward resource may add to the Resources cache
 
         // Recipes and upgrades must project first — resolving their ingredient/effect references is
         // what populates the resource cache. ProjectResources then captures the full set.
@@ -174,6 +177,46 @@ public sealed class EconomyReader
                     TargetStation = _reader.StationTypeOfRef(g.targetStation),
                     Amount = g.amount
                 }).ToList()
+            });
+        }
+    }
+
+    private void ReadQuests(GameConfigRaw gc, BalanceConfig config)
+    {
+        // Roster order is the authored GameConfig.quests order — deterministic, so quests keep it (matches
+        // stations; a positional collection M5's reorder write-back edits).
+        foreach (var questRef in gc.quests)
+        {
+            var guid = RequireGuid(questRef, "GameConfig.quests");
+            var q = _reader.ReadByGuid<QuestRaw>(guid);
+            _questGuidById[q.id] = guid;
+
+            config.Quests.Add(new QuestConfig
+            {
+                Id = q.id,
+                Conditions = q.conditions.Select(c => new QuestConditionConfig
+                {
+                    Kind = EnumName<ConditionKind>(c.kind, "condition.kind", q.id),
+                    Amount = c.amount,
+                    Arg = c.arg ?? ""
+                }).ToList(),
+                Goal = new QuestGoalConfig
+                {
+                    Kind = EnumName<GoalKind>(q.goal.kind, "goal.kind", q.id),
+                    Amount = q.goal.amount,
+                    TargetId = q.goal.targetId ?? ""
+                },
+                Reward = new QuestRewardConfig
+                {
+                    Xp = q.reward.xp,
+                    Money = q.reward.money,
+                    Gems = q.reward.gems,
+                    Resources = q.reward.resources.Select(r => new ResourceQuantity
+                    {
+                        Resource = ResolveResource(r.resource, $"{q.id}.reward.resources").id,
+                        Amount = r.amount
+                    }).ToList()
+                }
             });
         }
     }

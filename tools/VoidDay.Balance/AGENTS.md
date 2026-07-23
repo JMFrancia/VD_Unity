@@ -151,6 +151,8 @@ lower the weight to keep it from dominating.
 | `level.moneyAtEntry` / `level.moneyAtExit` | cash at a level boundary | `min`/`max` |
 | `gems.compressionShare` | fraction of a level's wall-clock bought away by gems | `min` **and** `max` — too high = fake timers, too low = gems are decoration |
 | `gems.heldAtExit` | gems held at a level's exit | `min`/`max` |
+| `quest.completions` | quests whose bar filled that level (the sim auto-collects on completion) | `min`/`max` |
+| `quest.rewardShare` | quest-reward **money** as a share of the level's money earned | `min`/`max` — cap how much income is quest handouts, or demand a floor |
 
 Scope: `"level": N` (single) or `"levels": "a-b"` (inclusive range). `pressure.*` need a `category`
 (a **family**: `Storage`, `Capacity`, `Yield`, `Throughput`, `Supply`, `Income`, `OrderRefill`, `Unlock` —
@@ -166,8 +168,12 @@ One path addresses one **numeric scalar** knob.
   `orders.refillSeconds` — `<root>.<field>`.
 - **Collection element:** `stations/field/buildCost`, `recipes/field.wheatGrow/duration`,
   `resources/corn/baseValue` — `<collection>/<id>/<field>`. The `/` delimits the id from the field, so **ids may
-  contain dots**. Collections: `resources`, `recipes`, `stations` (id = stationType), `upgrades`.
+  contain dots**. Collections: `resources`, `recipes`, `stations` (id = stationType), `upgrades`, `quests` (id = quest id).
 - **Nested lists:** `upgrades/silo.cap/tiers[0].cost`, `upgrades/silo.cap/tiers[0].effects[0].amount`.
+- **Quest scalars:** `quests/quest.starter/reward.xp`, `quests/quest.starter/reward.money`,
+  `quests/quest.starter/goal.amount`, `quests/quest.starter/conditions[0].amount` — reward amounts, the goal
+  target count, and a condition threshold. (Creating / reordering / deleting quests is not a scalar knob — that
+  is the `write` verb's structural job.)
 - **Index-addressed root:** `levels[0].xpThreshold`, `levels[1].grants[0].amount` — the level list is addressed
   by **position** (level N = `levels[N-1]`), not by an id like the slash collections; grants nest inside.
 

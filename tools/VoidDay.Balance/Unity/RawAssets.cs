@@ -26,6 +26,7 @@ public sealed class GameConfigRaw
     public RawRef? orderConfig { get; set; }
     public RawRef? xpConfig { get; set; }
     public RawRef? levels { get; set; }
+    public List<RawRef> quests { get; set; } = new();
 }
 
 public sealed class StartingResourceRaw
@@ -150,5 +151,43 @@ public sealed class LevelGrantRaw
 {
     public int kind { get; set; }
     public RawRef? targetStation { get; set; }
+    public int amount { get; set; }
+}
+
+// QuestSO body. Enums are ints on the asset (ConditionKind / GoalKind by index) → mapped to names in the
+// reader; a reward resource is a ResourceSO reference resolved to its id, mirroring StartingResourceRaw.
+public sealed class QuestRaw
+{
+    public string id { get; set; } = "";
+    public List<QuestConditionRaw> conditions { get; set; } = new();
+    public QuestGoalRaw goal { get; set; } = new();
+    public QuestRewardRaw reward { get; set; } = new();
+}
+
+public sealed class QuestConditionRaw
+{
+    public int kind { get; set; }
+    public int amount { get; set; }
+    public string? arg { get; set; }
+}
+
+public sealed class QuestGoalRaw
+{
+    public int kind { get; set; }
+    public int amount { get; set; }
+    public string? targetId { get; set; }
+}
+
+public sealed class QuestRewardRaw
+{
+    public int xp { get; set; }
+    public int money { get; set; }
+    public int gems { get; set; }
+    public List<QuestResourceGrantRaw> resources { get; set; } = new();
+}
+
+public sealed class QuestResourceGrantRaw
+{
+    public RawRef? resource { get; set; }
     public int amount { get; set; }
 }

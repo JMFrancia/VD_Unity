@@ -8,8 +8,9 @@ namespace VoidDay.Balance.Sim;
 
 /// Wires the pure-C# Core object graph from a BalanceConfig, mirroring Assets/Systems/Boot/GameBoot.Start().
 ///
-/// ── MIRRORED FILE: Assets/Systems/Boot/GameBoot.cs @ commit bde1702 (last commit to touch it) ──
-/// ── Reconciled: 2026-07-23. If GameBoot.cs changes, GameBootParityTests fails; re-reconcile here. ──
+/// ── MIRRORED FILE: Assets/Systems/Boot/GameBoot.cs @ commit 5043016 (last commit to touch it) ──
+/// ── Reconciled: 2026-07-23 (M4: added QuestLog). If GameBoot.cs changes, GameBootParityTests fails; ──
+/// ── re-reconcile here. ──
 ///
 /// The construction ORDER is load-bearing and matches GameBoot exactly: the gem purse is built after the
 /// wallet and before progression; the resolver's grant source is set before progression, its effect source
@@ -36,6 +37,7 @@ public sealed class CoreHarness
     public readonly UpgradeSystem Upgrades;
     public readonly OrderBoard Orders;
     public readonly TimeSkip TimeSkip;
+    public readonly QuestLog Quests;
     public readonly XpConfigModel XpConfig;
 
     readonly IReadOnlyDictionary<string, StationTypeModel> _stationTypes;
@@ -120,6 +122,15 @@ public sealed class CoreHarness
             Producible, () => Progression.PlayerLevel);
 
         TimeSkip = new TimeSkip(Bus, Gems, Jobs, Builds, Orders, config.Gems.SecondsPerGem, config.Gems.MinGemCost);
+
+        // The quest engine (§ quest system). Pure Core, so it compiles into the tool and runs headless. Reads
+        // level / resources for grant gates, pays rewards through the existing sinks; the resourceName lookup
+        // feeds the generated descriptions — mirrors GameBoot exactly.
+        var questModels = new List<QuestModel>(config.Quests.Count);
+        foreach (var q in config.Quests) questModels.Add(ConfigProjector.Quest(q));
+        Quests = new QuestLog(Bus, questModels, () => Progression.PlayerLevel, Pool, Upgrades,
+            Wallet, Gems, Progression,
+            id => resourceModels.TryGetValue(id, out var m) ? m.DisplayName : id);
         // ── GameBoot.Start() mirror ends (Init(...) calls are View/Systems wiring — none in the harness) ──
 
         // Systems bridge: the two Systems-layer behaviours that DRIVE Core economically (the rest of the

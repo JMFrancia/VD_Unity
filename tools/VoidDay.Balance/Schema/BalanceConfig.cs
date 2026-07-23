@@ -19,6 +19,7 @@ public sealed class BalanceConfig
     public List<StationConfig> Stations = new();
     public List<UpgradeConfig> Upgrades = new();
     public List<LevelConfig> Levels = new();   // index 0 == level 1
+    public List<QuestConfig> Quests = new();
 }
 
 public sealed class GlobalConfig
@@ -141,6 +142,40 @@ public sealed class LevelConfig
 {
     public int XpThreshold;
     public List<LevelGrantConfig> Grants = new();
+}
+
+/// A quest mirroring QuestSO (§ quest system): conditions gate the grant, the goal drives the progress bar,
+/// the reward is paid on collect. Enums are the Core names (ConditionKind / GoalKind), read through the real
+/// enum types at the reader seam — never an int index. Scalar knobs (reward.*, goal.amount,
+/// conditions[n].amount) are addressed as a `quests/<id>/…` collection path (see ConfigPath / bounds.json).
+public sealed class QuestConfig
+{
+    public string Id = "";
+    public List<QuestConditionConfig> Conditions = new();
+    public QuestGoalConfig Goal = new();
+    public QuestRewardConfig Reward = new();
+}
+
+public sealed class QuestConditionConfig
+{
+    public string Kind = "";   // ConditionKind name
+    public int Amount;
+    public string Arg = "";
+}
+
+public sealed class QuestGoalConfig
+{
+    public string Kind = "";   // GoalKind name
+    public int Amount;
+    public string TargetId = "";
+}
+
+public sealed class QuestRewardConfig
+{
+    public int Xp;
+    public int Money;
+    public int Gems;
+    public List<ResourceQuantity> Resources = new();
 }
 
 public sealed class LevelGrantConfig

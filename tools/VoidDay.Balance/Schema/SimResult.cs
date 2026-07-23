@@ -29,6 +29,11 @@ public sealed class LevelReport
     public int MoneyAtEntry, MoneyAtExit, MoneyEarned, MoneySpent;
     public int OrdersFulfilled, OrdersSkipped, JobsCollected;
 
+    // Quest activity this level. Completions = quests whose bar filled; the reward fields = income the sim's
+    // auto-collect paid out (a share of MoneyEarned / GemsEarned / XP, not additional to them).
+    public int QuestsCompleted;
+    public int QuestRewardXp, QuestRewardMoney, QuestRewardGems, QuestRewardResources;
+
     public int GemsAtEntry, GemsAtExit, GemsEarned, GemsSpent;
     public double SecondsPurchased;        // wall-clock skipped by gems this level
     public double CompressionShare;        // SecondsPurchased / DurationSeconds

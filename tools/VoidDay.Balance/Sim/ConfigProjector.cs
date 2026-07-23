@@ -26,6 +26,24 @@ public static class ConfigProjector
 
     public static XpConfigModel Xp(XpConfig c) => new(c.PerJobCollected, c.PerStationBuilt);
 
+    /// Mirrors ModelProjector.ProjectQuest: the QuestConfig DTO → the pure-Core QuestModel QuestLog reads.
+    /// Enum strings parse through the real Core enum types, exactly as the reader named them.
+    public static QuestModel Quest(QuestConfig c)
+    {
+        var conditions = new List<QuestConditionModel>(c.Conditions.Count);
+        foreach (var cond in c.Conditions)
+            conditions.Add(new QuestConditionModel(
+                System.Enum.Parse<ConditionKind>(cond.Kind), cond.Amount, cond.Arg));
+
+        var goal = new QuestGoalModel(System.Enum.Parse<GoalKind>(c.Goal.Kind), c.Goal.Amount, c.Goal.TargetId);
+
+        var resources = new List<ResourceAmount>(c.Reward.Resources.Count);
+        foreach (var r in c.Reward.Resources) resources.Add(new ResourceAmount(r.Resource, r.Amount));
+        var reward = new QuestRewardModel(c.Reward.Xp, c.Reward.Money, c.Reward.Gems, resources);
+
+        return new QuestModel(c.Id, conditions, goal, reward);
+    }
+
     public static UpgradeTrackModel Upgrade(UpgradeConfig c)
     {
         var tiers = new UpgradeTierModel[c.Tiers.Count];

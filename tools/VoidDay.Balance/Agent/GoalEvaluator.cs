@@ -100,6 +100,13 @@ public static class GoalEvaluator
                 return share;
             }
             case "pressure.rank": { note = $"{Cat(t)}#{Rank(t, r)}"; return Rank(t, r); }
+            case "quest.completions": { note = r.QuestsCompleted.ToString(); return r.QuestsCompleted; }
+            case "quest.rewardShare":
+            {
+                double v = r.MoneyEarned > 0 ? (double)r.QuestRewardMoney / r.MoneyEarned : 0;
+                note = $"{v:0.###}";
+                return v;
+            }
             default: throw new ArgumentException($"unknown metric '{t.Metric}'");
         }
     }

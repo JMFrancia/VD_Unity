@@ -14,6 +14,7 @@ namespace VoidDay.Balance.Agent;
 ///   collection:  "stations/field/buildCost"          → collection / id / member
 ///                "recipes/field.wheatGrow/duration"   → ids may contain dots; the '/' delimits id from member
 ///                "upgrades/silo.cap/tiers[0].effects[0].amount"  → member path may index lists
+///                "quests/quest.starter/reward.xp"     → quests id = quest id; goal.amount / conditions[0].amount
 ///
 /// Ids are looked up by their identity field (StationType for stations, Id for the rest). Field names match
 /// case-insensitively, so the camelCase of the JSON binds to the PascalCase C# field. The leaf must be a
@@ -78,7 +79,8 @@ public static class ConfigPath
             "recipes" => config.Recipes.FirstOrDefault(r => r.Id == id),
             "stations" => config.Stations.FirstOrDefault(s => s.StationType == id),
             "upgrades" => config.Upgrades.FirstOrDefault(u => u.Id == id),
-            _ => throw new PathException($"unknown collection '{collection}' (resources|recipes|stations|upgrades)")
+            "quests" => config.Quests.FirstOrDefault(q => q.Id == id),
+            _ => throw new PathException($"unknown collection '{collection}' (resources|recipes|stations|upgrades|quests)")
         };
         return found ?? throw new PathException($"no '{collection}' element with id '{id}'");
     }

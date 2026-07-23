@@ -13,7 +13,8 @@ public sealed class Goal
 public sealed class GoalTarget
 {
     /// One of: level.durationMinutes, total.minutesToLevel, pressure.share, pressure.rank,
-    /// level.moneyAtEntry, level.moneyAtExit, gems.compressionShare, gems.heldAtExit.
+    /// level.moneyAtEntry, level.moneyAtExit, gems.compressionShare, gems.heldAtExit,
+    /// quest.completions, quest.rewardShare.
     public string Metric = "";
 
     // Scope — a single level, or an inclusive "a-b" range. total.minutesToLevel uses Level as its target level.

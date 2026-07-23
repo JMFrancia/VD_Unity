@@ -56,7 +56,14 @@ public sealed class SimTests
     [Fact]
     public void OptimalityMonotonicity()
     {
+        // The dial's monotonicity is a property of the PLAYER model. Quests are an orthogonal confound: a
+        // reward fires on a specific action (e.g. harvesting wheat) that an optimality-1 player may skip as
+        // suboptimal-for-orders, so a LESS-optimal player can bank a quest XP reward the perfect player forgoes
+        // and finish sooner — a real economy interaction, not a dial regression. So the dial guard runs on the
+        // quest-free economy (with Quests empty the sim path is identical to its pre-quest behaviour); the CLI
+        // and the quest-specific checks exercise quests.
         var config = Baseline();
+        config.Quests.Clear();
         double t10 = new SimRunner(config, Profile(1.0f), 1).Run().TotalSeconds;
         double t065 = new SimRunner(config, Profile(0.65f), 1).Run().TotalSeconds;
         double t03 = new SimRunner(config, Profile(0.3f), 1).Run().TotalSeconds;

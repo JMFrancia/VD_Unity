@@ -1144,5 +1144,75 @@
         }
       ]
     }
+  ],
+  "Quests": [
+    {
+      "Id": "quest.starter",
+      "Conditions": [
+        {
+          "Kind": "MinLevel",
+          "Amount": 1,
+          "Arg": ""
+        }
+      ],
+      "Goal": {
+        "Kind": "EarnMoney",
+        "Amount": 100,
+        "TargetId": ""
+      },
+      "Reward": {
+        "Xp": 40,
+        "Money": 0,
+        "Gems": 0,
+        "Resources": [
+          {
+            "Resource": "wheat",
+            "Amount": 2
+          }
+        ]
+      }
+    },
+    {
+      "Id": "quest.harvest",
+      "Conditions": [
+        {
+          "Kind": "MinLevel",
+          "Amount": 1,
+          "Arg": ""
+        }
+      ],
+      "Goal": {
+        "Kind": "HarvestCrops",
+        "Amount": 3,
+        "TargetId": "wheat"
+      },
+      "Reward": {
+        "Xp": 30,
+        "Money": 0,
+        "Gems": 0,
+        "Resources": []
+      }
+    },
+    {
+      "Id": "quest.chain",
+      "Conditions": [
+        {
+          "Kind": "QuestCompleted",
+          "Amount": 0,
+          "Arg": "quest.starter"
+        }
+      ],
+      "Goal": {
+        "Kind": "ReachLevel",
+        "Amount": 4,
+        "TargetId": ""
+      },
+      "Reward": {
+        "Xp": 20,
+        "Money": 0,
+        "Gems": 0,
+        "Resources": []
+      }
+    }
   ]
 }

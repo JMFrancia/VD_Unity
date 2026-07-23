@@ -28,6 +28,7 @@ public sealed class SimRunner
     LevelReport _report = null!;
     int _entMoneyEarned, _entMoneySpent, _entGemsEarned, _entGemsSpent;
     int _entOrdersFul, _entOrdersSkip, _entJobs;
+    int _entQuestsCompleted, _entQuestRewardXp, _entQuestRewardMoney, _entQuestRewardGems, _entQuestRewardResources;
 
     public SimResult Run()
     {
@@ -36,7 +37,8 @@ public sealed class SimRunner
         int agentSeed = unchecked(_seed * 1103515245 + 12345);
         var harness = new CoreHarness(_config, _seed);
         var ledger = new PressureLedger();
-        var metrics = new MetricsCollector(harness.Bus); // subscribe BEFORE the starting-state emit
+        var metrics = new MetricsCollector(harness.Bus, _config.Quests); // subscribe BEFORE the starting-state emit
+        var questCollector = new QuestCollector(harness.Bus); // records completions; the loop collects them top-level
         var chain = new RecipeChain(harness, _config);
         var agent = new PlayerAgent(harness, _profile, chain, ledger, new Random(agentSeed), _gemsEnabled);
         harness.EmitStartingState();
@@ -60,6 +62,10 @@ public sealed class SimRunner
             harness.Builds.Tick(now);   // bring stations online first (construction end IS an event boundary)
             harness.Jobs.Tick(now);     // then complete finished jobs
             harness.Orders.Tick(now);   // then refill order slots against the latest producible set
+
+            // Collect any quest that completed (top-level, not reentrant — see QuestCollector); a reward's XP
+            // may level up, which the LevelUp drain below then picks up in this same iteration.
+            questCollector.DrainCollections();
 
             while (metrics.LevelUps.Count > 0)
             {
@@ -180,6 +186,9 @@ public sealed class SimRunner
         _entMoneyEarned = m.MoneyEarned; _entMoneySpent = m.MoneySpent;
         _entGemsEarned = m.GemsEarned; _entGemsSpent = m.GemsSpent;
         _entOrdersFul = m.OrdersFulfilled; _entOrdersSkip = m.OrdersSkipped; _entJobs = m.JobsCollected;
+        _entQuestsCompleted = m.QuestsCompleted;
+        _entQuestRewardXp = m.QuestRewardXp; _entQuestRewardMoney = m.QuestRewardMoney;
+        _entQuestRewardGems = m.QuestRewardGems; _entQuestRewardResources = m.QuestRewardResources;
     }
 
     void CloseLevel(double now, MetricsCollector m, PressureLedger ledger)
@@ -192,6 +201,11 @@ public sealed class SimRunner
         _report.OrdersFulfilled = m.OrdersFulfilled - _entOrdersFul;
         _report.OrdersSkipped = m.OrdersSkipped - _entOrdersSkip;
         _report.JobsCollected = m.JobsCollected - _entJobs;
+        _report.QuestsCompleted = m.QuestsCompleted - _entQuestsCompleted;
+        _report.QuestRewardXp = m.QuestRewardXp - _entQuestRewardXp;
+        _report.QuestRewardMoney = m.QuestRewardMoney - _entQuestRewardMoney;
+        _report.QuestRewardGems = m.QuestRewardGems - _entQuestRewardGems;
+        _report.QuestRewardResources = m.QuestRewardResources - _entQuestRewardResources;
 
         _report.GemsAtExit = m.Gems;
         _report.GemsEarned = m.GemsEarned - _entGemsEarned;
@@ -229,9 +243,21 @@ public sealed class SimRunner
             sb.AppendLine(
                 $"{l.Level,3}  {Min(l.DurationSeconds),8}  {Min(l.ActingSeconds),7}  {Min(l.WaitingSeconds),8}  " +
                 $"{l.MoneyAtEntry,6}  {l.MoneyAtExit,6}  {l.OrdersFulfilled,6}  {l.JobsCollected,4}  {gems,5}  " +
-                $"{l.TopPressure()}{ReliefNote(l)}");
+                $"{l.TopPressure()}{ReliefNote(l)}{QuestNote(l)}");
         }
         return sb.ToString();
+    }
+
+    static string QuestNote(LevelReport l)
+    {
+        if (l.QuestsCompleted <= 0) return "";
+        var reward = new List<string>();
+        if (l.QuestRewardXp > 0) reward.Add($"+{l.QuestRewardXp}xp");
+        if (l.QuestRewardMoney > 0) reward.Add($"+${l.QuestRewardMoney}");
+        if (l.QuestRewardGems > 0) reward.Add($"+{l.QuestRewardGems}gem");
+        if (l.QuestRewardResources > 0) reward.Add($"+{l.QuestRewardResources}res");
+        string r = reward.Count > 0 ? " " + string.Join(" ", reward) : "";
+        return $"  [quests {l.QuestsCompleted}{r}]";
     }
 
     static string ReliefNote(LevelReport l)

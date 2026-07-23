@@ -32,5 +32,11 @@
   "upgrades/*/tiers[*].effects[*].amount": { "min": 0, "max": 1000, "step": 1 },
 
   "levels[*].xpThreshold": { "min": 0, "max": 100000, "step": 1 },
-  "levels[*].grants[*].amount": { "min": 0, "max": 100000, "step": 1 }
+  "levels[*].grants[*].amount": { "min": 0, "max": 100000, "step": 1 },
+
+  "quests/*/reward.xp": { "min": 0, "max": 1000, "step": 5 },
+  "quests/*/reward.money": { "min": 0, "max": 100000, "step": 10 },
+  "quests/*/reward.gems": { "min": 0, "max": 500, "step": 1 },
+  "quests/*/goal.amount": { "min": 1, "max": 100000, "step": 1 },
+  "quests/*/conditions[*].amount": { "min": 1, "max": 100, "step": 1 }
 }

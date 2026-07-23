@@ -302,3 +302,79 @@ bar (matches Figma 04). Sole exception in the run = the known pre-existing `SFXM
 - Tool round-trip latency means many real seconds pass between `script-execute` calls — a 2.2s progress hold or a
   20s completion hold will have **already elapsed** by the next read. Read timers/alpha immediately, or drive +
   read in the *same* `script-execute`, not across calls.
+
+## Milestone 04 — Quests in the Headless Sim
+**Status:** ✅ Complete · **Date:** 2026-07-23
+
+**Built:** The offline balance tool (`tools/VoidDay.Balance`, .NET 9) now runs the **real** M1 quest rules in
+its sim. Because the tool globs `Assets/Core/**/*.cs` into its own compile, `QuestLog` ran headless with zero
+mirroring — the predicted "stray `using UnityEngine` in Core" stop point did **not** occur (Core quest files
+are clean).
+- **Schema:** `QuestConfig`/`QuestConditionConfig`/`QuestGoalConfig`/`QuestRewardConfig` + `BalanceConfig.Quests`.
+- **Reader:** `QuestRaw` DTOs + `GameConfigRaw.quests`; `EconomyReader.ReadQuests` (enums carried **by name** via
+  `EnumName<ConditionKind>`/`<GoalKind>`, reward `ResourceSO` refs resolved to ids) + `_questGuidById` back-map
+  (`QuestGuidById` accessor, for M5's writer).
+- **Harness:** `CoreHarness` constructs `QuestLog` right after `TimeSkip`, mirroring `GameBoot` 204-211 (same
+  bus + read handles + reward sinks + resourceName closure). `ConfigProjector.Quest` mirrors
+  `ModelProjector.ProjectQuest`.
+- **Collection:** new `Sim/QuestCollector.cs` — the sim's stand-in for the player's collect tap. It **enqueues**
+  completions; `SimRunner` drains them **top-level** at the loop head (`DrainCollections`). (Collecting
+  reentrantly inside the `QuestCompleted` dispatch stack-overflowed — see Gotchas.)
+- **Metrics:** `MetricsCollector` counts `QuestsCompleted` (on `QuestCompleted`) and attributes quest reward
+  income (`QuestReward{Xp,Money,Gems,Resources}`, on `QuestCollected`, from the config reward table);
+  `SimResult.LevelReport` surfaces all five; the text `Render` adds a `[quests N +Xxp +$Y +Zres]` note.
+- **Knobs + metrics + contract:** `ConfigPath` gained the `quests` collection (`quests/<id>/reward.xp`,
+  `.../goal.amount`, `.../conditions[0].amount`); `bounds.json` allowlists them; `quest.completions` +
+  `quest.rewardShare` goal metrics added to `GoalEvaluator`/`Goal`; `AGENTS.md` documents the metrics, the path
+  grammar and the bounds in lockstep (the skill forbids inventing metrics).
+- **Parity:** adding `QuestLog` to the harness reconciles the Core graph; `GameBootParityTests` hash re-stamped
+  `bde1702`→`5043016` (`33a3c2f2…`). Full tool suite **47/47**.
+
+**Deviations from the plan:**
+- **Quest scalar knob paths use the actual slash grammar `quests/<id>/reward.xp`** (like `recipes`/`upgrades`),
+  not the doc's shorthand `quests/<id>.reward.xp` — the `/` delimits id from member, consistent with every
+  other collection. Same knobs, correct spelling.
+- **The sim auto-collects a completed quest** (the doc assumed rewards "flow automatically", but collection is a
+  manual `CollectQuestRequested` intent the `PlayerAgent` never issues — so without this, reward income is
+  always zero and DoD#2 fails). Uses M1's **existing** intent — no new event. Immediate + untimed (models the
+  economic fact only; the sim ignores UI, per project memory). See the stack-overflow gotcha below.
+- **Spliced the 3 quests into the committed `versions/baseline.json`** (tuning untouched, +70 lines only) so the
+  **default** `sim`/`eval`/session path exercises quests. `read --out` was **not** used to regenerate baseline —
+  that would silently re-tune it to the (different) live Unity economy.
+
+**Tech debt / FLAGS (M5 inherits):**
+- **`QuestConfig` shape, `QuestRaw` mapping, `quest.completions`/`quest.rewardShare` metrics, and the
+  `quests/*/…` bounds are new surfaces M5's write-back + skill build on.** `quest.rewardShare` is **money-only**
+  (quest reward money ÷ level money earned).
+- **`OptimalityMonotonicity` was scoped to the quest-free economy** (`config.Quests.Clear()`). Splicing quests
+  into baseline broke it: at optimality 1.0 only **2** quests complete (the perfect player grows corn for
+  orders and **skips** the wheat-harvest quest, banking less XP and finishing **slower**, 3189s, than the 0.65
+  player at 2663s). That is a **real economy interaction** between an action-specific quest reward and the
+  optimality dial, not a dial regression — and the guard's documented intent is the *dial*, orthogonal to
+  quests (with `Quests` empty the sim path is byte-identical to pre-quest). **M5 should weigh** whether
+  action-rewarding quests + the monotonicity guard need reconciling, and whether `progression-v1.json` (the
+  other tracked config, still quest-free) should also carry quests.
+- **`versions/live.json` is a transient `read` dump** (uncommitted). The default read `--out` is
+  `versions/live.json`; `--config live` sims it.
+
+**Assumptions:**
+- **Auto-collect is immediate and untimed** — an always-present optimal player collects a ready quest at once,
+  and the sim charges no action-time for it. If M5 wants collection to cost sim time or be optimality-gated,
+  it becomes a `PlayerAgent` decision (new `AgentDecision.T`, runner case) rather than a reflex drain.
+- **Completions are counted on `QuestCompleted`, reward income on `QuestCollected`** (one loop-iteration later,
+  top-level). If a level boundary falls between the two, a completion and its reward can attribute to adjacent
+  levels — acceptable for a sim, and rare.
+
+**Gotchas for later milestones:**
+- **Auto-collect MUST stay top-level, never reentrant.** Collecting straight inside the `QuestCompleted`
+  dispatch **stack-overflows**: the completion fires inside a `MoneyChanged`→level-up→`AwardXp` cascade, and the
+  reward's own XP levels up → grants money → completes another quest → collects again, without bound. The game
+  never hits this because the player collects at a discrete tap; `QuestCollector` enqueues and `SimRunner`
+  drains at the loop head to reproduce that altitude.
+- **`sim`/`eval`/`session` read a *saved* config (default `versions/baseline.json`), not live Unity.** After any
+  quest asset change, `read` to refresh a config before its quests show up in a sim. `baseline.json` is a
+  **pre-quest tuned snapshot** that differs materially from live Unity (storage cap, XP curve, unlock levels) —
+  do **not** `read --out versions/baseline.json` to "fix" it; that re-tunes the canonical config.
+- **Enums are carried by name at the reader seam** (`EnumName<>`), parsed back by name in `ConfigProjector`
+  (`Enum.Parse`). A reordered Core enum can't silently reassign a quest kind — but the quest `.asset` files
+  still serialise the enum **by integer index** (append-only, same as M1's warning).
