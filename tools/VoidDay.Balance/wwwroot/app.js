@@ -6,10 +6,10 @@
 // edits + recipe insertion and refuses the rest — so the push modal shows either a change summary or
 // the writer's refusal verbatim, never silently dropping an edit.
 //
-// No build step: htm + preact are vendored as one ESM file (spec M04). Charts are M06 — this screen
-// edits and can trigger a raw sim table, but draws nothing.
+// No build step: htm + preact are vendored as one ESM file (spec M04). Charts (M06) use Chart.js 4.x,
+// vendored as a UMD global (window.Chart, loaded by a <script> in index.html) — no CDN, no npm.
 import {
-  html, render, useState, useEffect,
+  html, render, useState, useEffect, useRef,
 } from '/vendor/htm-preact-standalone.module.js';
 
 // ---- the vocabularies the game actually honours ----
@@ -42,6 +42,8 @@ const putConfig = (name, config) => api('PUT', `/api/config?name=${encodeURIComp
 const saveAsVersion = (name, config) => api('POST', '/api/versions', { name, config });
 const deleteVersion = (name) => api('DELETE', `/api/versions?name=${encodeURIComponent(name)}`);
 const runSim = (config) => api('POST', '/api/sim', { config, seed: 1 });
+// M06: a multi-seed sweep — server returns { sweep: aggregate, seeds: [{seed,table,…}] }.
+const runSweep = (config, seeds, profile) => api('POST', '/api/sim', { config, seeds: Number(seeds), profile });
 const planWrite = (config, apply) => api('POST', '/api/write', { config, apply });
 
 // ================= validation (mirrors BootValidator, client-side) =================
@@ -348,12 +350,300 @@ function Modal({ title, onClose, children, actions }) {
   </div>`;
 }
 
+// ================= M06 reports: sweep charts + A/B comparison =================
+// The browser holds NO economy logic here either: it POSTs a config to /api/sim with a seed count and
+// renders the aggregate the server computes. Chart.js is a UMD global (window.Chart). A is the primary
+// (baseline) config; B is the optional candidate. Charts 1 and 3 overlay both; the heatmap, composition
+// and purchase-timeline show A (spec M06: "charts 1 and 3 overlay both").
+const ACC = '#5aa6ff';      // config A
+const AMB = '#e0a83b';      // config B
+const BAND_A = 'rgba(90,166,255,0.18)';
+const BAND_B = 'rgba(224,168,59,0.16)';
+const OKC = '#6bbf8a';
+const GRIDC = 'rgba(255,255,255,0.07)';
+const TICKC = '#8b93a3';
+
+const PROFILES = ['typical', 'perfect'];
+const minutes = (s) => s / 60;
+const round2 = (v) => Math.round(v * 100) / 100;
+
+// Align two sweeps on the union of the levels they reached (a config that stalls short leaves gaps, not lies).
+function levelUnion(...sweeps) {
+  const s = new Set();
+  sweeps.forEach((sw) => sw && sw.Levels.forEach((l) => s.add(l.Level)));
+  return [...s].sort((a, b) => a - b);
+}
+function byLevel(sw) {
+  const m = {};
+  sw.Levels.forEach((l) => { m[l.Level] = l; });
+  return m;
+}
+// Every pressure family either sweep recorded, sorted — the heatmap/delta columns.
+function familyUnion(...sweeps) {
+  const s = new Set();
+  sweeps.forEach((sw) => sw && sw.Levels.forEach((l) => Object.keys(l.Pressure).forEach((f) => s.add(f))));
+  return [...s].sort();
+}
+
+function baseOptions(yTitle, extra) {
+  return {
+    responsive: true,
+    maintainAspectRatio: false,
+    animation: false,
+    interaction: { mode: 'index', intersect: false },
+    plugins: {
+      legend: { labels: { color: TICKC, boxWidth: 12, font: { size: 11 } } },
+      tooltip: { callbacks: {} },
+    },
+    scales: {
+      x: { ticks: { color: TICKC }, grid: { color: GRIDC }, stacked: !!(extra && extra.stacked) },
+      y: {
+        beginAtZero: true, stacked: !!(extra && extra.stacked),
+        title: { display: !!yTitle, text: yTitle, color: TICKC },
+        ticks: { color: TICKC }, grid: { color: GRIDC },
+      },
+    },
+    ...(extra && extra.options ? extra.options : {}),
+  };
+}
+
+// Two transparent line datasets forming a shaded p10–p90 band (spec M06: "two line datasets with fill: '-1'").
+function bandDatasets(labels, sw, sel, band, tag) {
+  const map = byLevel(sw);
+  const p90 = labels.map((n) => (map[n] ? sel(map[n]).P90 : null));
+  const p10 = labels.map((n) => (map[n] ? sel(map[n]).P10 : null));
+  return [
+    { type: 'line', label: `${tag} p90`, data: p90, borderColor: 'transparent', pointRadius: 0, fill: false, spanGaps: false },
+    { type: 'line', label: `${tag} p10–p90`, data: p10, borderColor: 'transparent', pointRadius: 0, backgroundColor: band, fill: '-1', spanGaps: false },
+  ];
+}
+function medianSeries(labels, sw, sel) {
+  const map = byLevel(sw);
+  return labels.map((n) => (map[n] ? sel(map[n]).Median : null));
+}
+
+// Chart 1 — time per level: median bar + p10–p90 band (the headline).
+function makeTimePerLevel(A, B) {
+  const lv = levelUnion(A, B);
+  const labels = lv.map((n) => `L${n}`);
+  const durMin = (l) => ({ Median: minutes(l.Duration.Median), P10: minutes(l.Duration.P10), P90: minutes(l.Duration.P90) });
+  const ds = [];
+  ds.push(...bandDatasets(lv, A, durMin, BAND_A, 'A'));
+  ds.push({ type: 'bar', label: B ? 'A median' : 'median (min)', data: medianSeries(lv, A, durMin), backgroundColor: ACC });
+  if (B) {
+    ds.push(...bandDatasets(lv, B, durMin, BAND_B, 'B'));
+    ds.push({ type: 'bar', label: 'B median', data: medianSeries(lv, B, durMin), backgroundColor: AMB });
+  }
+  return { type: 'bar', data: { labels, datasets: ds }, options: baseOptions('minutes') };
+}
+
+// Chart 2 — time composition: acting vs waiting per level (A), stacked.
+function makeComposition(A) {
+  const lv = levelUnion(A);
+  const labels = lv.map((n) => `L${n}`);
+  const map = byLevel(A);
+  return {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        { label: 'acting (min)', data: lv.map((n) => minutes(map[n].Acting.Median)), backgroundColor: ACC },
+        { label: 'waiting (min)', data: lv.map((n) => minutes(map[n].Waiting.Median)), backgroundColor: TICKC },
+      ],
+    },
+    options: baseOptions('minutes', { stacked: true }),
+  };
+}
+
+// Chart 3 — money entry/exit per level, with band; A/B overlays both configs' exit + entry lines.
+function makeMoney(A, B) {
+  const lv = levelUnion(A, B);
+  const labels = lv.map((n) => `L${n}`);
+  const ds = [];
+  if (!B) {
+    ds.push(...bandDatasets(lv, A, (l) => l.MoneyExit, BAND_A, 'exit'));
+    ds.push({ type: 'line', label: '$ exit (median)', data: medianSeries(lv, A, (l) => l.MoneyExit), borderColor: AMB, backgroundColor: AMB, pointRadius: 2, fill: false });
+    ds.push({ type: 'line', label: '$ entry (median)', data: medianSeries(lv, A, (l) => l.MoneyEntry), borderColor: OKC, backgroundColor: OKC, pointRadius: 2, fill: false });
+  } else {
+    ds.push({ type: 'line', label: 'A $ exit', data: medianSeries(lv, A, (l) => l.MoneyExit), borderColor: ACC, backgroundColor: ACC, pointRadius: 2, fill: false });
+    ds.push({ type: 'line', label: 'A $ entry', data: medianSeries(lv, A, (l) => l.MoneyEntry), borderColor: ACC, borderDash: [4, 3], pointRadius: 0, fill: false });
+    ds.push({ type: 'line', label: 'B $ exit', data: medianSeries(lv, B, (l) => l.MoneyExit), borderColor: AMB, backgroundColor: AMB, pointRadius: 2, fill: false });
+    ds.push({ type: 'line', label: 'B $ entry', data: medianSeries(lv, B, (l) => l.MoneyEntry), borderColor: AMB, borderDash: [4, 3], pointRadius: 0, fill: false });
+  }
+  return { type: 'line', data: { labels, datasets: ds }, options: baseOptions('$') };
+}
+
+// Chart 5 — purchase timeline: for each remedy, the level at which it is first bought (p10–p90 floating bar).
+function makePurchaseTimeline(A) {
+  const ps = A.Purchases;
+  const labels = ps.map((p) => `${p.Kind} ${p.Target.replace(/^field\.|^silo\.|Job\(|\)$/g, '')}`);
+  const opts = baseOptions('level', {
+    options: {
+      indexAxis: 'y',
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: (ctx) => {
+          const p = ps[ctx.dataIndex];
+          return [`median L${round2(p.FirstLevel.Median)}`, `p10 L${round2(p.FirstLevel.P10)} – p90 L${round2(p.FirstLevel.P90)}`,
+            `${p.SeedsBought} seed(s) · for ${p.ForPressure}`];
+        } } },
+      },
+    },
+  });
+  // Horizontal chart: swap the axis roles so x is the level.
+  opts.scales = {
+    x: { beginAtZero: true, title: { display: true, text: 'level', color: TICKC }, ticks: { color: TICKC }, grid: { color: GRIDC } },
+    y: { ticks: { color: TICKC, font: { size: 11 } }, grid: { color: GRIDC } },
+  };
+  return {
+    type: 'bar',
+    data: { labels, datasets: [{ label: 'first-bought level', data: ps.map((p) => [p.FirstLevel.P10, p.FirstLevel.P90]), backgroundColor: BAND_A, borderColor: ACC, borderWidth: 1, borderSkipped: false }] },
+    options: opts,
+  };
+}
+
+function ChartBox({ title, make, deps, span, height }) {
+  const cvs = useRef(null);
+  const chart = useRef(null);
+  useEffect(() => {
+    if (chart.current) { chart.current.destroy(); chart.current = null; }
+    if (cvs.current && window.Chart) chart.current = new window.Chart(cvs.current, make());
+    return () => { if (chart.current) { chart.current.destroy(); chart.current = null; } };
+  }, deps);
+  return html`<div class="card ${span ? 'span2' : ''}"><h3>${title}</h3>
+    <div class="chartwrap" style="height:${height || 260}px"><canvas ref=${cvs}></canvas></div></div>`;
+}
+
+// Chart 4 — pressure heatmap (level × family, gross seconds lost). An HTML/CSS table, not a Chart.js chart:
+// it needs a 2-D colour grid with no extra vendored plugin, and reads better than any line chart would.
+function Heatmap({ A }) {
+  const lv = levelUnion(A);
+  const fams = familyUnion(A);
+  const map = byLevel(A);
+  let max = 0;
+  lv.forEach((n) => fams.forEach((f) => { const v = map[n].Pressure[f]; if (v) max = Math.max(max, v.Median); }));
+  const cellBg = (v) => {
+    if (!v || max <= 0) return 'transparent';
+    const a = 0.12 + 0.75 * Math.sqrt(v / max); // sqrt so mid values stay legible
+    return `rgba(224,96,96,${a})`;
+  };
+  return html`<div class="card span2"><h3>Pressure heatmap — level × category (gross seconds lost)</h3>
+    <div class="tblwrap"><table class="heat">
+      <thead><tr><th>Lvl</th>${fams.map((f) => html`<th>${f}</th>`)}</tr></thead>
+      <tbody>${lv.map((n) => html`<tr><td class="lvl">L${n}</td>
+        ${fams.map((f) => {
+          const v = map[n].Pressure[f] ? map[n].Pressure[f].Median : 0;
+          return html`<td class="cell" style="background:${cellBg(v)}" title="L${n} ${f}: ${round2(v)}s (median of ${map[n].SeedsReached} seeds)">${v >= 1 ? Math.round(v) : ''}</td>`;
+        })}</tr>`)}</tbody>
+    </table></div>
+    <p class="hint">Gross of gem relief (M03 invariant). Parametrised keys (Capacity:field, Supply:corn) are aggregated into families.</p>
+  </div>`;
+}
+
+function SeedStrip({ label, seeds, onOpen }) {
+  return html`<div class="card"><h3>${label} — ${seeds.length} seeds (click to open a run)</h3>
+    <div class="seedstrip">${seeds.map((s) => html`<button title="stop: ${s.stop}"
+      onClick=${() => onOpen(s)}>#${s.seed} · L${s.levelReached} · ${s.totalMinutes.toFixed(1)}m</button>`)}</div>
+  </div>`;
+}
+
+// Per-level A→B delta table. Self-vs-self must read all-zero (the control that proves the tool measures the
+// game, not seed noise) — so an exact zero renders as "—", not "+0.00".
+function DeltaTable({ A, B }) {
+  const lv = levelUnion(A, B);
+  const fams = familyUnion(A, B);
+  const ma = byLevel(A); const mb = byLevel(B);
+  const cell = (a, b, digits) => {
+    if (a == null || b == null) return html`<td class="zero">·</td>`;
+    const d = b - a;
+    const cls = d > 0 ? 'up' : (d < 0 ? 'down' : 'zero');
+    const txt = d === 0 ? '—' : `${d > 0 ? '▲ +' : '▼ '}${d.toFixed(digits)}`;
+    return html`<td class=${cls}>${txt}</td>`;
+  };
+  const get = (m, n, sel) => (m[n] ? sel(m[n]) : null);
+  return html`<div class="card span2"><h3>Per-level delta — B minus A (▲ up, ▼ down)</h3>
+    <div class="tblwrap"><table class="delta">
+      <thead><tr><th>Lvl</th><th>Δ duration (min)</th><th>Δ $ exit</th>
+        ${fams.map((f) => html`<th>Δ ${f} (s)</th>`)}</tr></thead>
+      <tbody>${lv.map((n) => html`<tr>
+        <td class="ro">L${n}</td>
+        ${cell(get(ma, n, (l) => minutes(l.Duration.Median)), get(mb, n, (l) => minutes(l.Duration.Median)), 2)}
+        ${cell(get(ma, n, (l) => l.MoneyExit.Median), get(mb, n, (l) => l.MoneyExit.Median), 0)}
+        ${fams.map((f) => cell(
+          ma[n] ? (ma[n].Pressure[f] ? ma[n].Pressure[f].Median : 0) : null,
+          mb[n] ? (mb[n].Pressure[f] ? mb[n].Pressure[f].Median : 0) : null, 1))}
+      </tr>`)}</tbody>
+    </table></div></div>`;
+}
+
+function Reports({ versions }) {
+  const [aName, setAName] = useState('baseline');
+  const [bName, setBName] = useState('');
+  const [seeds, setSeeds] = useState(30);
+  const [profile, setProfile] = useState('typical');
+  const [data, setData] = useState(null); // { A:{sweep,seeds}, B:{sweep,seeds}|null }
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+  const [openSeed, setOpenSeed] = useState(null);
+
+  const run = async () => {
+    setBusy(true); setError(null); setData(null);
+    try {
+      const cfgA = await getConfig(aName);
+      const A = await runSweep(cfgA, seeds, profile);
+      let B = null;
+      if (bName) { const cfgB = await getConfig(bName); B = await runSweep(cfgB, seeds, profile); }
+      setData({ A, B });
+    } catch (e) { setError(e.message); }
+    setBusy(false);
+  };
+
+  const A = data && data.A ? data.A.sweep : null;
+  const B = data && data.B ? data.B.sweep : null;
+  const deps = [data];
+
+  return html`
+    <div class="rep-controls">
+      ${Fld({ label: 'A (baseline)', children: html`<select value=${aName} onChange=${(e) => setAName(e.target.value)}>
+        ${versions.map((v) => html`<option value=${v}>${v}</option>`)}</select>` })}
+      ${Fld({ label: 'B (candidate, optional)', children: html`<select value=${bName} onChange=${(e) => setBName(e.target.value)}>
+        <option value="">— none —</option>${versions.map((v) => html`<option value=${v}>${v}</option>`)}</select>` })}
+      ${Fld({ label: 'Seeds', children: html`<input type="number" value=${seeds} min="1" max="200"
+        onInput=${(e) => setSeeds(e.target.value === '' ? 1 : Number(e.target.value))} />` })}
+      ${Fld({ label: 'Profile', children: html`<select value=${profile} onChange=${(e) => setProfile(e.target.value)}>
+        ${PROFILES.map((p) => html`<option value=${p}>${p}</option>`)}</select>` })}
+      <button class="primary" onClick=${run} disabled=${busy}>${busy ? 'Running…' : `Run ${seeds}-seed sweep`}</button>
+    </div>
+    ${error ? html`<div class="errs"><b>Sweep error</b><div>${error}</div></div>` : null}
+    ${busy ? html`<p class="muted">Running ${seeds} seeds${bName ? ' × 2 configs' : ''}…</p>` : null}
+    ${A ? html`
+      <div class="legend">
+        <span><span class="swatch" style="background:${ACC}"></span>${A.ConfigName} (A) — median ${A.TotalMinutes.Median.toFixed(1)}m, reached L${A.LevelReached.Median}</span>
+        ${B ? html`<span><span class="swatch" style="background:${AMB}"></span>${B.ConfigName} (B) — median ${B.TotalMinutes.Median.toFixed(1)}m, reached L${B.LevelReached.Median}</span>` : null}
+      </div>
+      <div class="chart-grid">
+        <${ChartBox} title="Time per level (median + p10–p90)" make=${() => makeTimePerLevel(A, B)} deps=${deps} />
+        <${ChartBox} title="Money — entry & exit per level" make=${() => makeMoney(A, B)} deps=${deps} />
+        <${ChartBox} title="Time composition — acting vs waiting (A)" make=${() => makeComposition(A)} deps=${deps} />
+        <${ChartBox} title="Purchase timeline — first-bought level (A)" make=${() => makePurchaseTimeline(A)} deps=${deps} height=${Math.max(160, 28 * A.Purchases.length + 40)} />
+        <${Heatmap} A=${A} />
+        ${B ? html`<${DeltaTable} A=${A} B=${B} />` : null}
+      </div>
+      <${SeedStrip} label=${`${A.ConfigName} (A)`} seeds=${data.A.seeds} onOpen=${(s) => setOpenSeed({ which: 'A', s })} />
+      ${B ? html`<${SeedStrip} label=${`${B.ConfigName} (B)`} seeds=${data.B.seeds} onOpen=${(s) => setOpenSeed({ which: 'B', s })} />` : null}
+    ` : (!busy ? html`<p class="muted">Pick a version and run a sweep. Add a B config to overlay and compare.</p>` : null)}
+    ${openSeed ? html`<${Modal} title=${`Seed #${openSeed.s.seed} (${openSeed.which}) — reproduces \`balance sim --seed ${openSeed.s.seed}\``}
+      onClose=${() => setOpenSeed(null)} actions=${html`<button class="primary" onClick=${() => setOpenSeed(null)}>Close</button>`}>
+      <pre>${openSeed.s.table}</pre></${Modal}>` : null}`;
+}
+
 // ================= app =================
 function App() {
   const [versions, setVersions] = useState([]);
   const [name, setName] = useState(null);
   const [config, setConfig] = useState(null);
   const [dirty, setDirty] = useState(false);
+  const [mode, setMode] = useState('edit'); // 'edit' | 'reports'
   const [tab, setTab] = useState('Global');
   const [, setTick] = useState(0);
   const [modal, setModal] = useState(null); // {kind, ...}
@@ -420,31 +710,39 @@ function App() {
 
   if (!config) return html`<main><p class="muted">Loading baseline…</p></main>`;
   const View = TAB_VIEWS[tab];
+  const reports = mode === 'reports';
 
   return html`
     <header>
       <h1>VoidDay Balance</h1>
       <div class="toolbar">
+        <button class=${!reports ? 'primary' : ''} onClick=${() => setMode('edit')}>Edit</button>
+        <button class=${reports ? 'primary' : ''} onClick=${() => setMode('reports')}>Reports</button>
+      </div>
+      ${!reports ? html`<div class="toolbar">
         <label class="muted">version</label>
         <select value=${name} onChange=${(e) => load(e.target.value)}>
           ${versions.map((v) => html`<option value=${v}>${v}</option>`)}
         </select>
         ${dirty ? html`<span class="dirty">● unsaved</span>` : null}
-      </div>
+      </div>` : null}
       <div class="grow"></div>
-      <div class="toolbar">
+      ${!reports ? html`<div class="toolbar">
         <button onClick=${doSave} disabled=${invalid || !dirty}>Save</button>
         <button onClick=${doSaveAs} disabled=${invalid}>Save as…</button>
         <button class="danger" onClick=${doDelete} disabled=${name === 'baseline'}>Delete</button>
         <button onClick=${doSim}>Run sim</button>
         <button class="primary" onClick=${doPush} disabled=${invalid}>Push to Unity…</button>
-      </div>
+      </div>` : null}
     </header>
-    <nav>${TABS.map((t) => html`<button class=${t === tab ? 'active' : ''} onClick=${() => setTab(t)}>${t}</button>`)}</nav>
-    <main>
+    ${!reports ? html`<nav>${TABS.map((t) => html`<button class=${t === tab ? 'active' : ''} onClick=${() => setTab(t)}>${t}</button>`)}</nav>` : null}
+    <main class=${reports ? 'reports' : ''}>
+      ${reports
+    ? html`<${Reports} versions=${versions} />`
+    : html`
       ${invalid ? html`<div class="errs"><b>${errors.length} validation error(s)</b> — fix before saving or pushing.
         <ul>${errors.map((x) => html`<li>${x}</li>`)}</ul></div>` : null}
-      <${View} c=${config} force=${force} />
+      <${View} c=${config} force=${force} />`}
     </main>
     ${modal ? html`<${ModalHost} modal=${modal} close=${() => setModal(null)} confirmPush=${confirmPush} />` : null}`;
 }

@@ -292,3 +292,44 @@ _(sha not recorded here — the entry ships inside its own commit; the milestone
 - **`runs.jsonl`** lives at `tools/VoidDay.Balance/runs.jsonl`, **gitignored** (runtime log, grows per eval). M07 restructures it into sessions; today it is a flat global log. Never stage it.
 - **Only `eval` journals.** `sweep` runs N internal evals but records none (it is a sensitivity scan, not a decision). `patch` writes a config, not a journal line.
 - **No automated search built** (deliberate — Do NOT Build). The verbs are primitives an external agent composes; the M07 skill drives the loop.
+
+## Milestone 06 — Reports & Comparison
+**Status:** ✅ Complete · **Date:** 2026-07-22
+_(sha not recorded here — the entry ships inside its own commit; the milestone number in the commit message is the link.)_
+
+**Built:**
+- **`Sim/SimSweep.cs`** — N seeds (fixed set `1..N`) via `Parallel.For` into a seed-ordered array, reduced to median/p10/p90 per level (duration, acting, waiting, money entry/exit) + per-family gross pressure. `PurchaseAgg` = median/p10/p90 of the level each remedy is *first* bought (seeds that never bought it are excluded, not counted as level 0). Individual `SimResult`s retained. Adds NO sim behaviour — pure aggregation over M03's runner.
+- **`LevelReport.PressureFamilies()`** (Schema) — the parametrised-key→family rule (`Capacity:field`→`Capacity`) moved onto the data object so the heatmap and the M05 loss aggregate pressure identically. `GoalEvaluator.Families` unchanged in behaviour.
+- **`POST /api/sim` extended:** `seeds > 1` ⇒ `{ sweep: aggregate, seeds: [{seed, levelReached, totalMinutes, stop, table}] }`; absent/1 ⇒ the original single-seed `{result, table}` (back-compat).
+- **Chart.js 4.4.6 UMD vendored** → `wwwroot/vendor/chart.umd.js` (MIT, 206 KB), loaded as a `<script>` global — no CDN, no npm, no build.
+- **`wwwroot/app.js` Reports mode** (Edit/Reports header toggle): A/B version pickers + seed count + profile + Run. Five views — (1) time/level median bar + p10–p90 band, (2) money entry/exit with band, (3) acting-vs-waiting stacked, (4) **pressure heatmap** (level×family, gross), (5) purchase timeline (first-bought level floating `[p10,p90]` bar). A/B overlays charts 1 & 3 and adds a **per-level B−A delta table**. Seed strip → click opens that seed's exact CLI table in a modal.
+- Tests: `SweepIsDeterministic` (byte-identical aggregate despite `Parallel.For`), `SweepBandIsNonDegenerate`, `SweepSeedMatchesSingleRun`. **29/29 pass.**
+
+**Verified** (`dotnet test` + live server via python/curl driver; no Unity; **no live browser — Chrome extension not connected**):
+- 30-seed sweep on baseline: median 57 m, band non-degenerate (19/20 duration bands have width), families aggregate correctly, purchase timeline populated, drill-in seed table **byte-equal** to the single-seed `/api/sim` and to `sim --seed n`.
+- **Control passes exactly:** A/B of baseline vs an identical copy → every level delta **exactly 0** (renders "—").
+- Chart builders exercised in node against the live sweep JSON (single + A/B) → all produce well-formed datasets, no undefined field access. `node --check` clean on `app.js` + `chart.umd.js`.
+- **NOT verified:** live browser rendering (no extension) — the data the charts consume is confirmed correct; the visual draw is not.
+
+**Deviations from the plan:**
+- **★ Three directional DoD/How-to-Test cases do not fire on baseline — because baseline's economy does not exercise those paths, exactly as M03's LOG documented.** The comparison machinery is correct (control = 0; the slow-orders case below shows a real, dramatic delta), but:
+  - *Halved build costs* → does **not** drop time-to-level or `Capacity` pressure. Baseline runs on the pre-placed field's self-sustaining corn loop and barely builds, so build cost is nearly inert (M03: "orders are always corn and never require a built station").
+  - *All `unlockLevel`=10* → **no** `Unlock`/`Supply` pressure appears (a single-seed run emits only `Capacity:field`/`Yield:field`); the player never needs a locked station, so locking them costs nothing.
+  - *`refillSeconds`=600, `slotCount`=1* → `OrderRefill` climbs **enormously** (0→~14 000 s, dominant — this one strongly confirms the heatmap "explain a category from the config"), but `Income` does **not** climb (pressure categories partition per-slice; OrderRefill absorbs the wait).
+  These are M03 sim facts, and M06 must not change the sim. **Not fixed by design.** The verifiable heatmap/A-B evidence comes from the slow-orders case and the exact-zero control.
+- **Heatmap is an HTML/CSS colour table, not a Chart.js chart** — a 2-D grid needs no extra vendored plugin (`chartjs-chart-matrix`) and reads better. The other four views are Chart.js.
+- **`/api/sim` kept back-compatible** rather than replaced — single-seed clients (CLI-shaped modal, M04) still get `{result, table}`.
+
+**Tech debt:**
+- No parallelism cap on `SimSweep` — `Parallel.For` uses the default scheduler; fine for 30 seeds on localhost.
+- A/B overlay is limited to charts 1 (time) and 3 (money) per the doc; charts 2/4/5 show config A only.
+
+**Assumptions:**
+- The vendored Chart.js UMD auto-registers all controllers on load (the full `chart.umd.js` build does) — so `new window.Chart(canvas, cfg)` needs no `Chart.register(...)`. Not confirmed in a live browser (extension offline); the config objects are validated structurally in node.
+- `Parallel.For` never makes a seed's result depend on scheduling — held by SimSweep determinism test (byte-identical aggregate across two runs).
+
+**Gotchas for later milestones:**
+- **★ Sweep endpoint contract (M07 inherits):** `POST /api/sim` with `seeds>1` returns `{ sweep, seeds[] }`; `sweep` is the `SimSweep.Aggregate` (`Levels[].{Duration,Acting,Waiting,MoneyEntry,MoneyExit}` as `{Median,P10,P90}`, `Levels[].Pressure{family→Stat}` gross, `Purchases[].FirstLevel` Stat, `TotalMinutes`/`LevelReached` Stat). `seeds[]` carries each run's rendered `table` so a seed opens without re-running.
+- **★ The pressure-family rule lives on `LevelReport.PressureFamilies()`** now — the heatmap and the loss share it. If a new parametrised pressure key is added, both pick it up for free; do not re-implement the split.
+- **★ Baseline is build-cost / unlock insensitive** (self-sustaining pre-placed corn field). Any milestone that wants to *demonstrate* Capacity/Unlock/Supply pressure must use a config that forces a built station into the money loop (e.g. a sellable good only a buildable station can produce), not baseline. This is the single most likely source of "the tool looks broken" confusion — it is the game, not the tool.
+- Chart.js is a **UMD global** (`window.Chart`), not an ESM import — it is loaded by a `<script>` before `app.js`. A new chart file must keep that pattern (the CSP/no-CDN rule bans an import from a CDN; the vendored UMD is the sanctioned path).

@@ -38,6 +38,21 @@ public sealed class LevelReport
     public Dictionary<string, double> Pressure = new();   // category ⇒ seconds lost, GROSS
     public List<PurchaseRecord> Purchases = new();
 
+    /// Aggregate parametrised pressure keys (Capacity:field, Yield:silo, Supply:corn) into families
+    /// (Capacity, Yield, Supply) so a consumer names a family without knowing every station/good suffix.
+    /// GROSS of gem relief — this reads Pressure, which is never netted. The single family rule the loss
+    /// evaluator and the M06 heatmap must share, so it lives on the data object both read.
+    public Dictionary<string, double> PressureFamilies()
+    {
+        var fam = new Dictionary<string, double>();
+        foreach (var kv in Pressure)
+        {
+            string f = kv.Key.Split(':')[0];
+            fam[f] = fam.GetValueOrDefault(f) + kv.Value;
+        }
+        return fam;
+    }
+
     /// The worst pressure category by gross seconds — the reported bottleneck (deterministic tie-break by name).
     public string TopPressure()
     {

@@ -127,8 +127,8 @@ public static class GoalEvaluator
     static string Cat(GoalTarget t) =>
         t.Category ?? throw new ArgumentException($"metric '{t.Metric}' needs a 'category'.");
 
-    /// Aggregate parametrised pressure keys (Capacity:field, Yield:silo, Supply:corn) into families
-    /// (Capacity, Yield, Supply) so a goal can name a family without knowing every station/good suffix.
+    /// Aggregate parametrised pressure keys into families. The rule lives on LevelReport so the M06 heatmap
+    /// aggregates identically — a family named in a goal and a family drawn in the heatmap must mean the same set.
     static Dictionary<string, double> Families(Dictionary<string, double> pressure)
     {
         var fam = new Dictionary<string, double>();

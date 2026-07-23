@@ -39,6 +39,7 @@
       background: none; padding: 9px 14px; color: var(--muted); }
     nav button.active { color: var(--fg); border-bottom-color: var(--accent); }
     main { padding: 16px; max-width: 1180px; }
+    main.reports { max-width: 1560px; }
     h2 { font-size: 15px; margin: 0 0 12px; font-weight: 600; }
     .card { background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
       padding: 14px 16px; margin-bottom: 16px; }
@@ -73,10 +74,35 @@
     .change .old { color: var(--err); } .change .new { color: var(--ok); }
     .muted { color: var(--muted); } .small { font-size: 12px; }
     .hint { color: var(--muted); font-size: 12px; margin: -4px 0 10px; }
+
+    /* ---- M06 reports ---- */
+    .rep-controls { display: flex; align-items: flex-end; gap: 14px; flex-wrap: wrap; margin-bottom: 16px; }
+    .rep-controls .fld { flex-direction: column; align-items: flex-start; gap: 3px; }
+    .rep-controls label { color: var(--muted); font-size: 12px; }
+    .chartwrap { position: relative; width: 100%; }
+    .chart-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 16px; }
+    .chart-grid .card { margin-bottom: 0; }
+    .span2 { grid-column: 1 / -1; }
+    /* heatmap */
+    .heat { border-collapse: collapse; }
+    .heat th, .heat td { border: 1px solid var(--line); padding: 4px 8px; text-align: center; font-size: 12px; }
+    .heat th { color: var(--muted); background: var(--panel2); }
+    .heat td.lvl { color: var(--muted); background: var(--panel2); font-weight: 600; }
+    .heat td.cell { color: #fff; font-variant-numeric: tabular-nums; cursor: default; }
+    /* seed strip */
+    .seedstrip { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 4px; }
+    .seedstrip button { padding: 3px 8px; font-size: 11px; font-variant-numeric: tabular-nums; }
+    .seedstrip button:hover { border-color: var(--accent); color: var(--accent); }
+    /* delta table */
+    .delta td.up { color: var(--err); } .delta td.down { color: var(--ok); } .delta td.zero { color: var(--muted); }
+    .delta td { font-variant-numeric: tabular-nums; }
+    .legend { display: flex; gap: 14px; flex-wrap: wrap; color: var(--muted); font-size: 12px; margin-bottom: 8px; }
+    .swatch { display: inline-block; width: 11px; height: 11px; border-radius: 2px; vertical-align: -1px; margin-right: 4px; }
   </style>
 </head>
 <body>
   <div id="app"></div>
+  <script src="/vendor/chart.umd.js"></script>
   <script type="module" src="/app.js"></script>
 </body>
 </html>

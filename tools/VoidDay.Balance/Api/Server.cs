@@ -98,7 +98,8 @@ public static class Server
             return Results.Content(JsonConvert.SerializeObject(new { saved = clean }), "application/json");
         });
 
-        // ---- sim: run one seed through the real runner, return the SimResult + rendered table ----
+        // ---- sim: single seed → { result, table }; or a multi-seed sweep (seeds > 1) → the aggregate plus
+        //       every per-seed run's summary+table, so a seed can be opened and reproduces its CLI output. ----
 
         app.MapPost("/api/sim", async (HttpRequest req) =>
         {
@@ -110,9 +111,26 @@ public static class Server
             var profile = profileName == "perfect" ? SimProfile.Perfect() : SimProfile.Typical();
             profile.Name = profileName;
             if (obj["optimality"] != null) profile.Optimality = (float)obj["optimality"]!;
-            int seed = obj["seed"] != null ? (int)obj["seed"]! : 1;
             bool gemsEnabled = obj["noGems"] == null || !(bool)obj["noGems"]!;
 
+            // seeds > 1 ⇒ multi-seed sweep (M06). Absent/1 ⇒ the original single-seed shape (M03/M04 clients).
+            int seedCount = obj["seeds"] != null ? (int)obj["seeds"]! : 0;
+            if (seedCount > 1)
+            {
+                var sweep = SimSweep.Run(config, profile, seedCount, gemsEnabled);
+                var seeds = sweep.SeedResults.Select(r => new
+                {
+                    seed = r.Seed,
+                    levelReached = r.LevelReached,
+                    totalMinutes = r.TotalSeconds / 60.0,
+                    stop = r.Stop.ToString(),
+                    table = SimRunner.Render(r),
+                }).ToList();
+                var sweepPayload = new { sweep = sweep.Aggregate, seeds };
+                return Results.Content(JsonConvert.SerializeObject(sweepPayload), "application/json");
+            }
+
+            int seed = obj["seed"] != null ? (int)obj["seed"]! : 1;
             var result = new SimRunner(config, profile, seed, gemsEnabled).Run();
             var payload = new { result, table = SimRunner.Render(result) };
             return Results.Content(JsonConvert.SerializeObject(payload), "application/json");

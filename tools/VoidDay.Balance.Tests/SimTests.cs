@@ -20,6 +20,38 @@ public sealed class SimTests
         Assert.Equal(JsonConvert.SerializeObject(a), JsonConvert.SerializeObject(b));
     }
 
+    // ---- The sweep is deterministic despite Parallel.For: same config ⇒ byte-identical aggregate on re-run.
+    // This is the M06 load-bearing invariant — an A/B delta is only meaningful if the sweep itself is stable.
+    [Fact]
+    public void SweepIsDeterministic()
+    {
+        var config = Baseline();
+        var a = SimSweep.Run(config, SimProfile.Typical(), 12, true);
+        var b = SimSweep.Run(config, SimProfile.Typical(), 12, true);
+        Assert.Equal(JsonConvert.SerializeObject(a.Aggregate), JsonConvert.SerializeObject(b.Aggregate));
+    }
+
+    // ---- The p10–p90 band is non-degenerate: with 30 seeds, at least one level's duration band has width.
+    // A degenerate band would mean the sweep ran the same stream 30 times (spec M06 DoD).
+    [Fact]
+    public void SweepBandIsNonDegenerate()
+    {
+        var agg = SimSweep.Run(Baseline(), SimProfile.Typical(), 30, true).Aggregate;
+        Assert.Contains(agg.Levels, l => l.Duration.P90 - l.Duration.P10 > 1.0);
+    }
+
+    // ---- Opening a seed reproduces the single-seed run exactly: the retained SeedResult for seed N equals
+    // a fresh SimRunner(seed N) — proving the drill-in shows real CLI output, not a re-aggregation.
+    [Fact]
+    public void SweepSeedMatchesSingleRun()
+    {
+        var config = Baseline();
+        var sweep = SimSweep.Run(config, SimProfile.Typical(), 5, true);
+        var seed3 = sweep.SeedResults.First(r => r.Seed == 3);
+        var direct = new SimRunner(config, SimProfile.Typical(), 3, true).Run();
+        Assert.Equal(JsonConvert.SerializeObject(direct), JsonConvert.SerializeObject(seed3));
+    }
+
     // ---- Lower optimality ⇒ never-faster runs (the dial's four mechanisms only ever add delay).
     [Fact]
     public void OptimalityMonotonicity()
