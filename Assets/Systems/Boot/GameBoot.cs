@@ -45,6 +45,7 @@ namespace VoidDay.Systems
         [SerializeField] SkipConfirmPopup skipConfirmPopup;
         [SerializeField] SfxController sfxController;
         [SerializeField] ToastController toastController;
+        [SerializeField] QuestMenuPanel questMenuPanel;
         [SerializeField] StationFlattenMask stationFlattenMask;
         [SerializeField] MusicManager musicManager;
 
@@ -199,6 +200,15 @@ namespace VoidDay.Systems
             var timeSkip = new TimeSkip(bus, gems, jobs, buildSystem, orderBoard,
                 config.secondsPerGem, config.minGemCost);
 
+            // The quest engine (§ quest system). Pure Core, so M4's balance sim compiles it in for free. It
+            // reads level / resources for its grant gates and pays rewards through the existing sinks; the
+            // resourceName lookup feeds the generated descriptions ("Harvest 10 wheat").
+            var questModels = new List<QuestModel>(config.quests.Count);
+            foreach (var q in config.quests) questModels.Add(ModelProjector.ProjectQuest(q));
+            var questLog = new QuestLog(bus, questModels, () => progression.PlayerLevel, pool, upgrades,
+                wallet, gems, progression,
+                id => resourceModels.TryGetValue(id, out var m) ? m.DisplayName : id);
+
             // Grid is centered on the world origin; the camera only needs its world-space extents for pan bounds.
             cameraController.Init(Vector3.zero, config.gridCols * config.cellSize, config.gridRows * config.cellSize, bus, roots);
             producer.Init(bus, jobs, pool, wallet, startingCounts);
@@ -226,6 +236,7 @@ namespace VoidDay.Systems
             skipConfirmPopup.Init(bus, timeSkip, gems);
             sfxController.Init(bus);
             toastController.Init(bus);
+            questMenuPanel.Init(bus, questLog);
             stationFlattenMask.Init(bus, roots);
             musicManager.Init(bus);
 
@@ -265,6 +276,7 @@ namespace VoidDay.Systems
             Require(skipConfirmPopup, nameof(skipConfirmPopup));
             Require(siloPanel, nameof(siloPanel));
             Require(sfxController, nameof(sfxController));
+            Require(questMenuPanel, nameof(questMenuPanel));
             Require(stationFlattenMask, nameof(stationFlattenMask));
             Require(musicManager, nameof(musicManager));
         }

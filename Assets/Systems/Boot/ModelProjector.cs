@@ -95,6 +95,25 @@ namespace VoidDay.Systems
             return so.inputs.Count == 0 ? $"Fallow {output}" : output;
         }
 
+        /// Quest → Core model (§ quest system). Conditions and goal carry across as plain (kind, amount, arg)
+        /// rows; reward resource grants drop their ResourceSO handle for the resource id Core speaks.
+        public static QuestModel ProjectQuest(QuestSO so)
+        {
+            var conditions = new List<QuestConditionModel>(so.conditions.Count);
+            foreach (var c in so.conditions)
+                conditions.Add(new QuestConditionModel(c.kind, c.amount, c.arg));
+
+            var goal = new QuestGoalModel(so.goal.kind, so.goal.amount, so.goal.targetId);
+
+            var resources = new List<ResourceAmount>();
+            if (so.reward.resources != null)
+                foreach (var g in so.reward.resources)
+                    resources.Add(new ResourceAmount(g.resource.id, g.amount));
+            var reward = new QuestRewardModel(so.reward.xp, so.reward.money, so.reward.gems, resources);
+
+            return new QuestModel(so.id, conditions, goal, reward);
+        }
+
         public static RecipeModel Project(RecipeSO so) =>
             new RecipeModel(so.id, so.stationType, Flatten(so.inputs), Flatten(so.outputs), so.duration,
                 so.unlockLevel);

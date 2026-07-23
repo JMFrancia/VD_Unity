@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3c9335b8e6a8345d2ae72fd9e7e239ee, type: 3}
+  m_Name: Quest_Starter
+  m_EditorClassIdentifier: Assembly-CSharp::VoidDay.Data.QuestSO
+  id: quest.starter
+  conditions:
+  - kind: 0
+    amount: 1
+    arg: 
+  goal:
+    kind: 0
+    amount: 100
+    targetId: 
+  reward:
+    xp: 40
+    money: 0
+    gems: 0
+    resources:
+    - resource: {fileID: 11400000, guid: ab16cbc8f42d841a6b9bc8e41c13aee9, type: 2}
+      amount: 2
