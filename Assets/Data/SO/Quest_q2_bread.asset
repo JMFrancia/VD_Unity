@@ -10,21 +10,19 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 3c9335b8e6a8345d2ae72fd9e7e239ee, type: 3}
-  m_Name: Quest_Starter
+  m_Name: Quest_q2_bread
   m_EditorClassIdentifier: Assembly-CSharp::VoidDay.Data.QuestSO
-  id: quest.starter
+  id: q2.bread
   conditions:
-  - kind: 0
-    amount: 1
-    arg: 
+  - kind: 3
+    amount: 0
+    arg: q2.bakery
   goal:
-    kind: 0
-    amount: 100
-    targetId: 
+    kind: 2
+    amount: 3
+    targetId: bread
   reward:
-    xp: 40
-    money: 0
+    xp: 3
+    money: 20
     gems: 0
-    resources:
-    - resource: {fileID: 11400000, guid: ab16cbc8f42d841a6b9bc8e41c13aee9, type: 2}
-      amount: 2
+    resources: []

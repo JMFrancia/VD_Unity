@@ -25,9 +25,24 @@ MonoBehaviour:
   - {fileID: 11400000, guid: d1e2f3a4b5c60718293a4b5c6d7e8f13, type: 2}
   - {fileID: 11400000, guid: 3e9c1c597c857480e99e68a8d7cfb224, type: 2}
   quests:
-  - {fileID: 11400000, guid: 4278d72cf2f8e48d391be11b504738c1, type: 2}
-  - {fileID: 11400000, guid: 50332801dab2b4c6085c6069fa6ff9ad, type: 2}
-  - {fileID: 11400000, guid: 0cb77363129154bb891673159a747850, type: 2}
+  - {fileID: 11400000, guid: 4b1766acc3f94fe0ab32bc0bd065a9c7, type: 2}
+  - {fileID: 11400000, guid: c09487a06d4f4bb3989f9737a9d70334, type: 2}
+  - {fileID: 11400000, guid: 46d741ead1624b05ae96347546fd6dc6, type: 2}
+  - {fileID: 11400000, guid: 4705aeeb67bd450188fe65623e77f26a, type: 2}
+  - {fileID: 11400000, guid: a081eb34db4b470a97ded86464820329, type: 2}
+  - {fileID: 11400000, guid: 5f3301cdf0c145c5934fe9a2eea04feb, type: 2}
+  - {fileID: 11400000, guid: 13e913119c834f4d9870068b7ab08584, type: 2}
+  - {fileID: 11400000, guid: 975b8253b1cd43bc87a3d4bc77f07e81, type: 2}
+  - {fileID: 11400000, guid: 33c20062296b4d5cbdc64786ec12fcb1, type: 2}
+  - {fileID: 11400000, guid: 5107ab78f49140489731e209db630c6a, type: 2}
+  - {fileID: 11400000, guid: 28aea6f2ee06401fb3ba876ec3bc3ae4, type: 2}
+  - {fileID: 11400000, guid: 216068cfc38d458880be2242fe970b46, type: 2}
+  - {fileID: 11400000, guid: a07caa8f9be045c081f104127462a82b, type: 2}
+  - {fileID: 11400000, guid: 589df0f3ec7b4fea868cd69be09c932f, type: 2}
+  - {fileID: 11400000, guid: 3959b9d78bac43a3b05efdc8ab080f98, type: 2}
+  - {fileID: 11400000, guid: 81a9b3a4ece4420f89d8254a895087bf, type: 2}
+  - {fileID: 11400000, guid: 5e5d3c5168c540558d98f4c5d9a773e7, type: 2}
+  - {fileID: 11400000, guid: c45348f1dffa4c5aa384e0d3b1bc5ebc, type: 2}
   refundPercent: 0.5
   startingStorageCapacity: 7
   startingResources:
