@@ -1,0 +1,31 @@
+{
+  "global.startingStorageCapacity": { "min": 5, "max": 500, "step": 5 },
+  "global.refundPercent": { "min": 0, "max": 1, "step": 0.05 },
+
+  "xp.perJobCollected": { "min": 1, "max": 100, "step": 1 },
+  "xp.perStationBuilt": { "min": 0, "max": 100, "step": 1 },
+
+  "gems.startingGems": { "min": 0, "max": 500, "step": 1 },
+  "gems.secondsPerGem": { "min": 1, "max": 3600, "step": 1 },
+  "gems.minGemCost": { "min": 1, "max": 100, "step": 1 },
+
+  "orders.slotCount": { "min": 1, "max": 10, "step": 1 },
+  "orders.refillSeconds": { "min": 5, "max": 600, "step": 1 },
+  "orders.cashMultiplier": { "min": 1, "max": 100, "step": 0.5 },
+  "orders.xpMultiplier": { "min": 0.1, "max": 20, "step": 0.1 },
+  "orders.maxQuantityAtLevel1": { "min": 1, "max": 50, "step": 1 },
+  "orders.maxQuantityPerLevel": { "min": 0, "max": 20, "step": 0.5 },
+
+  "resources/*/baseValue": { "min": 0, "max": 10000, "step": 1 },
+
+  "recipes/*/duration": { "min": 0.5, "max": 600, "step": 0.5 },
+
+  "stations/*/buildCost": { "min": 0, "max": 100000, "step": 1 },
+  "stations/*/cap": { "min": 1, "max": 30, "step": 1 },
+  "stations/*/unlockLevel": { "min": 1, "max": 20, "step": 1 },
+  "stations/*/queueDepth": { "min": 1, "max": 20, "step": 1 },
+  "stations/*/buildSeconds": { "min": 0, "max": 600, "step": 1 },
+
+  "upgrades/*/tiers[*].cost": { "min": 0, "max": 100000, "step": 1 },
+  "upgrades/*/tiers[*].effects[*].amount": { "min": 0, "max": 1000, "step": 1 }
+}

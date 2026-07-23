@@ -252,3 +252,43 @@ _(sha not recorded here — the entry ships inside its own commit; the milestone
 - **`serve` verb detection:** the first arg is the verb **unless it starts with `--`** (then it's `serve` + options). Don't add a verb beginning with `--`.
 - **Version files are the working store.** `versions/*.json` is git-tracked; the workbench never writes Unity except through the gated Push. `baseline` is protected from delete and from save-as overwrite.
 - **Push honesty is load-bearing.** If M06/M07 ever bypass `/api/write`'s dry-run and write directly, the "refusal surfaced in the UI" guarantee is lost. Keep the plan→(summary|refusal)→confirm→apply flow.
+
+## Milestone 05 — Agent Primitives
+**Status:** ✅ Complete · **Date:** 2026-07-22
+_(sha not recorded here — the entry ships inside its own commit; the milestone number in the commit message is the link.)_
+
+**Built:**
+- `Agent/` (6 files): `Goal.cs`/`GoalEvaluator.cs` (the loss), `ConfigPath.cs` (path grammar), `Bounds.cs` + `Patch.cs` (guardrails), `Suggest.cs` (pressure→knob map), `Sweep.cs` (1-D sensitivity), `Journal.cs` (`runs.jsonl`).
+- **Loss:** 8 metrics — `level.durationMinutes`, `total.minutesToLevel`, `pressure.share` (min/max), `pressure.rank`, `level.moneyAtEntry`/`moneyAtExit`, `gems.compressionShare` (min/max), `gems.heldAtExit`. Scale-free monotonic normaliser (over `(v-max)/max(|max|,|v|)`, under `(min-v)/max(|min|,|v|)`, both in `[0,1)`). Loss = Σ(violation×weight), **always with a per-target breakdown**. Reads `Pressure` GROSS of gem relief (M03 invariant); parametrised keys (`Capacity:field`) aggregated into families (`Capacity`) so a goal names a family.
+- **`suggest`:** dominant-pressure→knob map. Storage branch exact to the doc; other families derived from config. **★ relief branch:** when `GemRelief/dominantPressure ≥ 0.15`, gem knobs (`gems.secondsPerGem`/`startingGems`/`minGemCost`) join a **separate** `relief` list framed "HIDES the bottleneck, does not remove it".
+- **`patch`:** config→config on a deep clone, never Unity. Rejects the whole `profile/*` namespace by prefix, undeclared-bound paths, and out-of-bounds values — atomic fail-whole.
+- **`bounds.json`:** wildcard patterns (`recipes/*/duration`, `stations/*/{buildCost,cap,…}`, `upgrades/*/tiers[*].cost` + `effects[*].amount`, singleton global/xp/gems/orders). Bounds.json is the movable-knob allowlist.
+- **CLI:** `eval` / `patch` / `suggest` / `sweep` / `report`, all `--json`. `AGENTS.md` documents verbs, goal schema, path grammar, guardrails, worked loop.
+- Tests: `GoalLossIsMonotonic`, `PatchRejectsOutOfBounds`, `PatchRejectsProfilePaths`, `PatchRejectsGemPolicyPaths`, `PatchAppliesInBoundsToClone`, `SuggestFlagsGemReliefWhenLarge`. **26/26 pass.**
+
+**Verified** (`dotnet test` + built dll; no Unity, by design):
+- `eval baseline` → loss 24.54 with a per-target table across all 5 metric families. `pressure.rank Capacity` contribution rises 2.0→2.5 when `stations/field/cap=1` makes Yield lead. `pressure.share Storage min 0.3` penalises the levels with too little Storage.
+- `patch profile/optimality` and `profile/gemPolicy` **rejected**, naming the read-only rule; `recipes/field.wheatGrow/duration=9999` **rejected**, naming the bound; in-bounds patch writes a config→config JSON, Unity untouched.
+- `suggest` on an engineered storage-flood config → **Storage dominant** + exactly the three doc storage knobs. `sweep stations/field/buildCost 20→200` → sensible loss curve. `runs.jsonl` grows one line per `eval`.
+- **NOT verified end-to-end:** the ★ gem-relief branch of `suggest` — the M03 player is conservative and won't spend gems in reachable CLI configs, and `profile/*` is read-only so the spend can't be forced from the tool. Locked instead with a **direct unit test** on a synthesised `SimResult` (large relief ⇒ gem knobs listed; small relief ⇒ not). Honest gap, covered by test.
+
+**Deviations from the plan:**
+- **`patch` requires a declared bound** (not just "refuses out-of-bounds"): a path with no `bounds.json` entry is rejected, making bounds.json the allowlist of movable knobs. Stricter than the doc's literal wording, in the spirit of "guardrails are structural." Loosening = add bounds entries.
+- **`eval` is single-seed** (`--seed`, default 1). The doc allows running the configured seed count but assigns median/percentile aggregation to M06; kept single-seed for KISS. M06 owns multi-seed.
+- **Non-Storage suggest maps are config-derived heuristics** (only Storage is doc-specified). Documented as such in AGENTS.md.
+
+**Tech debt:**
+- `sweep` runs a full sim per step, no parallelism — fine for a localhost primitive.
+- `total.minutesToLevel` for an unreached level falls back to `TotalSeconds` (treated as a large violation); per-level unreached adds a flat 1.0 unit. Adequate; not tuned.
+
+**Assumptions:**
+- Newtonsoft binds camelCase goal/patch JSON to PascalCase C# fields case-insensitively (holds; the tool already relies on this for `BalanceConfig`).
+- Halving all recipe durations lowers a duration-capped loss **summed over a range** even though one level can rise on its own (order-stream shift — an M03 reality). The monotonic test uses a range for exactly this reason; a single-level assertion would be flaky.
+
+**Gotchas for later milestones:**
+- **★ Loss data contract (M06/M07 inherit):** `LossReport { Loss, Targets[] }`, each `TargetResult { Metric, Scope, Bound, Measured, Violation, Weight, Contribution, Detail }`. `eval --json` emits this; M06 charts read it. Ranged targets **sum** one violation per in-range level — scope width scales contribution, so **weight is the balancing lever**.
+- **★ Path grammar (patch/sweep):** singleton `root.field`; collection `collection/id/field` (`/` delimits so ids keep their dots); nested `tiers[0].effects[0].amount`. Adding a patchable knob = add a `bounds.json` pattern; there is no separate allowlist to update.
+- **★ `profile/*` rejected by NAMESPACE prefix, never a field list** — `gemPolicy`/`gemReserve`/`minSkipSeconds` and any future profile field are caught the same way. Do not "helpfully" convert this to an allowlist.
+- **`runs.jsonl`** lives at `tools/VoidDay.Balance/runs.jsonl`, **gitignored** (runtime log, grows per eval). M07 restructures it into sessions; today it is a flat global log. Never stage it.
+- **Only `eval` journals.** `sweep` runs N internal evals but records none (it is a sensitivity scan, not a decision). `patch` writes a config, not a journal line.
+- **No automated search built** (deliberate — Do NOT Build). The verbs are primitives an external agent composes; the M07 skill drives the loop.
