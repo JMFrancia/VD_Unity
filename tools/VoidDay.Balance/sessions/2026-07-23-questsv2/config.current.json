@@ -292,7 +292,7 @@
         }
       ],
       "Duration": 30.0,
-      "UnlockLevel": 2
+      "UnlockLevel": 4
     },
     {
       "Id": "field.wheatGrow",
@@ -310,7 +310,7 @@
         }
       ],
       "Duration": 5.0,
-      "UnlockLevel": 2
+      "UnlockLevel": 4
     },
     {
       "Id": "henhouse.egg",
@@ -1232,27 +1232,6 @@
       }
     },
     {
-      "Id": "q3.wheat",
-      "Conditions": [
-        {
-          "Kind": "MinLevel",
-          "Amount": 3,
-          "Arg": ""
-        }
-      ],
-      "Goal": {
-        "Kind": "HarvestCrops",
-        "Amount": 4,
-        "TargetId": "wheat"
-      },
-      "Reward": {
-        "Xp": 6,
-        "Money": 12,
-        "Gems": 0,
-        "Resources": []
-      }
-    },
-    {
       "Id": "q4.bakery",
       "Conditions": [
         {
@@ -1269,6 +1248,27 @@
       "Reward": {
         "Xp": 22,
         "Money": 20,
+        "Gems": 0,
+        "Resources": []
+      }
+    },
+    {
+      "Id": "q4.wheat",
+      "Conditions": [
+        {
+          "Kind": "MinLevel",
+          "Amount": 4,
+          "Arg": ""
+        }
+      ],
+      "Goal": {
+        "Kind": "HarvestCrops",
+        "Amount": 4,
+        "TargetId": "wheat"
+      },
+      "Reward": {
+        "Xp": 12,
+        "Money": 12,
         "Gems": 0,
         "Resources": []
       }

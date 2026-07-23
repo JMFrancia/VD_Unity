@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using DG.Tweening;
 using UnityEngine;
 using UnityEngine.UI;
 using VoidDay.Core.Events;
@@ -34,11 +35,18 @@ namespace VoidDay.View
         [Tooltip("Anchored position of the hammer button while the tray is open (lifted above the tray).")]
         [SerializeField] Vector2 buttonOpenPosition = new Vector2(40f, 415f);
 
+        [Header("Build button reveal (hidden on L1 — nothing is buildable yet — pops in on level-up)")]
+        [Tooltip("The button stays hidden below this level, then animates in when the player first reaches it.")]
+        [SerializeField] int buildButtonRevealLevel = 2;
+        [SerializeField] float revealSeconds = 0.4f;
+        [SerializeField] Ease revealEase = Ease.OutBack;
+
         EventBus _bus;
         BuildSystem _build;
         Wallet _wallet;
         Func<int> _playerLevel;
         RectTransform _buttonRect;
+        bool _buttonRevealed;
 
         readonly List<Entry> _entries = new();
 
@@ -71,12 +79,14 @@ namespace VoidDay.View
             _buttonRect = toggleButton.GetComponent<RectTransform>();
             toggleButton.onClick.AddListener(() => SetTrayOpen(!tray.activeSelf));
             SetTrayOpen(false);
+            ApplyButtonReveal();
 
             _bus.Subscribe<MoneyChanged>(OnMoneyChanged);
             _bus.Subscribe<StationConstructionStarted>(OnConstructionStarted);
             _bus.Subscribe<StationBuilt>(OnStationBuilt);
             _bus.Subscribe<StationDemolished>(OnStationDemolished);
             _bus.Subscribe<UnlockGranted>(OnUnlockGranted);   // dormant until M8 fires it
+            _bus.Subscribe<LevelUp>(OnLevelUp);               // reveal the build button when the player reaches the gate level
             _bus.Subscribe<GameReset>(OnGameReset);
             _bus.Subscribe<PlacementActiveChanged>(OnPlacementActiveChanged); // retract the tray on drag
             _bus.Subscribe<ExclusiveUiOpened>(OnExclusiveUiOpened);           // another menu opened → retract
@@ -92,6 +102,7 @@ namespace VoidDay.View
             _bus.Unsubscribe<StationBuilt>(OnStationBuilt);
             _bus.Unsubscribe<StationDemolished>(OnStationDemolished);
             _bus.Unsubscribe<UnlockGranted>(OnUnlockGranted);
+            _bus.Unsubscribe<LevelUp>(OnLevelUp);
             _bus.Unsubscribe<GameReset>(OnGameReset);
             _bus.Unsubscribe<PlacementActiveChanged>(OnPlacementActiveChanged);
             _bus.Unsubscribe<ExclusiveUiOpened>(OnExclusiveUiOpened);
@@ -115,7 +126,48 @@ namespace VoidDay.View
         void OnStationBuilt(StationBuilt _) => Refresh();
         void OnStationDemolished(StationDemolished _) => Refresh();
         void OnUnlockGranted(UnlockGranted _) => Refresh();
-        void OnGameReset(GameReset _) => Refresh();
+
+        // Pop the hammer button in the first time the player crosses the reveal level. LevelUp fires once per
+        // level crossed and carries the authoritative new level, so we trust e.Level (not a possibly-lagging
+        // _playerLevel()) and guard on _buttonRevealed to keep the animation to a single play.
+        void OnLevelUp(LevelUp e)
+        {
+            if (_buttonRevealed || e.Level < buildButtonRevealLevel) return;
+            RevealButton(instant: false);
+        }
+
+        // Snap the button to the correct state for the current level (boot / reset — no animation).
+        void ApplyButtonReveal()
+        {
+            if (_playerLevel() >= buildButtonRevealLevel) RevealButton(instant: true);
+            else HideButton();
+        }
+
+        void RevealButton(bool instant)
+        {
+            _buttonRevealed = true;
+            _buttonRect.DOKill();
+            toggleButton.gameObject.SetActive(true);
+            if (instant) _buttonRect.localScale = Vector3.one;
+            else
+            {
+                _buttonRect.localScale = Vector3.zero;
+                _buttonRect.DOScale(1f, revealSeconds).SetEase(revealEase);
+            }
+        }
+
+        void HideButton()
+        {
+            _buttonRevealed = false;
+            _buttonRect.DOKill();
+            toggleButton.gameObject.SetActive(false);
+        }
+
+        void OnGameReset(GameReset _)
+        {
+            ApplyButtonReveal(); // back to L1 → button hidden again, no animation
+            Refresh();
+        }
         void OnPlacementActiveChanged(PlacementActiveChanged e) { if (e.Active) SetTrayOpen(false); }
         void OnExclusiveUiOpened(ExclusiveUiOpened e) { if (e.Source != SourceId && tray.activeSelf) SetTrayOpen(false); }
 
