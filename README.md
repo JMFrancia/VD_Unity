@@ -99,8 +99,18 @@ The tool reads the Unity project but nothing under `Assets/` knows the tool exis
 </p>
 
 <p align="center">
-  <img src="docs/media/sim-results.png" alt="The simulator's raw per-level table for a seeded run — duration, cash in/out, orders, jobs, gems, and the dominant bottleneck at each level" width="820"><br>
-  <em>A seeded progression run, headless — per-level duration, cash flow, order/job counts, and the dominant bottleneck, scored against a stated balance goal (here, optimality 0.65).</em>
+  <img src="docs/media/sim-reports-sweep.png" alt="The simulator's Reports view — a 30-seed A/B sweep comparing two economy configs across time-per-level, money entry/exit, and acting-vs-waiting charts" width="820"><br>
+  <em>A 30-seed A/B sweep — two economy configs compared across time-per-level, money in/out, and acting-vs-waiting, so a change is judged on the median of many runs rather than one lucky seed.</em>
+</p>
+
+<p align="center">
+  <img src="docs/media/sim-session-loss.png" alt="The simulator's Session view — a loss curve descending over seven iterations and a log of the config patch applied at each step" width="820"><br>
+  <em>An agent-driven balancing session — the loss falls 7.45 → 0.83 over seven iterations, each row logging the exact config patch Claude applied against the stated goal.</em>
+</p>
+
+<p align="center">
+  <img src="docs/media/sim-pressure.png" alt="The simulator's pressure heatmap — level by category grid showing gross seconds lost to each bottleneck (capacity, storage, throughput, yield) per level" width="820"><br>
+  <em>The pressure heatmap — gross seconds lost to each bottleneck (capacity, storage, yield…) at every level, so tuning targets the constraint that actually hurts.</em>
 </p>
 
 <details>
@@ -122,8 +132,12 @@ Although I created both single-milestone and one-shot implementation paths, I us
 
 ## Key Tradeoffs
 
-- **Cut VoidPets and world events to deepen the core loop.** When I worked on Evergrove (another mobile farming game with pet collection) the feedback we kept getting from players was how much they loved the pets, who could be assigned to automate stations. I designed features (well-recieved, but never implemented) to make them feel more alive, and have more personality. They would each have personalities, develop opinions, and form relationships with one another granting bonuses. I believe it would have added some interesting dimensionality to the game both from a mechanical and narrative perspective, especially since Evergrove was meant to have a stronger narrative component than it wound up with.
+- **Cut VoidPets and world events to deepen the core loop.** When I worked on Evergrove (another mobile farming game with pet collection), the feedback we kept getting from players was how much they loved the pets. And they served a mechanical purpose, automating station collection and ordering, to ease player-action bottlenecks. But I thought they could do much more than that - I had just come off of working on a life sim game where I was designing systems
 
+
+
+
+The collectible/social layer is what a Hay Day clone is tempted to lead with; I judged that a solid economy was the thing worth getting right first, and a shallow version of everything would have felt like disconnected systems.
 - **Rebuilt the project's foundation mid-stream.** The agent's initial approach generated the entire scene and UI hierarchy in code at runtime, with no prefabs. It ran, but it was structurally wrong for Unity and would have made every later art and layout task painful. I stopped and re-established authored scenes/prefabs and a data-driven architecture as a hard rule before continuing.
 - **Prioritized game-feel over feature breadth late in the build.** The last additions were juice (collection particles) and a convenience currency (gem skips) rather than new systems, because playtesting said the loop needed to *feel* better more than it needed to be bigger.
 
@@ -135,8 +149,9 @@ Although I created both single-milestone and one-shot implementation paths, I us
 
 ## What I Would Build Next
 
-- **VoidPets** — the hatch/assign/auto-collect layer, which is the designed relief valve for the collection friction, while adding narrative/collection elements.
-- **Deeper economy tuning** using the simulator to smooth progression pacing across levels.
+- **Collectable VoidPets** When I worked on Evergrove (another mobile farming game with pet collection) the feedback we kept getting from players was how much they loved the pets, who could be assigned to automate stations. I designed features (well-recieved, but never implemented) to make them feel more alive, and have more personality. They would each have personalities, develop opinions, and form relationships with one another granting bonuses. I believe it would have added some interesting dimensionality to the game both from a mechanical and narrative perspective, especially since Evergrove was meant to have a stronger narrative component than it wound up with. For this project I generated milestones and assets that would give a little taste of this; gatcha-collectable VoidPets that would automate stations, give passive bonuses, and form relationships when assigned together. Unfortunately I ran out of time to implement, choosing to focus on making the primary experience feel juicier.
+
+- **World Events** Another feature that I spec'd but was cut for time was random world events (such as Dopamine rain, or Serotonin bloom) that would make temporary changes to the simulation adding variety and extra narrative flavor. 
 
 ## Running the Project Locally
 
@@ -149,4 +164,4 @@ Although I created both single-milestone and one-shot implementation paths, I us
 
 The game was built for WebGL and published on Unity Play.
 
-*Thanks for playing!*
+*Thank you for the opportunity!*
