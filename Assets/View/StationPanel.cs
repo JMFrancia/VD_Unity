@@ -291,7 +291,10 @@ namespace VoidDay.View
             if (!_stationRoots.TryGetValue(_openStationId, out var root)) return;
             Vector3 world = root.position + Vector3.up * anchorHeight;
             Vector2 screen = _camera.WorldToScreenPoint(world);
-            RectTransformUtility.ScreenPointToLocalPointInRectangle(canvasRect, screen, null, out Vector2 local);
+            // canvasRect renders in Screen Space - Camera on _camera (the letterbox needs the UI confined to
+            // the camera's viewport), so the screen->local conversion must go through that same camera. Passing
+            // null here would assume an Overlay canvas and pin the popup to a screen corner.
+            RectTransformUtility.ScreenPointToLocalPointInRectangle(canvasRect, screen, _camera, out Vector2 local);
 
             Vector2 half = canvasRect.rect.size * 0.5f;
             float w = popup.rect.width, h = popup.rect.height;

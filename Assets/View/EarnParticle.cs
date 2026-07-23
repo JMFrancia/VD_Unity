@@ -39,17 +39,20 @@ namespace VoidDay.View
         RectTransform _rect;
         RectTransform _parent;
         RectTransform _target;
+        Camera _camera;
         Action _onArrive;
         Tween _tween;
         bool _arrived;
 
         /// Sizing comes from this prefab's own authored rect — the controller never resizes it.
-        public void Launch(Sprite icon, Vector2 fromLocal, RectTransform target, FlightSettings settings,
-            Action onArrive)
+        /// `camera` is the canvas's render camera (Screen Space - Camera), needed to project the destination.
+        public void Launch(Sprite icon, Vector2 fromLocal, RectTransform target, Camera camera,
+            FlightSettings settings, Action onArrive)
         {
             _rect = (RectTransform)transform;
             _parent = (RectTransform)_rect.parent;
             _target = target;
+            _camera = camera;
             _onArrive = onArrive;
 
             GetComponent<Image>().sprite = icon;
@@ -67,9 +70,9 @@ namespace VoidDay.View
                 .OnComplete(Arrive);
         }
 
-        /// The destination lives on a different Overlay canvas, so its position is re-read through screen
-        /// space every tick. Overlay means the camera argument is null in both directions — passing
-        /// Camera.main compiles and silently produces wrong coordinates.
+        /// The destination lives on a different canvas, so its position is re-read through screen space every
+        /// tick. Both canvases render in Screen Space - Camera on _camera, so that camera is passed in both
+        /// directions — passing null would assume Overlay and silently produce wrong coordinates.
         Vector2 TargetLocal()
         {
             // A destination can legitimately be torn down mid-flight: a reset drops the transient resource
@@ -77,8 +80,8 @@ namespace VoidDay.View
             // still credits its chunk on destroy, which is what keeps the counters exact.
             if (_target == null) return _rect.anchoredPosition;
 
-            Vector2 screen = RectTransformUtility.WorldToScreenPoint(null, _target.position);
-            RectTransformUtility.ScreenPointToLocalPointInRectangle(_parent, screen, null, out var local);
+            Vector2 screen = RectTransformUtility.WorldToScreenPoint(_camera, _target.position);
+            RectTransformUtility.ScreenPointToLocalPointInRectangle(_parent, screen, _camera, out var local);
             return local;
         }
 
