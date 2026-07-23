@@ -216,7 +216,11 @@ balance report
 ```
 
 Pushing a version back into Unity is the separate, gated `write` verb — never a side effect of `patch`. It
-handles: line-addressable scalar edits (including `recipes/*/unlockLevel` and `upgrades/*/unlockLevel`),
-recipe insertion, and **positional edits to the Levels asset** (`levels[*].xpThreshold`,
-`levels[*].grants[*].amount`). Anything it cannot do surgically — a level or grant added/removed, a grant's
-kind or target retargeted, upgrade tier/effect edits — it **refuses loudly before writing a byte**.
+handles: line-addressable scalar edits (including `recipes/*/unlockLevel` and `upgrades/*/unlockLevel`);
+recipe insertion; **positional edits to the Levels asset** (`levels[*].xpThreshold`,
+`levels[*].grants[*].amount`) plus **structural grant changes** — a grant added, removed, or retargeted to a
+new kind/station regenerates that level's grant block byte-for-byte (an unchanged grant line stays
+diff-clean); and **upgrade tier costs and effect `value.amount`s** (`upgrades/*/tiers[*].cost`,
+`upgrades/*/tiers[*].effects[*].amount`). What it still **refuses loudly before writing a byte**: adding or
+removing a whole level, adding or removing an upgrade tier or effect, changing an effect field other than its
+amount, and creating or deleting a resource or station.

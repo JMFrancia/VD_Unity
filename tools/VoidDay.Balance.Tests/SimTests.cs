@@ -100,8 +100,8 @@ public sealed class SimTests
         var config = Baseline();
         var harness = new CoreHarness(config, 1);
         harness.EmitStartingState();
-        harness.Pool.Add("wheat", 5); // afford the wheatGrow input
-        harness.Jobs.QueueJob("field@0", "field.wheatGrow", 0); // starts a running head at now=0
+        harness.Pool.Add("corn", 5); // afford the cornGrow input (corn is queueable at level 1; wheat now unlocks at 2)
+        harness.Jobs.QueueJob("field@0", "field.cornGrow", 0); // starts a running head at now=0
 
         var timer = TimerRef.Job("field@0");
         Assert.True(harness.TimeSkip.CanSkip(timer, 0));

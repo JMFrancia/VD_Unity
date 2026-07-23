@@ -40,8 +40,11 @@ switch (verb)
 
 static int Read(string projectRoot, Dictionary<string, string> opts)
 {
+    // Default to versions/live.json, NOT baseline.json. `baseline` is the frozen INITIAL reference every A/B
+    // comparison is measured against — it must not drift each time Unity is re-read. A deliberate re-baseline is
+    // still possible with an explicit `--out versions/baseline.json`.
     var outPath = opts.GetValueOrDefault("out")
-                  ?? Path.Combine(projectRoot, "tools", "VoidDay.Balance", "versions", "baseline.json");
+                  ?? Path.Combine(projectRoot, "tools", "VoidDay.Balance", "versions", "live.json");
 
     var config = new EconomyReader(new AssetReader(new GuidIndex(projectRoot))).Read();
 
@@ -98,15 +101,25 @@ static int Write(string projectRoot, Dictionary<string, string> opts)
         Console.WriteLine(e.GrantIndex is int gi
             ? $"  Levels level {e.LevelIndex + 1} grant {gi + 1} amount: {e.Old} → {e.New}"
             : $"  Levels level {e.LevelIndex + 1} xpThreshold: {e.Old} → {e.New}");
+    foreach (var g in plan.GrantRewrites)
+        Console.WriteLine($"  Levels level {g.LevelIndex + 1} grants: regenerate block ({g.Block.Count} line(s))");
+    foreach (var u in plan.UpgradeEdits)
+        Console.WriteLine(u.EffectIndex is int ei
+            ? $"  {u.AssetPath} tier {u.TierIndex + 1} effect {ei + 1} amount: {u.Old} → {u.New}"
+            : $"  {u.AssetPath} tier {u.TierIndex + 1} cost: {u.Old} → {u.New}");
+
+    string Summary() =>
+        $"{plan.Scalars.Count} scalar change(s), {plan.RecipeInsertions.Count} insertion(s), " +
+        $"{plan.LevelEdits.Count} level edit(s), {plan.GrantRewrites.Count} grant rewrite(s), {plan.UpgradeEdits.Count} upgrade edit(s)";
 
     if (!apply)
     {
-        Console.WriteLine($"dry run: {plan.Scalars.Count} scalar change(s), {plan.RecipeInsertions.Count} insertion(s), {plan.LevelEdits.Count} level edit(s). Pass --apply to write.");
+        Console.WriteLine($"dry run: {Summary()}. Pass --apply to write.");
         return 0;
     }
 
     writer.Apply(plan);
-    Console.WriteLine($"applied: {plan.Scalars.Count} scalar change(s), {plan.RecipeInsertions.Count} insertion(s), {plan.LevelEdits.Count} level edit(s).");
+    Console.WriteLine($"applied: {Summary()}.");
     return 0;
 }
 

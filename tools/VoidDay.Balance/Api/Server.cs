@@ -71,7 +71,7 @@ public static class Server
         {
             var clean = SanitizeName(name);
             if (clean == "baseline")
-                return Fail(StatusCodes.Status400BadRequest, "refusing to delete 'baseline' — it is the read-from-Unity reference.");
+                return Fail(StatusCodes.Status400BadRequest, "refusing to delete 'baseline' — it is the frozen initial reference every comparison is measured against.");
             var path = VersionPath(versionsDir, clean);
             if (!File.Exists(path))
                 return Fail(StatusCodes.Status404NotFound, $"version '{clean}' does not exist.");

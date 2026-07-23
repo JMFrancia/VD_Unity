@@ -143,13 +143,105 @@ public sealed class WriterTests
         Assert.Equal(0, edit.GrantIndex);
     }
 
-    // Structural level surgery still has no surgical path — a grant's kind change is refused loud.
+    // A grant's kind change is now surgical — the level's grant block is regenerated, not refused.
     [Fact]
-    public void GrantKindChangeRefuses()
+    public void GrantKindChangeIsAGrantRewrite()
     {
         var (root, reader, current) = ReadReal();
         var incoming = JsonConvert.DeserializeObject<BalanceConfig>(JsonConvert.SerializeObject(current))!;
-        incoming.Levels[1].Grants[0].Kind = "Gems"; // was something else; retargeting a grant is structural
+        incoming.Levels[1].Grants[0].Kind = "Gems"; // retarget the slot to a different kind
+
+        var plan = new AssetWriter(root, reader, current).Plan(incoming);
+
+        Assert.Empty(plan.LevelEdits);
+        var rewrite = Assert.Single(plan.GrantRewrites);
+        Assert.Equal(1, rewrite.LevelIndex);
+    }
+
+    // Appending a grant to a level is a structural change — planned as a grant-block rewrite for that level.
+    [Fact]
+    public void GrantAppendIsAGrantRewrite()
+    {
+        var (root, reader, current) = ReadReal();
+        var incoming = JsonConvert.DeserializeObject<BalanceConfig>(JsonConvert.SerializeObject(current))!;
+        incoming.Levels[1].Grants.Add(new LevelGrantConfig { Kind = "Gems", TargetStation = null, Amount = 5 });
+
+        var plan = new AssetWriter(root, reader, current).Plan(incoming);
+
+        var rewrite = Assert.Single(plan.GrantRewrites);
+        Assert.Equal(1, rewrite.LevelIndex);
+        // Block regenerates all three grants (2 original + appended): grants: header + 3 lines each.
+        Assert.Equal(1 + 3 * incoming.Levels[1].Grants.Count, rewrite.Block.Count);
+    }
+
+    // A grant with a StationCap target the config knows resolves to a station SO reference, not a refusal.
+    [Fact]
+    public void GrantWithStationTargetResolves()
+    {
+        var (root, reader, current) = ReadReal();
+        var incoming = JsonConvert.DeserializeObject<BalanceConfig>(JsonConvert.SerializeObject(current))!;
+        incoming.Levels[1].Grants.Add(new LevelGrantConfig { Kind = "StationCap", TargetStation = "field", Amount = 1 });
+
+        var plan = new AssetWriter(root, reader, current).Plan(incoming);
+
+        var rewrite = Assert.Single(plan.GrantRewrites);
+        Assert.Contains(rewrite.Block, l => l.Contains("targetStation: {fileID: 11400000"));
+    }
+
+    // A grant targeting a station the config does not know is refused loud rather than written as a guess.
+    [Fact]
+    public void GrantWithUnknownStationRefuses()
+    {
+        var (root, reader, current) = ReadReal();
+        var incoming = JsonConvert.DeserializeObject<BalanceConfig>(JsonConvert.SerializeObject(current))!;
+        incoming.Levels[1].Grants.Add(new LevelGrantConfig { Kind = "StationCap", TargetStation = "NOPE", Amount = 1 });
+
+        var writer = new AssetWriter(root, reader, current);
+        var ex = Assert.Throws<WriteRefusedException>(() => writer.Plan(incoming));
+        Assert.Contains("NOPE", ex.Message);
+    }
+
+    // An upgrade tier cost edit is a positional upgrade edit (EffectIndex null), not a refusal.
+    [Fact]
+    public void UpgradeTierCostEditIsAnUpgradeEdit()
+    {
+        var (root, reader, current) = ReadReal();
+        var incoming = JsonConvert.DeserializeObject<BalanceConfig>(JsonConvert.SerializeObject(current))!;
+        var upgrade = incoming.Upgrades.First(u => u.Tiers.Count > 0);
+        upgrade.Tiers[0].Cost += 25;
+
+        var plan = new AssetWriter(root, reader, current).Plan(incoming);
+
+        var edit = Assert.Single(plan.UpgradeEdits);
+        Assert.Equal(0, edit.TierIndex);
+        Assert.Null(edit.EffectIndex);
+    }
+
+    // An upgrade effect value.amount edit is a positional upgrade edit carrying the effect index.
+    [Fact]
+    public void UpgradeEffectAmountEditCarriesEffectIndex()
+    {
+        var (root, reader, current) = ReadReal();
+        var incoming = JsonConvert.DeserializeObject<BalanceConfig>(JsonConvert.SerializeObject(current))!;
+        var upgrade = incoming.Upgrades.First(u => u.Tiers.Any(t => t.Effects.Count > 0));
+        var tier = upgrade.Tiers.First(t => t.Effects.Count > 0);
+        tier.Effects[0].Amount += 5f;
+
+        var plan = new AssetWriter(root, reader, current).Plan(incoming);
+
+        var edit = Assert.Single(plan.UpgradeEdits);
+        Assert.Equal(0, edit.EffectIndex);
+    }
+
+    // Changing an effect field other than amount has no surgical path — refused loud.
+    [Fact]
+    public void UpgradeEffectStructuralChangeRefuses()
+    {
+        var (root, reader, current) = ReadReal();
+        var incoming = JsonConvert.DeserializeObject<BalanceConfig>(JsonConvert.SerializeObject(current))!;
+        var upgrade = incoming.Upgrades.First(u => u.Tiers.Any(t => t.Effects.Count > 0));
+        var tier = upgrade.Tiers.First(t => t.Effects.Count > 0);
+        tier.Effects[0].Op = tier.Effects[0].Op == "Flat" ? "Pct" : "Flat";
 
         var writer = new AssetWriter(root, reader, current);
         Assert.Throws<WriteRefusedException>(() => writer.Plan(incoming));

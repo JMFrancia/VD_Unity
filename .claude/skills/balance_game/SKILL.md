@@ -96,6 +96,11 @@ balance session report --name <slug>      # generates report.md FROM journal.jso
 - **★ The report is generated, never narrated.** `session report` reads only the journal and the start/current
   configs. **Do not write your own summary of what happened** — a compacted context yields a tidier story than
   the truth. Present the tool's terminal highlights and point the user at `report.md` as the durable record.
+- **★ Always save a named version.** Unless the run ended in a problem (goal unreached, aborted), promote the
+  tuned config into `versions/` before you finish — `cp sessions/<dir>/config.current.json versions/<slug>.json`
+  — so it becomes a first-class `--config <slug>` any later run can `eval`/`sim`/A-B-overlay against `baseline`.
+  The session dir is the run's journal; `versions/` is the durable, comparable artifact. This is independent of
+  the Unity export — save the version whether or not the user approves the `.asset` write.
 - **Gate the export.** Show the user the exact change summary (`report.md`'s *Diff to export to Unity* section,
   or a dry-run `balance write --config sessions/<dir>/config.current.json`). **Ask for explicit approval before
   any `.asset` write.**
