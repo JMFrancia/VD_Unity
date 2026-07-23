@@ -7,6 +7,9 @@
     <Nullable>enable</Nullable>
     <RootNamespace>VoidDay.Balance</RootNamespace>
     <AssemblyName>VoidDay.Balance</AssemblyName>
+    <!-- The tool is a console app that also serves a localhost workbench (M04). FrameworkReference
+         (not the Web SDK) keeps this an OutputType=Exe CLI whose `serve` verb spins up Kestrel. -->
+    <InvariantGlobalization>true</InvariantGlobalization>
     <!-- The whole tool rests on this: Assets/Core is pure C# (VoidDay.Core.asmdef has
          noEngineReferences:true), so the game's real economy code compiles here and the
          simulator never reimplements it. Glob it in rather than copy it. -->
@@ -17,6 +20,12 @@
     <!-- The real game economy, compiled standalone. Exclude Unity-only test files
          (Assets/Tests references the UnityEngine.TestRunner). Core itself is engine-free. -->
     <Compile Include="..\..\Assets\Core\**\*.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- ASP.NET Core shared framework, so the console exe can host the M04 workbench without becoming
+         a Web SDK project (which would change build/publish semantics the CLI relies on). -->
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
 
   <ItemGroup>

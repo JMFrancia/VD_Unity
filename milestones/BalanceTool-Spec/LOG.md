@@ -214,3 +214,41 @@ _(sha not recorded here — the entry ships inside its own commit; the milestone
 - **Two Random streams:** order = `new Random(seed)`; agent = `new Random(seed*1103515245+12345)`. Never `HashCode.Combine` (per-process randomized → breaks determinism).
 - Only the six effect types with teeth are honoured (inherited from `ValueResolver`); the sim reads resolved values, so it inherits this for free.
 - `SimProfile` is the player, not the game — the whole `profile/*` namespace must stay read-only to `patch` (M5), gem behaviour fields included.
+
+## Milestone 04 — The Workbench
+**Status:** ✅ Complete · **Date:** 2026-07-22
+_(sha not recorded here — the entry ships inside its own commit; the milestone number in the commit message is the link.)_
+
+**Built:**
+- **The CLI became an app.** `Api/Server.cs` — ASP.NET Core minimal API + static `wwwroot/`, launched by a new `serve` verb (also bare `dotnet run` with no verb, or with only `--options`). `--port` default 5177. Endpoints, all JSON via **Newtonsoft** (byte-parity with `read`'s output): `GET/POST/DELETE /api/versions`, `GET/PUT /api/config`, `POST /api/sim`, `POST /api/write`. The browser is a pure client of the M01 reader / M02 writer / M03 runner — **zero economy logic in JS.**
+- **`wwwroot/`** — Preact + htm vendored as one self-contained ESM file (`vendor/htm-preact-standalone.module.js`, htm@3.1.1+preact@10, MIT, no import map, no CDN, no npm). `index.html` (styles) + `app.js` (the whole workbench). Seven tabs: Global / Resources / Recipes / Stations / Upgrades / Levels / Orders. Editable typed tables; add-row for **recipes** (with input/output ingredient editor), **level rows** (with grant editor), **upgrade tiers** (with effect editor). Effect-type dropdown restricted to the **six with teeth**. Version toolbar: load / Save (in-place) / Save-as / Delete / Run-sim (raw table modal, **no charts** — M06) / Push-to-Unity (change-summary modal).
+- **Client-side validation mirrors `BootValidator`** (subset the doc names): thresholds strictly ascending, level-1 has no grants, no duplicate ids, all refs resolve, one reward grant per level, effect `triggerChance` 0–100, six-types-only. Save / Save-as / Push are disabled while invalid; errors listed at the top.
+- csproj: `<FrameworkReference Microsoft.AspNetCore.App>` + `InvariantGlobalization`. Project stays `OutputType=Exe`; **CLI verbs `read`/`write`/`sim` unchanged** (regression-verified).
+
+**Verified** (`dotnet run -- serve` + curl/python driver; no editor; **no live browser — the Chrome extension was not connected**):
+- Static (`/`, `/app.js`, `/vendor/*`) serve 200; `/api/versions`→`["baseline"]`; bad version name → 400 (path-escape guard).
+- **The DoD write flow end to end:** loaded baseline, edited `field.wheatGrow` duration 5→2.5 **and** `field` buildCost 50→40, saved-as `test-tune` (baseline.json **byte-identical** md5 unchanged), dry-run `/api/write` listed exactly those two scalar changes, `--apply` produced **exactly two one-line `git diff`s** in the two assets. Reverted the demo edits — `git status Assets/` clean.
+- **Refusal surfaced, not swallowed:** pushing a nested level-threshold edit returns the writer's verbatim `Levels: editing level thresholds or grants is not supported…`; the browser shows it in a "Push refused" modal. Nothing written.
+- `validate()` (run under node against baseline + broken configs): baseline 0 errors; descending threshold / level-1 grant / duplicate id / dangling ref / two-reward all caught.
+- Add-level-row + Money grant **survives save/load**; `POST /api/sim` returns SimResult + 25-line table (L20); PUT saves in place; DELETE works; baseline delete refused; save-as over an existing name refused (original untouched). **18/18 tests still pass.**
+- **NOT verified:** live browser rendering/interaction (extension offline) — the API path the browser drives is fully exercised via curl; the JS is syntax-checked and its pure logic unit-tested under node.
+
+**Deviations from the plan:**
+- **★ Two edit surfaces, honestly separated** (the central design call). The workbench edits **every** `BalanceConfig` field and round-trips them through the **version JSON** (save/load — plain serialization, not the writer), which is how "every field editable" and "add a recipe / level row / upgrade tier survives save/load" are met in full. **Push-to-Unity** funnels through the M02 writer, which supports only scalar edits + recipe insertion; `/api/write` therefore returns **either** a change summary **or** the writer's refusal verbatim, and the UI surfaces the refusal. The DoD's push test only exercises scalar edits, which the writer supports. This avoids the "browser silently produces an edit the writer refuses" hidden failure without extending the writer.
+- **Chart.js not vendored** — charts are M06's (Do-NOT-Build here). Only htm/preact vendored this milestone. Run-sim shows the runner's raw text table, per the doc's "raw table shown, but no visualisation."
+
+**Tech debt:**
+- Push-to-Unity can only reach the writer-supported surface (scalars + recipe insertion). Editing a resource displayName, recipe I/O, upgrade tier/effect, level threshold/grant, or startingResources **saves fine to a version but refuses on push** — inherited straight from M02's writer contract. When a caller genuinely needs to push those, extend the writer (list-index line addressing) with its own tests; the UI already sends the full config, so no client change is needed.
+- `/api/write` re-reads all Unity assets per call (fresh reader + `current`). Fine for a localhost dev tool; not optimised.
+- Number inputs coerce to JS `Number`; Newtonsoft re-coerces to the field's int/float on the way back (verified round-trip). No client-side int/float distinction is enforced.
+
+**Assumptions:**
+- The vendored `htm/preact/standalone` single file is self-sufficient (no import map). Confirmed: exports `html`/`render`/`useState`/`useEffect`/… and both JS files pass `node --check`; live-browser render was **not** confirmable (extension offline).
+- `ContentRootPath = <tool dir>` makes `wwwroot/` resolve regardless of the caller's cwd — holds for `dotnet run --project …` from repo root (the DoD's invocation) and from the project dir.
+
+**Gotchas for later milestones:**
+- **★ API + wwwroot layout is the M06/M07 inheritance.** Endpoints are `GET/PUT /api/config`, `GET/POST/DELETE /api/versions`, `POST /api/sim`, `POST /api/write`. `wwwroot/vendor/` is where vendored ESM lives — **M06 adds `chart.js` here** (same no-CDN, no-build rule) and builds the charts/A-B/live-session view on top of `app.js`'s tab shell + `TAB_VIEWS` map. Sim already returns `{ result: SimResult, table }`, so M06's charts read `result` (the M03 keys) with no server change.
+- **Server JSON is Newtonsoft, not System.Text.Json** — deliberately, because `BalanceConfig` uses public **fields** (STJ ignores fields by default) and version files must stay byte-identical to `read`'s output. Any new endpoint must keep using `JsonConvert` or the wire format drifts.
+- **`serve` verb detection:** the first arg is the verb **unless it starts with `--`** (then it's `serve` + options). Don't add a verb beginning with `--`.
+- **Version files are the working store.** `versions/*.json` is git-tracked; the workbench never writes Unity except through the gated Push. `baseline` is protected from delete and from save-as overwrite.
+- **Push honesty is load-bearing.** If M06/M07 ever bypass `/api/write`'s dry-run and write directly, the "refusal surfaced in the UI" guarantee is lost. Keep the plan→(summary|refusal)→confirm→apply flow.

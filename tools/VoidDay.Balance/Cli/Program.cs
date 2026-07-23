@@ -1,19 +1,17 @@
 using Newtonsoft.Json;
+using VoidDay.Balance.Api;
 using VoidDay.Balance.Schema;
 using VoidDay.Balance.Sim;
 using VoidDay.Balance.Unity;
 
-// VoidDay Balance Tool — CLI entrypoint. Verbs: `read` (M01), `write` (M02), `sim` (M03).
+// VoidDay Balance Tool — CLI entrypoint. Verbs: `read` (M01), `write` (M02), `sim` (M03), `serve` (M04).
 // The Unity project is never told this tool exists (spec, the agnosticism rule).
 
-if (args.Length == 0)
-{
-    Usage();
-    return 1;
-}
-
-var verb = args[0];
-var opts = ParseOptions(args[1..]);
+// Bare `dotnet run` (no verb, or only --options) launches the workbench — the DoD's "dotnet run … serves
+// the app". A leading token that isn't a `--option` is the verb.
+var hasVerb = args.Length > 0 && !args[0].StartsWith("--");
+var verb = hasVerb ? args[0] : "serve";
+var opts = ParseOptions(hasVerb ? args[1..] : args);
 var projectRoot = opts.GetValueOrDefault("project") ?? FindProjectRoot();
 
 switch (verb)
@@ -21,6 +19,9 @@ switch (verb)
     case "read": return Read(projectRoot, opts);
     case "write": return Write(projectRoot, opts);
     case "sim": return Sim(projectRoot, opts);
+    case "serve":
+        int port = opts.TryGetValue("port", out var portStr) ? int.Parse(portStr) : 5177;
+        return Server.Serve(projectRoot, port);
     default:
         Usage();
         return 1;
@@ -130,6 +131,7 @@ static int Sim(string projectRoot, Dictionary<string, string> opts)
 
 static void Usage() => Console.Error.WriteLine(
     "usage:\n" +
+    "  balance serve [--project <dir>] [--port N]   (default when no verb given)\n" +
     "  balance read  [--project <dir>] [--out <file>]\n" +
     "  balance write --config <file> [--project <dir>] [--apply]\n" +
     "  balance sim   [--config <name|file>] [--profile typical|perfect] [--seed N] [--optimality X] [--no-gems] [--json]");
