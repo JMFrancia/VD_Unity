@@ -24,8 +24,8 @@ MonoBehaviour:
   prefab: {fileID: 4375642329552315335, guid: e9b5f8337186c4b57a96cb1a914f462f, type: 3}
   queueDepth: 3
   recipes:
-  - {fileID: 11400000, guid: 4cbb2ae5907984befbdce42c831874c4, type: 2}
   - {fileID: 11400000, guid: cf0778196065a4f48bc2346633afdd23, type: 2}
+  - {fileID: 11400000, guid: 4cbb2ae5907984befbdce42c831874c4, type: 2}
   - {fileID: 11400000, guid: 99237293f67804f60b000f2a15412849, type: 2}
   - {fileID: 11400000, guid: 8d3bf29c16ba14309a9bc84828b4bf3b, type: 2}
   upgrades:

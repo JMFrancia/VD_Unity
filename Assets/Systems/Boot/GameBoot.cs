@@ -63,7 +63,6 @@ namespace VoidDay.Systems
             var wallet = new Wallet(bus);
             var gems = new GemPurse(bus, config.startingGems);
             var catalog = new RecipeCatalog();
-            var jobs = new JobSystem(bus, pool, catalog, resolver);
             var grid = new StationGrid(config.gridCols, config.gridRows);
             var projection = new GridProjection(config.gridCols, config.gridRows, config.cellSize);
 
@@ -88,6 +87,10 @@ namespace VoidDay.Systems
             resolver.SetGrantSource(levelGrants);
             var progression = new Progression(bus, resolver, levelCurve, levelGrants, wallet, gems,
                 ModelProjector.ProjectLevelGates(config.stationRoster));
+
+            // Built after Progression so it can gate recipes by the live player level (§9) — recipes lock like
+            // stations and upgrades. Nothing above this line touches jobs; BuildSystem below is its first reader.
+            var jobs = new JobSystem(bus, pool, catalog, resolver, () => progression.PlayerLevel);
 
             var buildSystem = new BuildSystem(bus, grid, jobs, wallet, resolver, stationTypes,
                 () => progression.PlayerLevel, config.refundPercent);

@@ -64,9 +64,9 @@ namespace VoidDay.Tests
             catalog.Add(new RecipeModel("field.corn", "field",
                 new List<ResourceAmount>(),
                 new List<ResourceAmount> { new ResourceAmount(Corn, outputAmount) },
-                duration: 1f));
+                duration: 1f, unlockLevel: 1));
 
-            var jobs = new JobSystem(bus, pool, catalog, resolver);
+            var jobs = new JobSystem(bus, pool, catalog, resolver, () => 1);
             jobs.Register("field#0", "field", queueDepthBase: 3);
             return jobs;
         }

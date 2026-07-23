@@ -60,12 +60,14 @@ namespace VoidDay.Systems
             return new LevelCurve(levels);
         }
 
-        /// Everything gated behind a level by its own asset (§9): station types and upgrade tracks. An upgrade
-        /// track sold at more than one building appears once — the gate is the track's, not the building's.
+        /// Everything gated behind a level by its own asset (§9): station types, upgrade tracks, and recipes.
+        /// A track or recipe reachable from more than one station appears once — the gate is the asset's, not
+        /// the building's.
         public static IReadOnlyList<LevelUnlockModel> ProjectLevelGates(IReadOnlyList<StationSO> roster)
         {
             var gates = new List<LevelUnlockModel>();
             var seenTracks = new HashSet<string>();
+            var seenRecipes = new HashSet<string>();
             foreach (var station in roster)
             {
                 if (station.unlockLevel > Progression.StartingLevel)
@@ -76,12 +78,26 @@ namespace VoidDay.Systems
                     if (upgrade.unlockLevel > Progression.StartingLevel && seenTracks.Add(upgrade.id))
                         gates.Add(new LevelUnlockModel(LevelEntryKind.Upgrade, upgrade.id,
                             upgrade.displayName, upgrade.unlockLevel));
+
+                foreach (var recipe in station.recipes)
+                    if (recipe.unlockLevel > Progression.StartingLevel && seenRecipes.Add(recipe.id))
+                        gates.Add(new LevelUnlockModel(LevelEntryKind.Recipe, recipe.id,
+                            RecipeLabel(recipe), recipe.unlockLevel));
             }
             return gates;
         }
 
+        /// Player-facing name of a recipe for the level-up line: its output good, "Fallow"-prefixed when it has
+        /// no inputs — the same wording the station panel uses on the tile.
+        static string RecipeLabel(RecipeSO so)
+        {
+            string output = so.outputs.Count > 0 ? so.outputs[0].resource.displayName : so.id;
+            return so.inputs.Count == 0 ? $"Fallow {output}" : output;
+        }
+
         public static RecipeModel Project(RecipeSO so) =>
-            new RecipeModel(so.id, so.stationType, Flatten(so.inputs), Flatten(so.outputs), so.duration);
+            new RecipeModel(so.id, so.stationType, Flatten(so.inputs), Flatten(so.outputs), so.duration,
+                so.unlockLevel);
 
         // Drop the SO handle, keep the rule-relevant (id, amount) — Core speaks resource ids, not assets.
         static IReadOnlyList<ResourceAmount> Flatten(List<Ingredient> ingredients)

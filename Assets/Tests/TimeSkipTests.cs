@@ -50,8 +50,8 @@ namespace VoidDay.Tests
 
             var catalog = new RecipeCatalog();
             catalog.Add(new RecipeModel(BakeBread, Bakery,
-                new ResourceAmount[0], new[] { new ResourceAmount(Bread, 1) }, recipeSeconds));
-            var jobs = new JobSystem(bus, pool, catalog, resolver);
+                new ResourceAmount[0], new[] { new ResourceAmount(Bread, 1) }, recipeSeconds, unlockLevel: 1));
+            var jobs = new JobSystem(bus, pool, catalog, resolver, () => 1);
 
             var grid = new StationGrid(10, 10);
             var types = new Dictionary<string, StationTypeModel>

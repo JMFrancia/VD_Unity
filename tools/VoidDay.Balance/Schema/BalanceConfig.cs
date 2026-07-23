@@ -87,6 +87,7 @@ public sealed class RecipeConfig
     public List<ResourceQuantity> Inputs = new();
     public List<ResourceQuantity> Outputs = new();
     public float Duration;
+    public int UnlockLevel = 1;   // level the recipe becomes queueable (RecipeSO.unlockLevel); 1 = with its station
 }
 
 public sealed class StationConfig

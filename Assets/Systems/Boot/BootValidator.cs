@@ -96,10 +96,11 @@ namespace VoidDay.Systems
                                       // renders rewards[0] only, so two of either kind would hide one.
                 foreach (var g in def.grants)
                 {
-                    Require(g.kind != LevelEntryKind.StationType && g.kind != LevelEntryKind.Upgrade,
+                    Require(g.kind != LevelEntryKind.StationType && g.kind != LevelEntryKind.Upgrade
+                            && g.kind != LevelEntryKind.Recipe,
                         l, $"{nameof(l.levels)}[{i}].grants",
-                        $"may not grant {g.kind} — that gate lives on the StationSO.unlockLevel / "
-                        + "UpgradeSO.unlockLevel of the thing being gated, not on the level");
+                        $"may not grant {g.kind} — that gate lives on the StationSO / UpgradeSO / RecipeSO "
+                        + "unlockLevel of the thing being gated, not on the level");
                     Require(g.amount > 0, l, $"{nameof(l.levels)}[{i}].grants",
                         $"{g.kind} amount must be > 0");
                     Require(g.kind != LevelEntryKind.StationCap || g.targetStation != null,
@@ -150,7 +151,7 @@ namespace VoidDay.Systems
             foreach (var r in s.recipes)
             {
                 Require(r != null, s, nameof(s.recipes), "contains a null recipe ref");
-                ValidateRecipe(r, s.stationType);
+                ValidateRecipe(r, s.stationType, s.unlockLevel);
             }
 
             Require(s.upgrades != null, s, nameof(s.upgrades), "must not be null");
@@ -204,11 +205,20 @@ namespace VoidDay.Systems
             _ => false
         };
 
-        static void ValidateRecipe(RecipeSO r, string ownerStationType)
+        static void ValidateRecipe(RecipeSO r, string ownerStationType, int ownerUnlockLevel)
         {
             Require(!string.IsNullOrWhiteSpace(r.id), r, nameof(r.id), "must not be empty");
             Require(r.stationType == ownerStationType, r, nameof(r.stationType),
                 $"is '{r.stationType}' but the station referencing it is '{ownerStationType}'");
+            Require(r.unlockLevel >= Progression.StartingLevel, r, nameof(r.unlockLevel),
+                $"must be >= {Progression.StartingLevel} (the starting level)");
+            // Either available the moment the station is built (StartingLevel), or gated at/after the station
+            // itself opens — never in the gap between, where the level-up popup would announce a recipe for a
+            // building the player still cannot make.
+            Require(r.unlockLevel == Progression.StartingLevel || r.unlockLevel >= ownerUnlockLevel,
+                r, nameof(r.unlockLevel),
+                $"must be {Progression.StartingLevel} (open as soon as the station is built) or >= its "
+                + $"station's unlockLevel ({ownerUnlockLevel}) — not in the gap before the station exists");
             Require(r.outputs != null && r.outputs.Count > 0, r, nameof(r.outputs), "must have at least one output");
             ValidateIngredients(r, r.inputs, nameof(r.inputs));
             ValidateIngredients(r, r.outputs, nameof(r.outputs));

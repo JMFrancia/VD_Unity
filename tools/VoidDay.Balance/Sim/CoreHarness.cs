@@ -53,7 +53,7 @@ public sealed class CoreHarness
         Wallet = new Wallet(Bus);
         Gems = new GemPurse(Bus, config.Gems.StartingGems);   // after Wallet
         Catalog = new RecipeCatalog();
-        Jobs = new JobSystem(Bus, Pool, Catalog, resolver);
+        Jobs = new JobSystem(Bus, Pool, Catalog, resolver, () => Progression.PlayerLevel);
         Grid = new StationGrid(config.Global.GridCols, config.Global.GridRows);
 
         // Recipes for every buildable type — the roster covers placed AND not-yet-placed stations.

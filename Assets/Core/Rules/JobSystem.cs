@@ -31,13 +31,16 @@ namespace VoidDay.Core.Rules
         private readonly ResourcePool _pool;
         private readonly RecipeCatalog _catalog;
         private readonly ValueResolver _resolver;
+        private readonly Func<int> _playerLevel;
 
-        public JobSystem(EventBus bus, ResourcePool pool, RecipeCatalog catalog, ValueResolver resolver)
+        public JobSystem(EventBus bus, ResourcePool pool, RecipeCatalog catalog, ValueResolver resolver,
+            Func<int> playerLevel)
         {
             _bus = bus;
             _pool = pool;
             _catalog = catalog;
             _resolver = resolver;
+            _playerLevel = playerLevel;
         }
 
         public void Register(string stationId, string stationType, int queueDepthBase)
@@ -61,6 +64,14 @@ namespace VoidDay.Core.Rules
         public IReadOnlyList<Job> GetQueue(string stationId) => GetStation(stationId).Queue;
 
         public string StationTypeOf(string stationId) => GetStation(stationId).StationType;
+
+        /// A recipe the player has not reached the level for yet (§9), gated off the recipe's own unlockLevel —
+        /// the same rule as a locked upgrade track. The panel renders it visible-but-locked so the gate is
+        /// something to play toward, and QueueJob refuses it below the level.
+        public bool IsRecipeLocked(string recipeId) => _catalog.Get(recipeId).UnlockLevel > _playerLevel();
+
+        /// The level a still-locked recipe opens at — the panel's "Unlock at level N" copy reads this.
+        public int RecipeUnlockLevel(string recipeId) => _catalog.Get(recipeId).UnlockLevel;
 
         public int QueueDepth(string stationId)
         {
@@ -167,6 +178,9 @@ namespace VoidDay.Core.Rules
             var recipe = _catalog.Get(recipeId);
             if (recipe.StationType != s.StationType)
                 throw new InvalidOperationException($"Recipe '{recipeId}' ({recipe.StationType}) not valid at '{stationId}' ({s.StationType})");
+            if (recipe.UnlockLevel > _playerLevel())
+                throw new InvalidOperationException(
+                    $"Recipe '{recipeId}' unlocks at level {recipe.UnlockLevel}, player is level {_playerLevel()}");
             if (s.Queue.Count >= QueueDepth(stationId))
                 throw new InvalidOperationException($"Queue full at '{stationId}'");
 

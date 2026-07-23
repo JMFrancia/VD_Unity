@@ -14,7 +14,7 @@ public static class ConfigProjector
         new(c.Id, c.DisplayName, c.BaseValue, c.Sellable, c.Tier);
 
     public static RecipeModel Recipe(RecipeConfig c) =>
-        new(c.Id, c.StationType, Amounts(c.Inputs), Amounts(c.Outputs), c.Duration);
+        new(c.Id, c.StationType, Amounts(c.Inputs), Amounts(c.Outputs), c.Duration, c.UnlockLevel);
 
     public static StationTypeModel StationType(StationConfig c) =>
         new(c.StationType, c.DisplayName, c.BuildCost, c.Cap, c.UnlockLevel, c.QueueDepth, c.Width, c.Height,
