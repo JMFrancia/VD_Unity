@@ -1,0 +1,165 @@
+{
+  "Name": "quests-v2",
+  "Targets": [
+    {
+      "Metric": "level.durationMinutes",
+      "Level": null,
+      "Levels": "1-2",
+      "Category": null,
+      "Min": null,
+      "Max": 1.1,
+      "MaxRank": null,
+      "Weight": 1.0
+    },
+    {
+      "Metric": "level.durationMinutes",
+      "Level": null,
+      "Levels": "3-4",
+      "Category": null,
+      "Min": null,
+      "Max": 1.75,
+      "MaxRank": null,
+      "Weight": 1.0
+    },
+    {
+      "Metric": "level.durationMinutes",
+      "Level": null,
+      "Levels": "5-8",
+      "Category": null,
+      "Min": null,
+      "Max": 5.0,
+      "MaxRank": null,
+      "Weight": 1.0
+    },
+    {
+      "Metric": "total.minutesToLevel",
+      "Level": 8,
+      "Levels": null,
+      "Category": null,
+      "Min": 10.0,
+      "Max": 25.0,
+      "MaxRank": null,
+      "Weight": 2.0
+    },
+    {
+      "Metric": "pressure.rank",
+      "Level": null,
+      "Levels": "1-2",
+      "Category": "Yield",
+      "Min": null,
+      "Max": null,
+      "MaxRank": 1,
+      "Weight": 1.5
+    },
+    {
+      "Metric": "pressure.rank",
+      "Level": null,
+      "Levels": "3-5",
+      "Category": "Capacity",
+      "Min": null,
+      "Max": null,
+      "MaxRank": 1,
+      "Weight": 1.5
+    },
+    {
+      "Metric": "pressure.rank",
+      "Level": 7,
+      "Levels": null,
+      "Category": "Storage",
+      "Min": null,
+      "Max": null,
+      "MaxRank": 1,
+      "Weight": 1.5
+    },
+    {
+      "Metric": "pressure.share",
+      "Level": null,
+      "Levels": "1-2",
+      "Category": "Yield",
+      "Min": 0.4,
+      "Max": null,
+      "MaxRank": null,
+      "Weight": 1.0
+    },
+    {
+      "Metric": "pressure.share",
+      "Level": 3,
+      "Levels": null,
+      "Category": "Capacity",
+      "Min": 0.3,
+      "Max": null,
+      "MaxRank": null,
+      "Weight": 1.0
+    },
+    {
+      "Metric": "pressure.share",
+      "Level": 5,
+      "Levels": null,
+      "Category": "Capacity",
+      "Min": 0.3,
+      "Max": null,
+      "MaxRank": null,
+      "Weight": 1.0
+    },
+    {
+      "Metric": "pressure.share",
+      "Level": 6,
+      "Levels": null,
+      "Category": "Storage",
+      "Min": 0.2,
+      "Max": null,
+      "MaxRank": null,
+      "Weight": 1.0
+    },
+    {
+      "Metric": "pressure.share",
+      "Level": 7,
+      "Levels": null,
+      "Category": "Storage",
+      "Min": 0.3,
+      "Max": null,
+      "MaxRank": null,
+      "Weight": 1.0
+    },
+    {
+      "Metric": "level.moneyAtEntry",
+      "Level": 5,
+      "Levels": null,
+      "Category": null,
+      "Min": 100.0,
+      "Max": null,
+      "MaxRank": null,
+      "Weight": 0.5
+    },
+    {
+      "Metric": "level.moneyAtExit",
+      "Level": 8,
+      "Levels": null,
+      "Category": null,
+      "Min": null,
+      "Max": 3000.0,
+      "MaxRank": null,
+      "Weight": 0.5
+    },
+    {
+      "Metric": "gems.compressionShare",
+      "Level": null,
+      "Levels": "4-8",
+      "Category": null,
+      "Min": 0.0,
+      "Max": 0.25,
+      "MaxRank": null,
+      "Weight": 0.5
+    },
+    {
+      "Metric": "quest.rewardShare",
+      "Level": null,
+      "Levels": "4-8",
+      "Category": null,
+      "Min": null,
+      "Max": 0.1,
+      "MaxRank": null,
+      "Weight": 1.0
+    }
+  ]
+}

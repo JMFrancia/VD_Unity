@@ -10,19 +10,19 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 3c9335b8e6a8345d2ae72fd9e7e239ee, type: 3}
-  m_Name: Quest_q8_earn
+  m_Name: Quest_q5_brioche
   m_EditorClassIdentifier: Assembly-CSharp::VoidDay.Data.QuestSO
-  id: q8.earn
+  id: q5.brioche
   conditions:
-  - kind: 0
-    amount: 8
-    arg: 
+  - kind: 3
+    amount: 0
+    arg: q5.henhouse
   goal:
-    kind: 0
-    amount: 1500
-    targetId: 
+    kind: 2
+    amount: 3
+    targetId: brioche
   reward:
-    xp: 90
-    money: 0
-    gems: 1
+    xp: 35
+    money: 30
+    gems: 0
     resources: []

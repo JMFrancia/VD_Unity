@@ -10,16 +10,16 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 3c9335b8e6a8345d2ae72fd9e7e239ee, type: 3}
-  m_Name: Quest_q8_earn
+  m_Name: Quest_q9_earn
   m_EditorClassIdentifier: Assembly-CSharp::VoidDay.Data.QuestSO
-  id: q8.earn
+  id: q9.earn
   conditions:
   - kind: 0
-    amount: 8
+    amount: 9
     arg: 
   goal:
     kind: 0
-    amount: 1500
+    amount: 3000
     targetId: 
   reward:
     xp: 90

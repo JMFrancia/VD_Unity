@@ -19,10 +19,10 @@ MonoBehaviour:
     arg: 
   goal:
     kind: 1
-    amount: 8
+    amount: 6
     targetId: 
   reward:
-    xp: 14
-    money: 40
+    xp: 25
+    money: 30
     gems: 0
     resources: []

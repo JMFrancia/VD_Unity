@@ -25,24 +25,28 @@ MonoBehaviour:
   - {fileID: 11400000, guid: d1e2f3a4b5c60718293a4b5c6d7e8f13, type: 2}
   - {fileID: 11400000, guid: 3e9c1c597c857480e99e68a8d7cfb224, type: 2}
   quests:
-  - {fileID: 11400000, guid: 4b1766acc3f94fe0ab32bc0bd065a9c7, type: 2}
   - {fileID: 11400000, guid: c09487a06d4f4bb3989f9737a9d70334, type: 2}
-  - {fileID: 11400000, guid: 46d741ead1624b05ae96347546fd6dc6, type: 2}
-  - {fileID: 11400000, guid: 4705aeeb67bd450188fe65623e77f26a, type: 2}
-  - {fileID: 11400000, guid: a081eb34db4b470a97ded86464820329, type: 2}
-  - {fileID: 11400000, guid: 5f3301cdf0c145c5934fe9a2eea04feb, type: 2}
-  - {fileID: 11400000, guid: 13e913119c834f4d9870068b7ab08584, type: 2}
-  - {fileID: 11400000, guid: 975b8253b1cd43bc87a3d4bc77f07e81, type: 2}
-  - {fileID: 11400000, guid: 33c20062296b4d5cbdc64786ec12fcb1, type: 2}
-  - {fileID: 11400000, guid: 5107ab78f49140489731e209db630c6a, type: 2}
-  - {fileID: 11400000, guid: 28aea6f2ee06401fb3ba876ec3bc3ae4, type: 2}
-  - {fileID: 11400000, guid: 216068cfc38d458880be2242fe970b46, type: 2}
+  - {fileID: 11400000, guid: 66d5c9f80d674634a0b967980543dbc8, type: 2}
+  - {fileID: 11400000, guid: 929c9423dd1446c499641aadc0f80577, type: 2}
+  - {fileID: 11400000, guid: dc2ded699cbe4355a057ecb657681d5a, type: 2}
+  - {fileID: 11400000, guid: c98792af635e462f92578b194ee24b78, type: 2}
+  - {fileID: 11400000, guid: 993f9bda257a420b846cdffc44089a48, type: 2}
+  - {fileID: 11400000, guid: 26e7f5ecdaec44ab837d04a09f97cd66, type: 2}
+  - {fileID: 11400000, guid: 6126119a606941a39199a3d09e602892, type: 2}
+  - {fileID: 11400000, guid: f4f3863a563a4668a660a856af0fc821, type: 2}
+  - {fileID: 11400000, guid: 22acc25d16f540baad6a2535b07e483b, type: 2}
+  - {fileID: 11400000, guid: cd179e6268904047a46555f35ac2795d, type: 2}
+  - {fileID: 11400000, guid: b6c29eb344c44a228020d222e99d29c0, type: 2}
   - {fileID: 11400000, guid: a07caa8f9be045c081f104127462a82b, type: 2}
-  - {fileID: 11400000, guid: 589df0f3ec7b4fea868cd69be09c932f, type: 2}
-  - {fileID: 11400000, guid: 3959b9d78bac43a3b05efdc8ab080f98, type: 2}
-  - {fileID: 11400000, guid: 81a9b3a4ece4420f89d8254a895087bf, type: 2}
+  - {fileID: 11400000, guid: 5367cd6228074687844acb17f272e803, type: 2}
+  - {fileID: 11400000, guid: 94377ecd2e7349b79e6b05581c006d4e, type: 2}
+  - {fileID: 11400000, guid: dc69200c7e7e419480c7f2ef190e480a, type: 2}
   - {fileID: 11400000, guid: 5e5d3c5168c540558d98f4c5d9a773e7, type: 2}
-  - {fileID: 11400000, guid: c45348f1dffa4c5aa384e0d3b1bc5ebc, type: 2}
+  - {fileID: 11400000, guid: c27a4a0d121f42539392a8f94198959a, type: 2}
+  - {fileID: 11400000, guid: 9124f2c08fa048caae7ec93ded7dbab2, type: 2}
+  - {fileID: 11400000, guid: cd52f9d5e16e4332b25e206bfce95c5c, type: 2}
+  - {fileID: 11400000, guid: 5e4f9fb4697947f1b547c0e2fd57145f, type: 2}
+  - {fileID: 11400000, guid: 3b801d9170674aa0900427157820061c, type: 2}
   refundPercent: 0.5
   startingStorageCapacity: 7
   startingResources:

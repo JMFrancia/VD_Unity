@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.UI;
 using VoidDay.Core.Events;
@@ -56,7 +57,9 @@ namespace VoidDay.View
             _wallet = wallet;
             _playerLevel = playerLevel;
 
-            foreach (var so in roster)
+            // Tray reads left→right in unlock order (§12.3), so newly-unlocked stations append to the right of
+            // ones the player already has. OrderBy is stable, so same-unlock types keep their roster order.
+            foreach (var so in roster.OrderBy(s => s.unlockLevel))
             {
                 if (!so.buildable) continue;
 

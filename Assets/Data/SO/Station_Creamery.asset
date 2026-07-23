@@ -19,7 +19,7 @@ MonoBehaviour:
   buildable: 1
   buildCost: 350
   cap: 1
-  unlockLevel: 5
+  unlockLevel: 7
   buildThumbnail: {fileID: 21300000, guid: 319d9dddfb350480db965cb669794146, type: 3}
   prefab: {fileID: 6385065255732933552, guid: eb98db35e5c5f4689bac6799a0ae623f, type: 3}
   queueDepth: 3
