@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::VoidDay.Data.UpgradeSO
   id: silo.cap
   displayName: Silo Expansion
-  unlockLevel: 6
+  unlockLevel: 4
   tiers:
   - cost: 120
     effects:

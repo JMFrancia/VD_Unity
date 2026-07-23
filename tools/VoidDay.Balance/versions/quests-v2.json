@@ -817,7 +817,7 @@
     {
       "Id": "silo.cap",
       "DisplayName": "Silo Expansion",
-      "UnlockLevel": 6,
+      "UnlockLevel": 4,
       "Tiers": [
         {
           "Cost": 120,
