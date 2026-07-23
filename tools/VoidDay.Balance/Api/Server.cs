@@ -6,6 +6,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using VoidDay.Balance.Agent;
 using VoidDay.Balance.Schema;
 using VoidDay.Balance.Sim;
 using VoidDay.Balance.Unity;
@@ -174,6 +175,40 @@ public static class Server
             return Results.Content(JsonConvert.SerializeObject(payload), "application/json");
         });
 
+        // ---- sessions: the live session view polls these (M07). The browser holds no economy logic — it reads
+        //       the durable session files the CLI writes and re-sims config.current through /api/sim itself. ----
+
+        var sessionsDir = Path.Combine(toolDir, "sessions");
+
+        app.MapGet("/api/sessions", () =>
+        {
+            var names = Directory.Exists(sessionsDir)
+                ? Directory.GetDirectories(sessionsDir)
+                    .OrderByDescending(Directory.GetLastWriteTimeUtc)
+                    .Select(Path.GetFileName)
+                    .ToList()
+                : new List<string?>();
+            return Results.Content(JsonConvert.SerializeObject(names), "application/json");
+        });
+
+        // The active session's live state: goal, working config, and every iteration line so far. The loss
+        // curve reads `journal`; the heatmap/time charts re-sim `current` via /api/sim as iterations land.
+        app.MapGet("/api/session", (string name) =>
+        {
+            var clean = SanitizeName(name);
+            var dir = Path.Combine(sessionsDir, clean);
+            if (!Directory.Exists(dir))
+                return Fail(StatusCodes.Status404NotFound, $"session '{clean}' does not exist.");
+            var payload = new JObject
+            {
+                ["name"] = clean,
+                ["goal"] = ReadJsonFile(Path.Combine(dir, "goal.json")),
+                ["current"] = ReadJsonFile(Path.Combine(dir, "config.current.json")),
+                ["journal"] = ReadJournalLines(Path.Combine(dir, "journal.jsonl")),
+            };
+            return Results.Content(payload.ToString(Formatting.None), "application/json");
+        });
+
         // Turn our two expected fault kinds into clean JSON error bodies; everything else surfaces the stack.
         app.Use(async (ctx, next) =>
         {
@@ -199,6 +234,18 @@ public static class Server
     // baseline leaves it byte-identical.
     static void WriteVersion(string path, JToken config) =>
         File.WriteAllText(path, JsonConvert.SerializeObject(config, Formatting.Indented) + "\n");
+
+    static JToken ReadJsonFile(string path) =>
+        File.Exists(path) ? JToken.Parse(File.ReadAllText(path)) : JValue.CreateNull();
+
+    static JArray ReadJournalLines(string path)
+    {
+        var arr = new JArray();
+        if (!File.Exists(path)) return arr;
+        foreach (var line in File.ReadAllLines(path))
+            if (!string.IsNullOrWhiteSpace(line)) arr.Add(JToken.Parse(line));
+        return arr;
+    }
 
     static async Task<string> ReadBody(HttpRequest req)
     {

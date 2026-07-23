@@ -45,6 +45,8 @@ const runSim = (config) => api('POST', '/api/sim', { config, seed: 1 });
 // M06: a multi-seed sweep — server returns { sweep: aggregate, seeds: [{seed,table,…}] }.
 const runSweep = (config, seeds, profile) => api('POST', '/api/sim', { config, seeds: Number(seeds), profile });
 const planWrite = (config, apply) => api('POST', '/api/write', { config, apply });
+const getSessions = () => api('GET', '/api/sessions');
+const getSession = (name) => api('GET', `/api/session?name=${encodeURIComponent(name)}`);
 
 // ================= validation (mirrors BootValidator, client-side) =================
 function validate(c) {
@@ -637,13 +639,118 @@ function Reports({ versions }) {
       <pre>${openSeed.s.table}</pre></${Modal}>` : null}`;
 }
 
+// ================= live session view (M07) =================
+// The agent iterates in the terminal (`eval --session … --rationale …`); this view polls the active session
+// directory and re-renders as iterations land. It holds NO economy logic: the loss curve comes straight from
+// journal.jsonl, and the pressure heatmap / per-level times come from re-simming config.current via /api/sim.
+const LIVE_SEEDS = 5;   // a quick preview sweep on each new iteration — not the 30-seed Reports sweep.
+
+function makeLossCurve(journal) {
+  const labels = journal.map((r) => `#${r.Iteration}`);
+  const data = journal.map((r) => r.Loss);
+  return {
+    type: 'line',
+    data: { labels, datasets: [{ label: 'loss', data, borderColor: ACC, backgroundColor: ACC, pointRadius: 3, fill: false, tension: 0.15, spanGaps: false }] },
+    options: baseOptions('loss'),
+  };
+}
+
+function GoalSummary({ goal }) {
+  if (!goal || !goal.Targets) return null;
+  return html`<div class="card"><h3>Goal — ${goal.Name}</h3>
+    <div class="tblwrap"><table>
+      <thead><tr><th>Metric</th><th>Scope</th><th>Bound</th><th>Weight</th></tr></thead>
+      <tbody>${goal.Targets.map((t) => {
+    const scope = t.Level != null ? `L${t.Level}` : (t.Levels ? `L${t.Levels}` : 'total');
+    const bound = t.Metric === 'pressure.rank' ? `rank≤${t.MaxRank != null ? t.MaxRank : 1}`
+      : [t.Category, t.Min != null ? `min ${t.Min}` : null, t.Max != null ? `max ${t.Max}` : null].filter(Boolean).join(', ');
+    return html`<tr><td>${t.Metric}</td><td>${scope}</td><td>${bound || '—'}</td><td>${t.Weight != null ? t.Weight : 1}</td></tr>`;
+  })}</tbody>
+    </table></div></div>`;
+}
+
+function IterationLog({ journal }) {
+  return html`<div class="card span2"><h3>Iterations — ${journal.length} recorded (from journal.jsonl)</h3>
+    <div class="tblwrap"><table class="delta">
+      <thead><tr><th>#</th><th>Loss</th><th>Patch</th><th>Rationale</th></tr></thead>
+      <tbody>${journal.map((r) => {
+    const patch = (r.Patch && r.Patch.length) ? r.Patch.map((p) => `${p.Path}=${p.Value}`).join(', ') : '—';
+    return html`<tr><td class="ro">${r.Iteration}</td><td>${round2(r.Loss)}</td>
+      <td class="ro"><code>${patch}</code></td><td>${r.Rationale}</td></tr>`;
+  })}</tbody>
+    </table></div></div>`;
+}
+
+function Session() {
+  const [sessions, setSessions] = useState([]);
+  const [name, setName] = useState(null);
+  const [data, setData] = useState(null);       // { name, goal, current, journal }
+  const [sweep, setSweep] = useState(null);      // preview sweep of config.current
+  const [live, setLive] = useState(true);
+  const [error, setError] = useState(null);
+  const simmedFor = useRef(-1);                  // journal length we last re-simmed for (avoid redundant sims)
+
+  // Poll the session list + the active session on an interval; pick the newest if none chosen.
+  useEffect(() => {
+    let stop = false;
+    const tick = async () => {
+      try {
+        const list = await getSessions();
+        if (stop) return;
+        setSessions(list);
+        const active = name || list[0] || null;
+        if (name !== active) setName(active);
+        if (active) { const d = await getSession(active); if (!stop) { setData(d); setError(null); } }
+        else setData(null);
+      } catch (e) { if (!stop) setError(e.message); }
+    };
+    tick();
+    if (!live) return () => { stop = true; };
+    const id = setInterval(tick, 2000);
+    return () => { stop = true; clearInterval(id); };
+  }, [name, live]);
+
+  // When a new iteration lands (journal grew), re-sim config.current for the heatmap + per-level times.
+  useEffect(() => {
+    if (!data || !data.current) return;
+    const n = data.journal ? data.journal.length : 0;
+    if (n === simmedFor.current) return;
+    simmedFor.current = n;
+    (async () => {
+      try { const r = await runSweep(data.current, LIVE_SEEDS, 'typical'); setSweep(r.sweep); }
+      catch (e) { setError(e.message); }
+    })();
+  }, [data]);
+
+  const journal = (data && data.journal) || [];
+  const deps = [journal.length];
+
+  return html`
+    <div class="rep-controls">
+      ${Fld({ label: 'Session', children: html`<select value=${name || ''} onChange=${(e) => { setName(e.target.value); simmedFor.current = -1; }}>
+        ${sessions.length ? sessions.map((s) => html`<option value=${s}>${s}</option>`) : html`<option value="">— none —</option>`}
+      </select>` })}
+      <label class="muted"><input type="checkbox" checked=${live} onChange=${(e) => setLive(e.target.checked)} /> live (poll 2s)</label>
+      ${data ? html`<span class="muted">${journal.length} iteration(s)${journal.length ? ` · loss ${round2(journal[0].Loss)} → ${round2(journal[journal.length - 1].Loss)}` : ''}</span>` : null}
+    </div>
+    ${error ? html`<div class="errs"><b>Session error</b><div>${error}</div></div>` : null}
+    ${!data ? html`<p class="muted">No active session. Run <code>balance session start --name &lt;slug&gt; --goal &lt;file&gt;</code> in the terminal, then iterate with <code>eval --session</code>.</p>` : html`
+      <div class="chart-grid">
+        <${GoalSummary} goal=${data.goal} />
+        ${journal.length ? html`<${ChartBox} title="Loss curve — per iteration (from journal.jsonl)" make=${() => makeLossCurve(journal)} deps=${deps} />` : html`<div class="card"><p class="muted">No iterations yet — waiting for the agent's first <code>eval --session</code>.</p></div>`}
+        ${sweep ? html`<${ChartBox} title=${`Time per level — config.current (${LIVE_SEEDS}-seed preview)`} make=${() => makeTimePerLevel(sweep, null)} deps=${[sweep]} />` : null}
+        <${IterationLog} journal=${journal} />
+        ${sweep ? html`<${Heatmap} A=${sweep} />` : null}
+      </div>`}`;
+}
+
 // ================= app =================
 function App() {
   const [versions, setVersions] = useState([]);
   const [name, setName] = useState(null);
   const [config, setConfig] = useState(null);
   const [dirty, setDirty] = useState(false);
-  const [mode, setMode] = useState('edit'); // 'edit' | 'reports'
+  const [mode, setMode] = useState('edit'); // 'edit' | 'reports' | 'session'
   const [tab, setTab] = useState('Global');
   const [, setTick] = useState(0);
   const [modal, setModal] = useState(null); // {kind, ...}
@@ -711,15 +818,18 @@ function App() {
   if (!config) return html`<main><p class="muted">Loading baseline…</p></main>`;
   const View = TAB_VIEWS[tab];
   const reports = mode === 'reports';
+  const session = mode === 'session';
+  const edit = mode === 'edit';
 
   return html`
     <header>
       <h1>VoidDay Balance</h1>
       <div class="toolbar">
-        <button class=${!reports ? 'primary' : ''} onClick=${() => setMode('edit')}>Edit</button>
+        <button class=${edit ? 'primary' : ''} onClick=${() => setMode('edit')}>Edit</button>
         <button class=${reports ? 'primary' : ''} onClick=${() => setMode('reports')}>Reports</button>
+        <button class=${session ? 'primary' : ''} onClick=${() => setMode('session')}>Session</button>
       </div>
-      ${!reports ? html`<div class="toolbar">
+      ${edit ? html`<div class="toolbar">
         <label class="muted">version</label>
         <select value=${name} onChange=${(e) => load(e.target.value)}>
           ${versions.map((v) => html`<option value=${v}>${v}</option>`)}
@@ -727,7 +837,7 @@ function App() {
         ${dirty ? html`<span class="dirty">● unsaved</span>` : null}
       </div>` : null}
       <div class="grow"></div>
-      ${!reports ? html`<div class="toolbar">
+      ${edit ? html`<div class="toolbar">
         <button onClick=${doSave} disabled=${invalid || !dirty}>Save</button>
         <button onClick=${doSaveAs} disabled=${invalid}>Save as…</button>
         <button class="danger" onClick=${doDelete} disabled=${name === 'baseline'}>Delete</button>
@@ -735,10 +845,10 @@ function App() {
         <button class="primary" onClick=${doPush} disabled=${invalid}>Push to Unity…</button>
       </div>` : null}
     </header>
-    ${!reports ? html`<nav>${TABS.map((t) => html`<button class=${t === tab ? 'active' : ''} onClick=${() => setTab(t)}>${t}</button>`)}</nav>` : null}
-    <main class=${reports ? 'reports' : ''}>
-      ${reports
-    ? html`<${Reports} versions=${versions} />`
+    ${edit ? html`<nav>${TABS.map((t) => html`<button class=${t === tab ? 'active' : ''} onClick=${() => setTab(t)}>${t}</button>`)}</nav>` : null}
+    <main class=${!edit ? 'reports' : ''}>
+      ${reports ? html`<${Reports} versions=${versions} />`
+    : session ? html`<${Session} />`
     : html`
       ${invalid ? html`<div class="errs"><b>${errors.length} validation error(s)</b> — fix before saving or pushing.
         <ul>${errors.map((x) => html`<li>${x}</li>`)}</ul></div>` : null}

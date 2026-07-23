@@ -20,6 +20,7 @@ Invoke as `dotnet run --project tools/VoidDay.Balance -- <verb> …` (or run the
 | `suggest` | Name the knobs responsible for the dominant bottleneck | — |
 | `sweep` | 1-D loss curve across one knob's range, N steps | — |
 | `report` | List the flat global eval log (`runs.jsonl`) | — |
+| `session start/status/report` | Drive and record a full balancing run (§ Balancing sessions) | a session dir |
 
 `sim`, `read`, `write`, `serve` are the earlier-milestone verbs; see `--help`/`Usage`.
 
@@ -66,7 +67,55 @@ it will not vary a `profile/*` path. Compose sweeps yourself; there is no automa
 ```
 balance report [--json]
 ```
-Lists `runs.jsonl`. Flat and global this milestone; sessions/structured reports come later.
+Lists the flat, global `runs.jsonl` (one line per ad-hoc `eval`). Per-run structured reports come from
+**sessions** (below), which is where a real tuning run should live.
+
+---
+
+## Balancing sessions
+
+A **session** is a directory holding one tuning run's durable state — so a run survives a context window and
+its write-up is true by construction:
+
+```
+sessions/<date>-<slug>/
+  goal.json            the agreed goal
+  config.start.json    the config as found (never mutated)
+  config.current.json  the working config — patched freely, never touches Unity
+  journal.jsonl        one line per iteration: {Iteration, Ts, Patch[], ConfigHash, Loss, Breakdown, Rationale}
+  report.md            GENERATED from journal.jsonl (never narrated)
+```
+
+```
+balance session start  --name <slug> --goal <file> [--config <name|file>]   # seeds the dir (config default: baseline)
+balance session status [--name <slug>] [--json]                             # iterations, first→last loss, last rationale
+balance session report [--name <slug>] [--print]                            # writes report.md, prints highlights
+```
+
+`--name` resolves by exact dir name, or by `-<slug>` suffix, or — omitted — the most recently modified session.
+
+**The iteration primitive is `eval --session`**, not a new verb:
+
+```
+balance eval --session <slug> --rationale "why, in one sentence" [--path <knob> --value <v> | --patch <file>]
+```
+
+It (1) loads `config.current.json` + `goal.json`, (2) applies the optional patch and **persists it back to
+`config.current.json`**, (3) sims + scores, (4) appends **one** journal line. **`--rationale` is required** — it
+is the one thing the report cannot generate for you. A **bare** `eval --session <slug> --rationale "…"` (no
+patch) re-measures the current config (use it for the opening baseline). The same guardrails apply as `patch`
+(bounds + `profile/*` refusal); a rejected patch aborts the iteration, loud, and journals nothing.
+
+**`suggest` and `sweep` journal nothing** — they are free exploration. Only a committed `eval --session` lands a
+line. **★ `session report` reads only `journal.jsonl` + `config.start.json`/`config.current.json`** — every
+claim in `report.md` traces to a recorded line; nothing is narrated from memory.
+
+The **live session view** (workbench → *Session* tab, endpoints `GET /api/sessions`, `GET /api/session?name=…`)
+polls the active session directory and re-renders the loss curve, pressure heatmap and per-level times as
+iterations land — it re-sims `config.current` through `/api/sim`, holding no economy logic of its own.
+
+The full conversational procedure (goal interview → loop → gated export) is the `/balance_game` skill
+(`.claude/skills/balance_game/SKILL.md`).
 
 ---
 

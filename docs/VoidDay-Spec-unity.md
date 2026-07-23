@@ -323,7 +323,7 @@ Both kinds are **tiered**, with per-tier costs listed explicitly on the `Upgrade
 - **Unlocks:** station types and caps are **auto-granted**; upgrades become **purchasable**.
 - World events unlock at level 5, and most individual events carry their own minimum level.
 
-> **[SO]** The pitch's separate balance tool that "makes direct changes to that same JSON" is superseded — **the Unity inspector is the tuning UI** (CLAUDE.md). Editing an SO in the inspector *is* the balance edit; no separate tool, no write endpoint. See §16.
+> **[SO]** **The Unity inspector remains the authoring surface and the runtime source of truth** (CLAUDE.md): editing an SO in the inspector *is* a balance edit, and the game reads only those assets. Alongside it, an **external balance tool** (`tools/VoidDay.Balance/`) reads those same assets **offline**, simulates the economy headlessly, and — only on explicit confirmation — writes a minimal diff back into the SO `.asset` files. It is a one-way dependency: the tool reads and writes `Assets/`, but **nothing under `Assets/` knows the tool exists** — no asmdef, no menu item, no runtime write endpoint inside the game. The earlier "no separate tool, no write endpoint" wording is superseded by this: the *game* still has no write endpoint; the *offline* tool does its writing outside the running game. See §16 and `docs/BalanceTool-Spec.md`.
 
 ---
 
@@ -544,7 +544,7 @@ Reset lives in the debug menu.
 Explicitly out of scope for the first build. Named here so nobody builds them early.
 
 - **VoidPet Station** — from the original pitch: an area bonus to nearby VoidPets. Deferred, not cut (R2 #8). The `pet.*` effect types (§3.2) are what it will need; `local.*` is station-scoped and will not serve.
-- **[SO] In-game tuning screen — resolved.** The pitch asked for a screen that writes JSON permanently, and the 2D spec deferred it (a browser page can't write to `data/`, so it needed a Vite write endpoint). **In Unity this is moot: the inspector edits SO assets directly and persists them — the in-game tuning UI exists for free** (CLAUDE.md); no write endpoint needed. (A separate balance app the user is building lives outside this spec's scope.)
+- **[SO] In-game tuning screen — resolved.** The pitch asked for a screen that writes JSON permanently, and the 2D spec deferred it (a browser page can't write to `data/`, so it needed a Vite write endpoint). **In Unity this is moot: the inspector edits SO assets directly and persists them — the in-game tuning UI exists for free** (CLAUDE.md); no *in-game* write endpoint needed. Balance tuning at scale is instead served by an **offline external tool** (`tools/VoidDay.Balance/`, spec: `docs/BalanceTool-Spec.md`) that reads the SO assets, simulates the economy headlessly, and writes a confirmed minimal diff back — a one-way dependency the game is unaware of (see §9). It is not an in-game screen and adds nothing to the build.
 - **Save/load** (§13), **offline timer progress** (§13).
 - **Money sinks** beyond building and upgrading — "not right now" (R1 #8).
 

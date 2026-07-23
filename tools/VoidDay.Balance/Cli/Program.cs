@@ -6,13 +6,17 @@ using VoidDay.Balance.Sim;
 using VoidDay.Balance.Unity;
 
 // VoidDay Balance Tool — CLI entrypoint. Verbs: `read` (M01), `write` (M02), `sim` (M03), `serve` (M04),
-// `eval`/`patch`/`suggest`/`sweep`/`report` (M05 — agent primitives).
+// `eval`/`patch`/`suggest`/`sweep`/`report` (M05 — agent primitives), `session` (M07 — balancing sessions).
 // The Unity project is never told this tool exists (spec, the agnosticism rule).
 
 // Bare `dotnet run` (no verb, or only --options) launches the workbench — the DoD's "dotnet run … serves
 // the app". A leading token that isn't a `--option` is the verb.
 var hasVerb = args.Length > 0 && !args[0].StartsWith("--");
 var verb = hasVerb ? args[0] : "serve";
+
+// `session` is a two-word verb (`session start|status|report`); it parses its own options from args[2..].
+if (verb == "session") return SessionCmd(args);
+
 var opts = ParseOptions(hasVerb ? args[1..] : args);
 var projectRoot = opts.GetValueOrDefault("project") ?? FindProjectRoot();
 
@@ -138,22 +142,48 @@ static int Sim(string projectRoot, Dictionary<string, string> opts)
 
 // ---- M05 agent primitives: eval / patch / suggest / sweep / report ----
 
-// Score a config against a goal → one loss + a per-target breakdown. Optionally applies a --patch first
-// (in-memory, guardrailed) so a candidate can be measured without persisting it. Appends one line to runs.jsonl.
+// Score a config against a goal → one loss + a per-target breakdown. Two modes:
+//   • Ad-hoc (`--goal <file>`): sim a version config, optionally with an in-memory `--patch`; appends to the
+//     flat runs.jsonl. Nothing is persisted; a candidate is measured without committing it.
+//   • Session (`--session <name>`): the iteration primitive. Reads config.current + goal.json from the session,
+//     applies an optional patch and PERSISTS it back to config.current, sims, and appends ONE iteration line
+//     (with the required `--rationale`) to the session's journal.jsonl. This is what a tuning loop records.
 static int Eval(string projectRoot, Dictionary<string, string> opts)
 {
-    if (!opts.TryGetValue("goal", out var goalPath))
-    { Console.Error.WriteLine("eval: --goal <file> is required."); return 1; }
+    bool session = opts.ContainsKey("session");
 
-    var config = LoadConfig(projectRoot, opts);
-    var goal = LoadGoal(goalPath);
+    string? sessionDir = null;
+    BalanceConfig config;
+    Goal goal;
 
-    var patchOps = new List<Patch.PatchOp>();
-    if (opts.TryGetValue("patch", out var patchFile))
+    if (session)
     {
-        patchOps = LoadPatch(patchFile);
+        sessionDir = Session.Resolve(projectRoot, opts["session"]);
+        if (!opts.TryGetValue("rationale", out _))
+        { Console.Error.WriteLine("eval --session: --rationale \"why this iteration\" is required — it is the one thing the report cannot generate for you."); return 1; }
+        config = Session.LoadCurrent(sessionDir);
+        goal = Session.LoadGoal(sessionDir);
+    }
+    else
+    {
+        if (!opts.TryGetValue("goal", out var goalPath))
+        { Console.Error.WriteLine("eval: --goal <file> is required (or --session <name>)."); return 1; }
+        config = LoadConfig(projectRoot, opts);
+        goal = LoadGoal(goalPath);
+    }
+
+    // A patch may be supplied as a file (--patch) or a single op (--path/--value).
+    var patchOps = new List<Patch.PatchOp>();
+    if (opts.TryGetValue("patch", out var patchFile)) patchOps = LoadPatch(patchFile);
+    else if (opts.TryGetValue("path", out var p) && opts.TryGetValue("value", out var v))
+        patchOps.Add(new Patch.PatchOp { Op = "set", Path = p, Value = double.Parse(v) });
+
+    if (patchOps.Count > 0)
+    {
         try { config = Patch.Apply(config, patchOps, Bounds.Load(projectRoot)); }
         catch (Patch.PatchRejectedException ex) { Console.Error.WriteLine("refused: " + ex.Message); return 1; }
+        // In a session the patch is a committed step: persist it to the working config before simming.
+        if (session) Session.SaveCurrent(sessionDir!, config);
     }
 
     var (profile, seed, gems) = SimSettings(opts);
@@ -168,16 +198,33 @@ static int Eval(string projectRoot, Dictionary<string, string> opts)
         if (breakdown.ContainsKey(key)) key += $"#{i}";
         breakdown[key] = t.Contribution;
     }
-    Journal.Append(projectRoot, new Journal.RunRecord
+
+    if (session)
     {
-        Ts = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
-        Config = config.Name,
-        Goal = goal.Name,
-        ConfigHash = Journal.ConfigHash(config),
-        Patch = patchOps,
-        Loss = loss.Loss,
-        Breakdown = breakdown
-    });
+        Session.AppendIteration(sessionDir!, new Session.IterationRecord
+        {
+            Iteration = Session.NextIteration(sessionDir!),
+            Ts = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
+            Patch = patchOps,
+            ConfigHash = Journal.ConfigHash(config),
+            Loss = loss.Loss,
+            Breakdown = breakdown,
+            Rationale = opts["rationale"],
+        });
+    }
+    else
+    {
+        Journal.Append(projectRoot, new Journal.RunRecord
+        {
+            Ts = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
+            Config = config.Name,
+            Goal = goal.Name,
+            ConfigHash = Journal.ConfigHash(config),
+            Patch = patchOps,
+            Loss = loss.Loss,
+            Breakdown = breakdown
+        });
+    }
 
     if (opts.ContainsKey("json")) Console.WriteLine(JsonConvert.SerializeObject(loss, Formatting.Indented));
     else Console.Write(GoalEvaluator.Render(loss));
@@ -256,6 +303,98 @@ static int Report(string projectRoot, Dictionary<string, string> opts)
     return 0;
 }
 
+// ---- M07 balancing sessions: session start / status / report ----
+
+// `session <sub> [--options]`. A session is a directory holding one tuning run's durable state; the report is
+// GENERATED from journal.jsonl, never narrated. Parses its own options (args[2..]) and finds its own root.
+static int SessionCmd(string[] args)
+{
+    if (args.Length < 2 || args[1].StartsWith("--"))
+    { Console.Error.WriteLine("usage: balance session <start|status|report> [--options]"); return 1; }
+    var sub = args[1];
+    var opts = ParseOptions(args[2..]);
+    var projectRoot = opts.GetValueOrDefault("project") ?? FindProjectRoot();
+
+    switch (sub)
+    {
+        case "start": return SessionStart(projectRoot, opts);
+        case "status": return SessionStatus(projectRoot, opts);
+        case "report": return SessionReport(projectRoot, opts);
+        default:
+            Console.Error.WriteLine($"session: unknown sub-verb '{sub}' (expected start | status | report).");
+            return 1;
+    }
+}
+
+static int SessionStart(string projectRoot, Dictionary<string, string> opts)
+{
+    if (!opts.TryGetValue("name", out var slug))
+    { Console.Error.WriteLine("session start: --name <slug> is required (the session's short name)."); return 1; }
+    if (!opts.TryGetValue("goal", out var goalPath))
+    { Console.Error.WriteLine("session start: --goal <file> is required (the agreed goal from step 1)."); return 1; }
+    if (!File.Exists(goalPath))
+    { Console.Error.WriteLine($"session start: goal file '{goalPath}' not found."); return 1; }
+
+    var startConfig = LoadConfig(projectRoot, opts);   // --config <name|file>, default baseline
+    var dir = Session.Start(projectRoot, slug, goalPath, startConfig);
+
+    Console.WriteLine($"session started → {dir}");
+    Console.WriteLine("  goal.json / config.start.json / config.current.json / journal.jsonl seeded.");
+    Console.WriteLine($"  iterate:  balance eval --session {Path.GetFileName(dir)} --path <knob> --value <v> --rationale \"why\"");
+    Console.WriteLine($"  status :  balance session status --name {Path.GetFileName(dir)}");
+    Console.WriteLine($"  report :  balance session report --name {Path.GetFileName(dir)}");
+    return 0;
+}
+
+static int SessionStatus(string projectRoot, Dictionary<string, string> opts)
+{
+    var dir = Session.Resolve(projectRoot, opts.GetValueOrDefault("name"));
+    var goal = Session.LoadGoal(dir);
+    var journal = Session.ReadJournal(dir);
+
+    if (opts.ContainsKey("json"))
+    {
+        var payload = new
+        {
+            name = Path.GetFileName(dir),
+            goal = goal.Name,
+            iterations = journal.Count,
+            firstLoss = journal.Count > 0 ? journal[0].Loss : (double?)null,
+            lastLoss = journal.Count > 0 ? journal[^1].Loss : (double?)null,
+            lastRationale = journal.Count > 0 ? journal[^1].Rationale : null,
+        };
+        Console.WriteLine(JsonConvert.SerializeObject(payload, Formatting.Indented));
+        return 0;
+    }
+
+    Console.WriteLine($"session {Path.GetFileName(dir)}   goal '{goal.Name}'   {journal.Count} iteration(s)");
+    if (journal.Count > 0)
+    {
+        Console.WriteLine($"  loss {journal[0].Loss:0.####} → {journal[^1].Loss:0.####}");
+        Console.WriteLine($"  last: {journal[^1].Rationale}");
+    }
+    else Console.WriteLine("  no iterations yet — run `eval --session … --rationale …`.");
+    return 0;
+}
+
+static int SessionReport(string projectRoot, Dictionary<string, string> opts)
+{
+    var dir = Session.Resolve(projectRoot, opts.GetValueOrDefault("name"));
+    var report = Session.GenerateReport(dir);
+    var journal = Session.ReadJournal(dir);
+
+    // Terminal highlights (spec: "present highlights in the terminal, with report.md as the durable record").
+    Console.WriteLine($"report generated → {Path.Combine(dir, "report.md")}");
+    if (journal.Count > 0)
+        Console.WriteLine($"  {journal.Count} iteration(s): loss {journal[0].Loss:0.####} → {journal[^1].Loss:0.####}");
+    var diffs = Session.DiffConfigs(Session.LoadStart(dir), Session.LoadCurrent(dir));
+    Console.WriteLine(diffs.Count == 0
+        ? "  no diff to export — config.current matches config.start."
+        : $"  {diffs.Count} field(s) differ from the config as found (see report's export section).");
+    if (opts.ContainsKey("print")) Console.WriteLine("\n" + report);
+    return 0;
+}
+
 // ---- shared M05 helpers ----
 
 static BalanceConfig LoadConfig(string projectRoot, Dictionary<string, string> opts)
@@ -298,11 +437,14 @@ static void Usage() => Console.Error.WriteLine(
     "  balance read    [--project <dir>] [--out <file>]\n" +
     "  balance write   --config <file> [--project <dir>] [--apply]\n" +
     "  balance sim     [--config <name|file>] [--profile typical|perfect] [--seed N] [--optimality X] [--no-gems] [--json]\n" +
-    "  balance eval    --goal <file> [--config <name|file>] [--patch <file>] [--seed N] [--profile P] [--optimality X] [--no-gems] [--json]\n" +
+    "  balance eval    (--goal <file> | --session <name> --rationale <why>) [--config <name|file>] [--patch <file> | --path <p> --value <v>] [--seed N] [--profile P] [--optimality X] [--no-gems] [--json]\n" +
     "  balance patch   (--patch <file> | --path <p> --value <v>) [--config <name|file>] [--out <file>]\n" +
     "  balance suggest [--config <name|file>] [--seed N] [--profile P] [--optimality X] [--no-gems] [--json]\n" +
     "  balance sweep   --goal <file> --path <knob> --from A --to B [--steps N] [--config <name|file>] [--seed N] [--json]\n" +
-    "  balance report  [--json]");
+    "  balance report  [--json]\n" +
+    "  balance session start  --name <slug> --goal <file> [--config <name|file>]\n" +
+    "  balance session status [--name <slug>] [--json]\n" +
+    "  balance session report [--name <slug>] [--print]");
 
 static Dictionary<string, string> ParseOptions(string[] tokens)
 {
