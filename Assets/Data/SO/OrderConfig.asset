@@ -20,5 +20,5 @@ MonoBehaviour:
   maxQuantityPerLevel: 1
   tierWeightBase: 1
   tierWeightPerLevel: 0.25
-  cashMultiplier: 12
+  cashMultiplier: 3
   xpMultiplier: 1.5

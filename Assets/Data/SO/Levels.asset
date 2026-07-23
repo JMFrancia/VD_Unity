@@ -15,20 +15,23 @@ MonoBehaviour:
   levels:
   - xpThreshold: 0
     grants: []
-  - xpThreshold: 20
+  - xpThreshold: 6
     grants:
     - kind: 3
       targetStation: {fileID: 0}
       amount: 1
-    - kind: 5
+    - kind: 6
       targetStation: {fileID: 0}
-      amount: 100
-  - xpThreshold: 50
+      amount: 5
+  - xpThreshold: 20
     grants:
     - kind: 6
       targetStation: {fileID: 0}
       amount: 2
-  - xpThreshold: 100
+    - kind: 2
+      targetStation: {fileID: 11400000, guid: bc7f0f5d1c60742e896b48c183725eaa, type: 2}
+      amount: 1
+  - xpThreshold: 45
     grants:
     - kind: 4
       targetStation: {fileID: 0}
@@ -36,7 +39,10 @@ MonoBehaviour:
     - kind: 5
       targetStation: {fileID: 0}
       amount: 200
-  - xpThreshold: 175
+    - kind: 2
+      targetStation: {fileID: 11400000, guid: bc7f0f5d1c60742e896b48c183725eaa, type: 2}
+      amount: 1
+  - xpThreshold: 90
     grants:
     - kind: 2
       targetStation: {fileID: 11400000, guid: bc7f0f5d1c60742e896b48c183725eaa, type: 2}
@@ -44,7 +50,7 @@ MonoBehaviour:
     - kind: 5
       targetStation: {fileID: 0}
       amount: 250
-  - xpThreshold: 275
+  - xpThreshold: 180
     grants:
     - kind: 3
       targetStation: {fileID: 0}
@@ -52,12 +58,12 @@ MonoBehaviour:
     - kind: 5
       targetStation: {fileID: 0}
       amount: 300
-  - xpThreshold: 400
+  - xpThreshold: 320
     grants:
     - kind: 5
       targetStation: {fileID: 0}
       amount: 400
-  - xpThreshold: 560
+  - xpThreshold: 500
     grants:
     - kind: 4
       targetStation: {fileID: 0}

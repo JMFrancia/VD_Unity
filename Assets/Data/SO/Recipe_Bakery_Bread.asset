@@ -21,3 +21,4 @@ MonoBehaviour:
   - resource: {fileID: 11400000, guid: 22f6172540a744c699699b7334f2e56c, type: 2}
     amount: 1
   duration: 30
+  unlockLevel: 2

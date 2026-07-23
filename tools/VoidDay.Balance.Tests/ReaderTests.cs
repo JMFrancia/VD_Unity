@@ -39,10 +39,10 @@ public sealed class ReaderTests
         Assert.Equal(20, c.Global.GridCols);
         Assert.Equal(30, c.Global.GridRows);
         Assert.Equal(0.5f, c.Global.RefundPercent);
-        Assert.Equal(30, c.Global.StartingStorageCapacity);
+        Assert.Equal(7, c.Global.StartingStorageCapacity); // progression-v1 rebalance (was 30)
 
         // Gems block
-        Assert.Equal(5, c.Gems.StartingGems);
+        Assert.Equal(0, c.Gems.StartingGems); // progression-v1 rebalance (was 5)
         Assert.Equal(30f, c.Gems.SecondsPerGem);
         Assert.Equal(1, c.Gems.MinGemCost);
 
@@ -59,14 +59,14 @@ public sealed class ReaderTests
         Assert.Equal(1f, c.Orders.MaxQuantityPerLevel);
         Assert.Equal(1f, c.Orders.TierWeightBase);
         Assert.Equal(0.25f, c.Orders.TierWeightPerLevel);
-        Assert.Equal(12f, c.Orders.CashMultiplier);
+        Assert.Equal(3f, c.Orders.CashMultiplier); // progression-v1 rebalance (was 12)
         Assert.Equal(1.5f, c.Orders.XpMultiplier);
 
         // Station Field
         var field = c.Stations.Single(s => s.StationType == "field");
         Assert.True(field.Buildable);
         Assert.Equal(50, field.BuildCost);
-        Assert.Equal(2, field.Cap);
+        Assert.Equal(1, field.Cap); // progression-v1 rebalance (was 2)
         Assert.Equal(1, field.UnlockLevel);
         Assert.Equal(3, field.QueueDepth);
         // buildSeconds is absent from every station asset; Unity applies the SO initializer, 15.
@@ -85,14 +85,17 @@ public sealed class ReaderTests
         Assert.All(siloCap.Tiers, t => Assert.Equal("StorageCap", t.Effects.Single().Type));
         Assert.All(siloCap.Tiers, t => Assert.Equal(25f, t.Effects.Single().Amount));
 
-        // Levels — 20 of them, and level 3 pays 2 gems (not $150), per the gem baseline shift.
+        // Levels — 20 of them. progression-v1 rebalance: level 3's threshold is 20 (was 50), and it now
+        // grants both 2 gems and a +1 field cap (the rebalance's L3 field unlock).
         Assert.Equal(20, c.Levels.Count);
         Assert.Equal(0, c.Levels[0].XpThreshold);
-        Assert.Equal(50, c.Levels[2].XpThreshold);
-        var level3Grant = c.Levels[2].Grants.Single();
-        Assert.Equal("Gems", level3Grant.Kind);
-        Assert.Equal(2, level3Grant.Amount);
-        Assert.Null(level3Grant.TargetStation);
+        Assert.Equal(20, c.Levels[2].XpThreshold);
+        var gems = c.Levels[2].Grants.Single(g => g.Kind == "Gems");
+        Assert.Equal(2, gems.Amount);
+        Assert.Null(gems.TargetStation);
+        var fieldCap = c.Levels[2].Grants.Single(g => g.Kind == "StationCap");
+        Assert.Equal("field", fieldCap.TargetStation);
+        Assert.Equal(1, fieldCap.Amount);
 
         // Starting stations — scanned from the scene, not hardcoded.
         Assert.Equal(1, c.Global.StartingStations.Single(s => s.StationType == "field").Count);

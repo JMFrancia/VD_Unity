@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::VoidDay.Data.UpgradeSO
   id: field.speed
   displayName: Job Speed
-  unlockLevel: 1
+  unlockLevel: 3
   tiers:
   - cost: 50
     effects:

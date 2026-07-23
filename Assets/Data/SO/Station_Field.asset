@@ -18,7 +18,7 @@ MonoBehaviour:
   height: 1
   buildable: 1
   buildCost: 50
-  cap: 2
+  cap: 1
   unlockLevel: 1
   buildThumbnail: {fileID: 21300000, guid: fec57017b68684c32acbea36b9d92471, type: 3}
   prefab: {fileID: 4375642329552315335, guid: e9b5f8337186c4b57a96cb1a914f462f, type: 3}
