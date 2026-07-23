@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>VoidDay.Balance</RootNamespace>
+    <AssemblyName>VoidDay.Balance</AssemblyName>
+    <!-- The whole tool rests on this: Assets/Core is pure C# (VoidDay.Core.asmdef has
+         noEngineReferences:true), so the game's real economy code compiles here and the
+         simulator never reimplements it. Glob it in rather than copy it. -->
+    <EnableDefaultCompileItems>true</EnableDefaultCompileItems>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- The real game economy, compiled standalone. Exclude Unity-only test files
+         (Assets/Tests references the UnityEngine.TestRunner). Core itself is engine-free. -->
+    <Compile Include="..\..\Assets\Core\**\*.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="YamlDotNet" Version="16.2.1" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+  </ItemGroup>
+
+</Project>

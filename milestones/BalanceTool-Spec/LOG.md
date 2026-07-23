@@ -123,3 +123,31 @@ Per completed milestone, append a section in this shape (matching the game's LOG
 **Tech debt:** what was left.
 **Gotchas for later milestones:** traps discovered. Mark load-bearing ones with ★.
 -->
+
+## Milestone 01 — Read the Economy
+**Status:** ✅ Complete · **Date:** 2026-07-22
+_(sha not recorded here — the entry ships inside its own commit; the milestone number in the commit message is the link.)_
+
+**Built:**
+- `.gitignore` fix FIRST: `!tools/**/*.csproj`, `tools/**/bin/`, `tools/**/obj/` (verified a tools csproj is no longer swept up by the bare `*.csproj` / root-anchored `/[Oo]bj/`).
+- `tools/VoidDay.Balance/` (net9.0 exe, YamlDotNet 16.2.1 + Newtonsoft.Json 13.0.3), globbing `../../Assets/Core/**/*.cs`.
+  - `Unity/GuidIndex.cs` (scan `Assets/**/*.meta` → guid→path), `Unity/AssetReader.cs` (5-line fail-loud preprocessor + YamlDotNet, ref resolution), `Unity/SceneScanner.cs` (line-scan `Farm.unity` `m_SourcePrefab`, keep `Assets/Prefabs/Stations/`), `Unity/RawAssets.cs` (raw camelCase DTOs), `Unity/EconomyReader.cs` (traversal + enum mapping via real Core enums), `Schema/BalanceConfig.cs`, `Cli/Program.cs` (`read --project --out`).
+- `tools/VoidDay.Balance.Tests/` (xUnit) — the two spec-mandated M01 guards.
+- `tools/VoidDay.Balance/versions/baseline.json`.
+
+**Verified:**
+- **Core compiles standalone under net9.0** — the whole-tool assumption. Only Nullable-context warnings, zero errors.
+- `read` → 8 stations, 12 recipes, 8 upgrades, 10 resources, 20 levels. Every DoD spot-check matches the inspector: grid 20/30/1, refund 0.5, storage 30; gems 5/30/1; xp 2/5; orders all 10 fields; Field cap 2 / cost 50 / unlock 1 / queue 3; `field.wheatGrow` dur 5; `silo.cap` tiers 120/300/700, effect amt 25; 20 thresholds; **level 3 = 2 gems (not $150)**; startingStations Field/Silo/OrderBoard = 1 each (scanned).
+- Enums are strings (no int discriminators). Fail-loud confirmed: hiding a referenced resource's `.meta` throws `Unresolvable GUID …` naming the guid; `git status Assets/` clean after restore. Two `read` runs byte-identical (deterministic). `dotnet test` → 2/2 pass.
+- **NOT verified:** in-editor Unity behaviour (this run never opens the editor, by design).
+
+**Deviations from the plan:** none of substance. Schema type `ResourceAmount` renamed to `ResourceQuantity` to avoid a clash with `VoidDay.Core.Model.ResourceAmount` (the tool compiles Core, so both are in scope).
+
+**Tech debt:** the tool's csproj sets `Nullable=enable`, so Core's non-nullable-context code emits ~30 harmless warnings on every build. Cosmetic; left as-is.
+
+**Gotchas for later milestones:**
+- ★ **`buildSeconds` is absent from all 8 station assets** (the field post-dates them); `perStationBuilt` is absent from `XpConfig.asset`. Unity applies the SO field initializer (15f, 5) to such fields, so the *game* sees those defaults — confirmed by `plans/build-timers.md` ("`buildSeconds` defaults to 15 on every existing Station SO"). The reader mirrors this: raw DTO defaults equal the SO initializers, so an absent scalar reproduces exactly what Unity loads. **A present-but-unresolvable object *reference* still throws loud** — the two paths are distinct. **M03's construction-delay sim inherits buildSeconds = 15 for every station.** If any station's asset gains an explicit `buildSeconds:` later, the reader picks it up automatically.
+- ★ **Schema shape (`BalanceConfig` + sub-configs) is set here; M02 writer and M03 sim inherit it.** Enums are names, references are resolved to ids, `LevelGrantConfig.TargetStation` is a stationType string or `null` (= all stations).
+- **`versions/` lives at `tools/VoidDay.Balance/versions/`** (spec arch diagram + Config table), not repo root. `--out` defaults there regardless of cwd; `--project` is discovered by walking up to the folder with `Assets/` + `.gitignore`.
+- Resources are reached only via recipe I/O + `startingResources`; the resource cache must be fully populated (recipes/upgrades projected) before resources are emitted (a bug caught in build: resources projected too early → only the 2 starting resources).
+- Two resource assets are `CropSO` (a `ResourceSO` subclass with an extra `cropSprite`); the reader reads by field name and ignores unmatched properties, so the subclass is transparent.
