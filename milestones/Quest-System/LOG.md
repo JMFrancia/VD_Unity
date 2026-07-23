@@ -239,3 +239,66 @@ Context specifies; no engine/data touched.)
   `ToastController._bus` (private).
 - `M3`'s progress pill must NOT also toast on grant — the toast is the *granted* announcement, the pill owns
   progress/completion. Kept strictly to `QuestGranted` here.
+
+## Milestone 03 — Progress Pill
+**Status:** ✅ Complete · **Date:** 2026-07-23
+
+**Built:** The live progress-feedback surface. View-only, zero engine/data change.
+- **View:** `View/QuestPill.cs` (new) — a single newest-wins pill. Subscribes `QuestGranted` (caches id→desc, the
+  only quest event carrying the text — a grant does NOT drop a pill), `QuestProgressed` (drop from behind the XP
+  bar, chase bar to new fraction, hold `progressHoldSeconds`, retract), `QuestCompleted` (hold ≥20s flashing green,
+  tappable), `QuestCollected` (retract if it's the shown quest). Tapping publishes `CollectQuestRequested` (M1's
+  intent) → reward + XP-burst particles via the existing collect path. Slide mirrors `ResourcePillRail` (DOTween
+  DOAnchorPos/DOFade/DOScale + `hidePoint`); bar chase mirrors `LevelXpHud` (`MoveTowards`, so it creeps not snaps).
+- **View:** `View/Hud.cs` — quest-button green-glow flash. `HashSet<string> _uncollectedCompleted` (add on
+  `QuestCompleted`, remove on `QuestCollected`); `Update()` pulses `questButtonGlow` alpha (sin) while the set is
+  non-empty, restores 0 when empty. New fields `questButtonGlow` (Graphic) + `questFlashPeriod`.
+- **Boot:** `GameBoot` — `questPill` `[SerializeField]` + `questPill.Init(bus)` + `RequireWired` entry.
+- **Prefab/Scene:** `Prefabs/UI/QuestPill.prefab` (new) — cream `rounded_30` pill 380×88 (Description Text +
+  BarTrack/BarFill `rounded_8` Filled-Horizontal green + Percent Text + CanvasGroup + Button). Instance under
+  `HudCanvas` top-center @ `{0,-128}`, sibling **behind** `LevelXpPill` so it emerges from behind the XP bar;
+  `hidePoint`→`LevelXpPill` (instance override). `HudCanvas/QuestButtonGlow` — green `rounded_30` halo behind the
+  gold Q button, alpha driven by `Hud`.
+
+**Deviations from the plan:** none material. Pill/glow chrome is placeholder (doc-sanctioned `[placeholder OK]`),
+built from the same cream/green/`rounded_*` vocabulary as the XP pill and quest rows to match Figma frame 04.
+
+**Tech debt:**
+- The completion flash tints the pill **background** cream→green (clear, readable). The Figma completion card has a
+  richer "Quest complete! → TAP TO COLLECT" two-line treatment; folded into a single `completionPrompt` string +
+  bg-tint flash. A polish pass wanting the exact card look needs more chrome on the prefab.
+- Button flash is a green halo Image behind the gold button (placeholder for the mockup's glowing green ring).
+- No `GameReset` handling on pill or the Hud flash-set — matches M1's `QuestLog`, which persists quests across the
+  debug reset (its own noted debt). If M-later adds reset-requgrant, clear `_uncollectedCompleted` + retract the pill.
+
+**Assumptions:**
+- **Newest-progress-wins on ONE pill** (doc's explicit cut). A `QuestProgressed`/`QuestCompleted` for a different
+  quest refreshes the same pill; a different quest's progress will even interrupt a completion flash. Safe because
+  the button-glow safety net keeps flashing for any still-uncollected completion, so a bumped completion is never
+  lost — just relocated from pill to button.
+- **Button flashes while ANY quest is completed-but-uncollected** (Build This's first sentence), which *includes*
+  the pill's own 20s completion window — chosen over the bullet's "past the pill window" phrasing because the
+  Context forbids adding events, and a pill→button handoff with no coupling would need one. Simplest event-only
+  reading. If a designer wants the button to stay dark until the pill lapses, that needs pill→Hud coupling or a new
+  event (contract change → not this milestone).
+- Bar snaps to 0 when the pill switches to a *different* quest (so the new quest fills up rather than sliding down
+  from the old value); a same-quest refresh animates from its current fill.
+
+**Verified (automated, no user):** boot clean + `RequireWired` passed. Progress cycle: drop → bar chases 0→0.40
+(MoveTowards) → hold → retract, all via real-bus events. Completion: `Completion` state, tappable, `Complete! Tap
+to collect`, 20s hold, bg flashes green; 20s-lapse-untapped retracts AND leaves the button glow pulsing
+(glowAlpha≈0.22 while set non-empty); collecting clears the set → glow off. **Real-quest tap:** +$100 completed
+`quest.starter` → pill Completion → real `button.onClick` collected it (removed from active, XP reward applied,
+level 1→3), pill retracted, glow cleared. Live screenshot shows the green completion pill directly below the level
+bar (matches Figma 04). Sole exception in the run = the known pre-existing `SFXManager.cs:141` level-up-SFX
+`KeyNotFoundException` (dirty audio work), not quest code.
+
+**Gotchas for later milestones:**
+- The pill listens to quest **facts** only and never references `QuestLog` (rule 2). Descriptions come from
+  `QuestGranted`; if a future path ever emits `QuestProgressed`/`QuestCompleted` for a quest **without** a prior
+  `QuestGranted`, the pill shows a blank description. Every quest is granted before it can progress, so this holds.
+- `QuestPill` private state (`_state`, `_currentId`, `_targetFill`, `_holdRemaining`) and `Hud._uncollectedCompleted`
+  are the cleanest headless read/drive points; `_bus` is reflectable off `QuestPill`/`Hud`/`ToastController`.
+- Tool round-trip latency means many real seconds pass between `script-execute` calls — a 2.2s progress hold or a
+  20s completion hold will have **already elapsed** by the next read. Read timers/alpha immediately, or drive +
+  read in the *same* `script-execute`, not across calls.

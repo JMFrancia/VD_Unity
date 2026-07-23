@@ -4402,6 +4402,81 @@ MonoBehaviour:
   m_ChildScaleWidth: 0
   m_ChildScaleHeight: 0
   m_ReverseArrangement: 0
+--- !u!1 &523500504
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 523500505}
+  - component: {fileID: 523500507}
+  - component: {fileID: 523500506}
+  m_Layer: 0
+  m_Name: QuestButtonGlow
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!224 &523500505
+RectTransform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 523500504}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 567045138}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_AnchorMin: {x: 0, y: 1}
+  m_AnchorMax: {x: 0, y: 1}
+  m_AnchoredPosition: {x: 12, y: -140}
+  m_SizeDelta: {x: 128, y: 128}
+  m_Pivot: {x: 0, y: 1}
+--- !u!114 &523500506
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 523500504}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
+  m_Material: {fileID: 0}
+  m_Color: {r: 0.49, g: 0.745, b: 0.353, a: 0}
+  m_RaycastTarget: 0
+  m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
+  m_Maskable: 1
+  m_OnCullStateChanged:
+    m_PersistentCalls:
+      m_Calls: []
+  m_Sprite: {fileID: 21300000, guid: 9b7193238e47948fd8d64d7b645fb128, type: 3}
+  m_Type: 1
+  m_PreserveAspect: 0
+  m_FillCenter: 1
+  m_FillMethod: 4
+  m_FillAmount: 1
+  m_FillClockwise: 1
+  m_FillOrigin: 0
+  m_UseSpriteMesh: 0
+  m_PixelsPerUnitMultiplier: 1
+--- !u!222 &523500507
+CanvasRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 523500504}
+  m_CullTransparentMesh: 1
 --- !u!1 &540354693
 GameObject:
   m_ObjectHideFlags: 0
@@ -4625,6 +4700,8 @@ MonoBehaviour:
   cheatMoneyAmount: 100
   cheatGemAmount: 3
   gemFormat: '{0}'
+  questButtonGlow: {fileID: 523500506}
+  questFlashPeriod: 0.8
 --- !u!224 &567045138
 RectTransform:
   m_ObjectHideFlags: 0
@@ -4645,9 +4722,11 @@ RectTransform:
   - {fileID: 281774143}
   - {fileID: 941715037}
   - {fileID: 891442544}
+  - {fileID: 421761381316870379}
   - {fileID: 110658763}
   - {fileID: 1437424170}
   - {fileID: 465357486}
+  - {fileID: 523500505}
   - {fileID: 946668766}
   - {fileID: 1259863092}
   m_Father: {fileID: 0}
@@ -9882,6 +9961,7 @@ MonoBehaviour:
   sfxController: {fileID: 1598480622}
   toastController: {fileID: 1437424169}
   questMenuPanel: {fileID: 1259863093}
+  questPill: {fileID: 421761381316870380}
   stationFlattenMask: {fileID: 2044472978}
   musicManager: {fileID: 1598480619}
   orderSeed: 12345
@@ -16719,7 +16799,7 @@ RectTransform:
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 0, y: 1}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 0, y: 0}
+  m_SizeDelta: {x: 48, y: 0}
   m_Pivot: {x: 0, y: 0.5}
 --- !u!114 &1603150006
 MonoBehaviour:
@@ -19540,6 +19620,123 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2123565688}
   m_CullTransparentMesh: 1
+--- !u!1001 &421761381316870378
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 567045138}
+    m_Modifications:
+    - target: {fileID: 542034635572911956, guid: 8a23694dd72af4a8582351c5a97b503f, type: 3}
+      propertyPath: hidePoint
+      value: 
+      objectReference: {fileID: 110658763}
+    - target: {fileID: 3980586163754974619, guid: 8a23694dd72af4a8582351c5a97b503f, type: 3}
+      propertyPath: m_Pivot.x
+      value: 0.5
+      objectReference: {fileID: 0}
+    - target: {fileID: 3980586163754974619, guid: 8a23694dd72af4a8582351c5a97b503f, type: 3}
+      propertyPath: m_Pivot.y
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 3980586163754974619, guid: 8a23694dd72af4a8582351c5a97b503f, type: 3}
+      propertyPath: m_AnchorMax.x
+      value: 0.5
+      objectReference: {fileID: 0}
+    - target: {fileID: 3980586163754974619, guid: 8a23694dd72af4a8582351c5a97b503f, type: 3}
+      propertyPath: m_AnchorMax.y
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 3980586163754974619, guid: 8a23694dd72af4a8582351c5a97b503f, type: 3}
+      propertyPath: m_AnchorMin.x
+      value: 0.5
+      objectReference: {fileID: 0}
+    - target: {fileID: 3980586163754974619, guid: 8a23694dd72af4a8582351c5a97b503f, type: 3}
+      propertyPath: m_AnchorMin.y
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 3980586163754974619, guid: 8a23694dd72af4a8582351c5a97b503f, type: 3}
+      propertyPath: m_SizeDelta.x
+      value: 380
+      objectReference: {fileID: 0}
+    - target: {fileID: 3980586163754974619, guid: 8a23694dd72af4a8582351c5a97b503f, type: 3}
+      propertyPath: m_SizeDelta.y
+      value: 88
+      objectReference: {fileID: 0}
+    - target: {fileID: 3980586163754974619, guid: 8a23694dd72af4a8582351c5a97b503f, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3980586163754974619, guid: 8a23694dd72af4a8582351c5a97b503f, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3980586163754974619, guid: 8a23694dd72af4a8582351c5a97b503f, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3980586163754974619, guid: 8a23694dd72af4a8582351c5a97b503f, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 3980586163754974619, guid: 8a23694dd72af4a8582351c5a97b503f, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3980586163754974619, guid: 8a23694dd72af4a8582351c5a97b503f, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3980586163754974619, guid: 8a23694dd72af4a8582351c5a97b503f, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3980586163754974619, guid: 8a23694dd72af4a8582351c5a97b503f, type: 3}
+      propertyPath: m_AnchoredPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3980586163754974619, guid: 8a23694dd72af4a8582351c5a97b503f, type: 3}
+      propertyPath: m_AnchoredPosition.y
+      value: -128
+      objectReference: {fileID: 0}
+    - target: {fileID: 3980586163754974619, guid: 8a23694dd72af4a8582351c5a97b503f, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3980586163754974619, guid: 8a23694dd72af4a8582351c5a97b503f, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3980586163754974619, guid: 8a23694dd72af4a8582351c5a97b503f, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5119399120638612501, guid: 8a23694dd72af4a8582351c5a97b503f, type: 3}
+      propertyPath: m_Name
+      value: QuestPill
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: 8a23694dd72af4a8582351c5a97b503f, type: 3}
+--- !u!224 &421761381316870379 stripped
+RectTransform:
+  m_CorrespondingSourceObject: {fileID: 3980586163754974619, guid: 8a23694dd72af4a8582351c5a97b503f, type: 3}
+  m_PrefabInstance: {fileID: 421761381316870378}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &421761381316870380 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 542034635572911956, guid: 8a23694dd72af4a8582351c5a97b503f, type: 3}
+  m_PrefabInstance: {fileID: 421761381316870378}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b7be2f483654349c597fc6f71a1a937c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::VoidDay.View.QuestPill
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

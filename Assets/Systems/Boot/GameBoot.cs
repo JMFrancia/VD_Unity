@@ -46,6 +46,7 @@ namespace VoidDay.Systems
         [SerializeField] SfxController sfxController;
         [SerializeField] ToastController toastController;
         [SerializeField] QuestMenuPanel questMenuPanel;
+        [SerializeField] QuestPill questPill;
         [SerializeField] StationFlattenMask stationFlattenMask;
         [SerializeField] MusicManager musicManager;
 
@@ -237,6 +238,7 @@ namespace VoidDay.Systems
             sfxController.Init(bus);
             toastController.Init(bus);
             questMenuPanel.Init(bus, questLog);
+            questPill.Init(bus);
             stationFlattenMask.Init(bus, roots);
             musicManager.Init(bus);
 
@@ -277,6 +279,7 @@ namespace VoidDay.Systems
             Require(siloPanel, nameof(siloPanel));
             Require(sfxController, nameof(sfxController));
             Require(questMenuPanel, nameof(questMenuPanel));
+            Require(questPill, nameof(questPill));
             Require(stationFlattenMask, nameof(stationFlattenMask));
             Require(musicManager, nameof(musicManager));
         }
