@@ -58,6 +58,21 @@ Once the specification was stable, I ran three preproduction workstreams in para
 - Converted the specification into concrete UI requirements, then used the Figma MCP to produce and approve interface mockups before any Unity UI work began.
 - Decomposed the specification into milestone documents with the relevant UI and asset references attached to each milestone.
 
+<p align="center">
+  <img src="docs/media/assets-3d-stations.png" alt="Asset review page showing the eight baked 3D station models — field, henhouse, pasture, creamery, bakery, order board, silo, workshop — side by side" width="820"><br>
+  <em>The asset review page — all eight baked 3D station models reviewed side by side before import.</em>
+</p>
+
+<p align="center">
+  <img src="docs/media/assets-2d-icons.png" alt="Asset review page showing generated 2D resource icons rendered on both the warm-UI and void backdrop tones" width="820"><br>
+  <em>The 2D side of the same pipeline — resource icons generated as transparent cutouts and checked against both the warm-UI and void backdrops they appear on.</em>
+</p>
+
+<p align="center">
+  <img src="docs/media/figma-mockups.png" alt="Figma file showing the full set of VoidDay UI mockup frames laid out on one page" width="820"><br>
+  <em>The Figma mockups — every UI surface (HUD, station panel, order board, build menu, popups) mocked up and approved before any Unity UI work began.</em>
+</p>
+
 ### Implementation and Human-Guided Iteration
 
 I implemented the selected milestones in Unity through MCP, handling them individually so that I could playtest and evaluate the result between each stage.
@@ -78,6 +93,16 @@ To make progression tuning faster, I built a separate headless economy simulator
 
 The tool reads the Unity project but nothing under `Assets/` knows the tool exists — a strict one-way dependency. This separated economy iteration from moment-to-moment game implementation and made both manual and agent-assisted balancing faster.
 
+<p align="center">
+  <img src="docs/media/sim-config.png" alt="The economy simulator workbench — a browser UI for editing global tunables, XP, gems, starting resources, and stations, with a Push to Unity button" width="820"><br>
+  <em>The workbench — every economy tunable editable in one place, with a gated <strong>Push to Unity</strong> that writes a minimal diff back into the ScriptableObject assets.</em>
+</p>
+
+<p align="center">
+  <img src="docs/media/sim-results.png" alt="The simulator's raw per-level table for a seeded run — duration, cash in/out, orders, jobs, gems, and the dominant bottleneck at each level" width="820"><br>
+  <em>A seeded progression run, headless — per-level duration, cash flow, order/job counts, and the dominant bottleneck, scored against a stated balance goal (here, optimality 0.65).</em>
+</p>
+
 <details>
 <summary><strong>AI Workflow Details</strong></summary>
 
@@ -97,7 +122,8 @@ Although I created both single-milestone and one-shot implementation paths, I us
 
 ## Key Tradeoffs
 
-- **Cut VoidPets and world events to deepen the core loop.** The collectible/social layer is what a Hay Day clone is tempted to lead with; I judged that a solid economy was the thing worth getting right first, and a shallow version of everything would have felt like disconnected systems.
+- **Cut VoidPets and world events to deepen the core loop.** When I worked on Evergrove (another mobile farming game with pet collection) the feedback we kept getting from players was how much they loved the pets, who could be assigned to automate stations. I designed features (well-recieved, but never implemented) to make them feel more alive, and have more personality. They would each have personalities, develop opinions, and form relationships with one another granting bonuses. I believe it would have added some interesting dimensionality to the game both from a mechanical and narrative perspective, especially since Evergrove was meant to have a stronger narrative component than it wound up with.
+
 - **Rebuilt the project's foundation mid-stream.** The agent's initial approach generated the entire scene and UI hierarchy in code at runtime, with no prefabs. It ran, but it was structurally wrong for Unity and would have made every later art and layout task painful. I stopped and re-established authored scenes/prefabs and a data-driven architecture as a hard rule before continuing.
 - **Prioritized game-feel over feature breadth late in the build.** The last additions were juice (collection particles) and a convenience currency (gem skips) rather than new systems, because playtesting said the loop needed to *feel* better more than it needed to be bigger.
 
@@ -122,3 +148,5 @@ Although I created both single-milestone and one-shot implementation paths, I us
 ## Build and Shipping
 
 The game was built for WebGL and published on Unity Play.
+
+*Thanks for playing!*
