@@ -109,7 +109,7 @@ Although I created both single-milestone and one-shot implementation paths, I us
 
 ## What I Would Build Next
 
-- **VoidPets** — the hatch/assign/auto-collect layer, which is the designed relief valve for the collection friction and the most natural next system.
+- **VoidPets** — the hatch/assign/auto-collect layer, which is the designed relief valve for the collection friction, while adding narrative/collection elements.
 - **Deeper economy tuning** using the simulator to smooth progression pacing across levels.
 
 ## Running the Project Locally
@@ -121,4 +121,4 @@ Although I created both single-milestone and one-shot implementation paths, I us
 
 ## Build and Shipping
 
-The game was built for WebGL and published on itch.io.
+The game was built for WebGL and published on Unity Play.
