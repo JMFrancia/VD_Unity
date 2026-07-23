@@ -1,0 +1,25 @@
+{
+  "Name": "quest-pacing",
+  "Targets": [
+    {
+      "Metric": "quest.completions",
+      "Level": null,
+      "Levels": "2-5",
+      "Category": null,
+      "Min": 1.0,
+      "Max": null,
+      "MaxRank": null,
+      "Weight": 1.0
+    },
+    {
+      "Metric": "quest.rewardShare",
+      "Level": null,
+      "Levels": "2-5",
+      "Category": null,
+      "Min": null,
+      "Max": 0.3,
+      "MaxRank": null,
+      "Weight": 1.0
+    }
+  ]
+}
